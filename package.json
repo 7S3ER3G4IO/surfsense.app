@@ -13,6 +13,7 @@
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "fast-xml-parser": "^4.4.0",
+    "pg": "^8.11.3",
     "rss-parser": "^3.13.0"
   }
 }
