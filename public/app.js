@@ -968,3 +968,18 @@ window.addEventListener("load", () => {
     }
   });
 });
+
+// AFFICHER BANNIÈRE COOKIES
+window.addEventListener("load", () => {
+    if (!localStorage.getItem("surfSenseCookies")) {
+        setTimeout(() => {
+            const banner = document.getElementById("cookie-banner");
+            if (banner) banner.style.display = "block";
+        }, 2000); // Apparaît après 2 secondes
+    }
+});
+
+window.acceptCookies = () => {
+    localStorage.setItem("surfSenseCookies", "accepted");
+    document.getElementById("cookie-banner").style.display = "none";
+};

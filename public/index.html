@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="fr">
   <head>
+    <meta name="theme-color" content="#080a12">
+<link rel="apple-touch-icon" href="logo.svg">
     <meta property="og:title" content="SurfSense Premium - Prévisions IA" />
     <meta property="og:description" content="Accédez aux données satellites, à l'analyse par 11 robots et aux webcams HD. Le forecast réinventé." />
     <meta property="og:image" content="https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=1200" />
@@ -434,5 +436,13 @@
         </div>
       </div>
     </div>
+    <div id="cookie-banner" style="display:none; position:fixed; bottom:20px; left:20px; right:20px; max-width:500px; background:rgba(8,10,18,0.95); border:1px solid var(--accent); padding:15px; border-radius:12px; z-index:9999; backdrop-filter:blur(10px); box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
+        <p style="margin:0; font-size:0.8rem; color:#94a3b8; line-height:1.4;">
+            <strong style="color:#fff;">TERMINAL SURFSENSE :</strong> Nous utilisons le stockage local strictement pour maintenir votre session agent ouverte (Aucun traçage pub).
+        </p>
+        <button onclick="acceptCookies()" class="primary" style="padding:8px 15px; font-size:0.75rem; white-space:nowrap;">COMPRIS</button>
+    </div>
+</div>
   </body>
 </html>

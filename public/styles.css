@@ -2985,3 +2985,60 @@ a { color: inherit; text-decoration: none; }
         width: 250px; /* Plus petit pour ne pas sortir de l'écran */
     }
 }
+
+/* ==========================================================================
+   📱 CORRECTIF ACCORDÉON MÉTÉO (MOBILE)
+   ========================================================================== */
+@media (max-width: 768px) {
+    .day-header {
+        padding: 12px 10px; /* On réduit l'espace intérieur */
+        gap: 5px; /* On utilise un petit gap auto */
+    }
+
+    /* La colonne de la date (Mar 10) */
+    .day-header > div:first-child {
+        min-width: 50px !important; 
+    }
+    .day-date {
+        font-size: 0.85rem;
+    }
+
+    /* Le badge "MAUVAIS / BON" */
+    .quality-badge {
+        font-size: 0.65rem;
+        padding: 4px 6px;
+        letter-spacing: 0;
+    }
+
+    /* Le bloc central (Houle & Vent) */
+    .surf-stats-group {
+        margin-left: 0 !important; /* On retire la marge de 20px qui écrasait tout */
+        flex: 1;
+        min-width: 0; /* Permet au texte de ne pas déborder */
+    }
+
+    /* Ligne Principale : 1.8m | 35 km/h */
+    .surf-primary {
+        font-size: 0.85rem !important;
+        white-space: nowrap; /* 🔥 LE SECRET : Force sur une seule ligne */
+    }
+
+    /* Ligne Secondaire : Période & Énergie */
+    .surf-secondary {
+        font-size: 0.65rem !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis; /* Ajoute "..." si c'est trop long */
+        display: block;
+    }
+
+    /* La pilule météo (Température) */
+    .weather-pill {
+        padding: 4px 6px;
+        font-size: 0.75rem;
+    }
+    
+    .day-arrow {
+        margin-left: 5px;
+    }
+}
