@@ -31,3 +31,4 @@ Ouvrir ensuite `http://localhost:8000/index.html`.
 - La clé Stormglass reste côté serveur (jamais exposée au front).
 - Les données sont mises en cache : 10 min (marine/tide/top-spots), 15 min (news).
 # surfsense-app
+# surfsense.app
