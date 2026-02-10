@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
+import pg from "pg"; // Module pour la base de données
 import Parser from "rss-parser";
 import { fileURLToPath } from "url";
 import { spots } from "./spots.js";
@@ -11,6 +12,15 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 const parser = new Parser();
+
+// --- CONFIGURATION BASE DE DONNÉES RENDER ---
+const dbUrl = process.env.INTERNAL_DATABASE_URL || process.env.DATABASE_URL;
+
+const pool = new pg.Pool({
+    connectionString: dbUrl,
+    ssl: process.env.RENDER ? { rejectUnauthorized: false } : false
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- CONFIGURATION DES ROBOTS SURFSENSE (LOGS IMMERSIFS) ---
@@ -36,8 +46,7 @@ const robotLog = (robot, status = "OK", details = "") => {
 };
 
 // --- CONFIGURATION SÉCURISÉE ---
-const STORMGLASS_API_KEY = "91e3ecb4-0596-11f1-b82f-0242ac120004-91e3ed18-0596-11f1-b82f-0242ac120004";
-const CACHE_FILE = "./cache.json";
+const STORMGLASS_API_KEY = process.env.STORMGLASS_API_KEY || "91e3ecb4-0596-11f1-b82f-0242ac120004-91e3ed18-0596-11f1-b82f-0242ac120004";
 
 // --- RÉGLAGES ÉCONOMIQUES ---
 const MAX_DAILY_CALLS = 480; 
@@ -59,27 +68,75 @@ const fallbackImages = [
     "https://images.unsplash.com/photo-1528150395403-992a693e26c8?w=800"
 ];
 
-const loadCache = () => {
-  try {
-    if (fs.existsSync(CACHE_FILE)) {
-      const data = fs.readFileSync(CACHE_FILE, "utf8");
-      return new Map(JSON.parse(data));
+// --- GESTION CACHE & BASE DE DONNÉES ---
+const cache = new Map(); // Mémoire vive pour la rapidité
+
+const initDB = async () => {
+    try {
+        // 1. Créer la table si elle n'existe pas
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS cache (
+                key TEXT PRIMARY KEY,
+                data JSONB,
+                expires BIGINT
+            );
+        `);
+        console.log("✅ [DB] Base de données connectée.");
+
+        // 2. Vérifier si migration nécessaire
+        const countRes = await pool.query("SELECT COUNT(*) FROM cache");
+        if (parseInt(countRes.rows[0].count) === 0) {
+            console.log("📂 [MIGRATION] Base vide. Importation de cache.json...");
+            await migrateLocalCacheToDB();
+        }
+
+        // 3. Charger les données dans la RAM
+        await loadCacheFromDB();
+    } catch (err) {
+        console.error("❌ [DB CRITICAL] Erreur connexion:", err.message);
     }
-  } catch (e) { console.error("⚠️ Nouveau stockage initialisé."); }
-  return new Map();
 };
 
-const saveCache = () => {
-  try {
-    const data = JSON.stringify(Array.from(cache.entries()));
-    fs.writeFileSync(CACHE_FILE, data, "utf8");
-  } catch (e) { console.error("❌ Erreur sauvegarde stockage."); }
+const migrateLocalCacheToDB = async () => {
+    const localCachePath = path.join(__dirname, "cache.json");
+    if (fs.existsSync(localCachePath)) {
+        try {
+            const raw = fs.readFileSync(localCachePath, "utf8");
+            const data = JSON.parse(raw);
+            for (const [key, value] of data) {
+                await pool.query(
+                    `INSERT INTO cache (key, data, expires) VALUES ($1, $2, $3) ON CONFLICT (key) DO NOTHING`,
+                    [key, JSON.stringify(value.data), value.expires]
+                );
+            }
+            console.log("✅ [MIGRATION] Succès !");
+        } catch (e) { console.error("❌ Erreur migration:", e); }
+    }
 };
 
-const cache = loadCache();
+const loadCacheFromDB = async () => {
+    try {
+        const res = await pool.query("SELECT * FROM cache");
+        res.rows.forEach(row => {
+            cache.set(row.key, { data: row.data, expires: parseInt(row.expires) });
+        });
+        console.log(`📥 [DB LOAD] ${cache.size} spots chargés en mémoire.`);
+    } catch (e) { console.error("⚠️ Erreur lecture DB:", e.message); }
+};
+
+const saveToDB = async (key, data, expires) => {
+    try {
+        const query = `
+            INSERT INTO cache (key, data, expires) 
+            VALUES ($1, $2, $3)
+            ON CONFLICT (key) 
+            DO UPDATE SET data = EXCLUDED.data, expires = EXCLUDED.expires;
+        `;
+        await pool.query(query, [key, JSON.stringify(data), expires]);
+    } catch (e) { console.error("❌ Erreur sauvegarde DB:", e.message); }
+};
 
 app.use(cors());
-app.use(express.static(path.join(__dirname, 'public')));
 
 // --- MIDDLEWARE DE MONITORING API ---
 app.use((req, res, next) => {
@@ -150,12 +207,13 @@ const runTideMaster = async () => {
           time: e.time
         }));
       
-      cache.set(key, { 
-        data: { allTides: futureTides, stage: futureTides[0]?.stage || "Stable" }, 
-        expires: now + (12 * 60 * 60 * 1000) 
-      });
+      const dataToStore = { allTides: futureTides, stage: futureTides[0]?.stage || "Stable" };
+      const expiresAt = now + (12 * 60 * 60 * 1000);
+
+      cache.set(key, { data: dataToStore, expires: expiresAt });
+      saveToDB(key, dataToStore, expiresAt); // Sauvegarde DB
+      
       apiCallCount++;
-      saveCache();
       robotLog(ROBOTS.TIDE, "UPDATE", spot.name);
     } catch (e) { robotLog(ROBOTS.TIDE, "ERROR", spot.name); }
   }
@@ -244,8 +302,10 @@ const getDataSmart = async (lat, lng, spotName = "Inconnu", isAuto = false) => {
       source: "LIVE PREMIUM"
     };
 
-    cache.set(key, { data: realData, expires: now + CACHE_DURATION });
-    saveCache(); 
+    const expiresAt = now + CACHE_DURATION;
+    cache.set(key, { data: realData, expires: expiresAt });
+    saveToDB(key, realData, expiresAt); // Sauvegarde DB
+    
     apiCallCount++;
     return realData;
   } catch (e) {
@@ -295,6 +355,8 @@ app.get("/api/all-status", (req, res) => {
 app.listen(PORT, () => {
     console.log("\n\x1b[44m\x1b[37m  SURFSENSE PREMIUM v2.0 - SYSTÈME OPÉRATIONNEL  \x1b[0m\n");
     
+    initDB(); // Initialisation et Migration DB
+
     // Boot visuel des robots
     const startupRobots = Object.values(ROBOTS).slice(0, 6);
     startupRobots.forEach((robot, index) => {
