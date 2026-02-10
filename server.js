@@ -79,7 +79,7 @@ const saveCache = () => {
 const cache = loadCache();
 
 app.use(cors());
-app.use(express.static(path.join(__dirname, '../main')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // --- MIDDLEWARE DE MONITORING API ---
 app.use((req, res, next) => {

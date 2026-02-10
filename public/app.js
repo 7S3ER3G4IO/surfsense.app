@@ -1,5 +1,5 @@
 /* ==========================================================================
-   APP.JS - VERSION ULTIME & CORRIGÉE (0 ERREUR)
+   APP.JS - VERSION PROD RENDER (CHEMINS RELATIFS)
    ========================================================================== */
 
 // --- 1. LISTE DES SPOTS (DATABASE) ---
@@ -33,7 +33,6 @@ let markersCluster;
 const markersByName = new Map();
 let tideInterval = null; 
 let camClockInterval = null; 
-// Déclaration unique ici (Correct)
 let deferredPrompt;
 
 // --- 2. CONTENU JURIDIQUE (PROTECTION) ---
@@ -128,7 +127,7 @@ const updateProfileModal = async () => {
     document.getElementById("profile-email").textContent = user.email || "N/A";
 
     try {
-        const res = await fetch("http://localhost:3001/api/quota");
+        const res = await fetch("/api/quota");
         const data = await res.json();
         const percent = (data.used / data.limit) * 100;
         
@@ -217,7 +216,8 @@ const updateQuotaUI = async () => {
   const quotaLabel = document.getElementById("call-count-ui");
   if (!quotaLabel) return;
   try {
-    const res = await fetch("http://localhost:3001/api/quota");
+    // CORRECTION RENDER : Chemin relatif
+    const res = await fetch("/api/quota");
     if(!res.ok) throw new Error("Erreur quota");
     const data = await res.json();
     quotaLabel.textContent = `Quota: ${data.used}/${data.limit} (${data.remaining} restants)`;
@@ -338,7 +338,8 @@ const updateSpotListSelection = (name) => {
 
 const updateListStatus = async () => {
   try {
-    const res = await fetch("http://localhost:3001/api/all-status");
+    // CORRECTION RENDER : Chemin relatif
+    const res = await fetch("/api/all-status");
     if (!res.ok) return;
     const statusMap = await res.json();
     spots.forEach(spot => {
@@ -364,7 +365,7 @@ const renderHomeNews = async () => {
   const container = document.getElementById("news-preview");
   if (!container) return;
   try {
-    const res = await fetch("http://localhost:3001/api/news");
+    const res = await fetch("/api/news");
     const newsData = await res.json();
     if (newsData.length === 0) { container.innerHTML = '<p style="color:#666; text-align:center;">Aucune actu.</p>'; return; }
     container.innerHTML = newsData.slice(0, 3).map(n => `
@@ -382,16 +383,22 @@ const renderHomeNews = async () => {
   } catch (e) { container.innerHTML = "<p style='color:#666;'>Impossible de charger.</p>"; }
 };
 
+// DANS PUBLIC/APP.JS
+
 const renderFullNews = async () => {
     const grid = document.getElementById("full-news-grid");
     const hero = document.getElementById("news-hero-container");
     if (!grid || !hero) return;
     try {
-        const res = await fetch("http://localhost:3001/api/news");
+        // CORRECTION ICI : On appelle bien /api/news et non /api/marine
+        const res = await fetch("/api/news"); 
         const allNews = await res.json();
+        
         if (allNews.length === 0) { hero.innerHTML = "<p style='color:#fff;'>Chargement...</p>"; return; }
+        
         const topStory = allNews[0];
         const otherStories = allNews.slice(1);
+        
         hero.innerHTML = `
             <div class="hero-news-card">
                 <div class="hero-bg" style="background-image: url('${topStory.img}');"></div>
@@ -402,12 +409,15 @@ const renderFullNews = async () => {
                     <a href="${topStory.link}" target="_blank" class="hero-btn">Lire l'article</a>
                 </div>
             </div>`;
+            
         grid.innerHTML = otherStories.map(n => `
             <article class="news-card">
                 <div class="news-img-wrapper"><img src="${n.img}" class="news-img" loading="lazy"><span class="news-badge">${n.tag}</span></div>
                 <div class="news-content"><h3>${n.title}</h3><a href="${n.link}" target="_blank" class="news-btn">Lire la suite</a></div>
             </article>`).join('');
-    } catch (e) {}
+    } catch (e) {
+        console.error("Erreur news:", e);
+    }
 };
 
 // --- 7. PAGE CONDITIONS (DASHBOARD) ---
@@ -441,9 +451,11 @@ const initConditionsPage = () => {
 
   const fetchConditions = async () => {
     try {
-      const wRes = await fetch(`http://localhost:3001/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
+      // CORRECTION RENDER : Chemin relatif
+      const wRes = await fetch(`/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
       const weather = await wRes.json();
-      const tRes = await fetch(`http://localhost:3001/api/tide?spot=${encodeURIComponent(spot.name)}`);
+      // CORRECTION RENDER : Chemin relatif
+      const tRes = await fetch(`/api/tide?spot=${encodeURIComponent(spot.name)}`);
       const tide = await tRes.json();
       
       updateDashboard(weather, tide);
@@ -570,7 +582,8 @@ const initFavoritesPage = async () => {
         const spot = spots.find(s => s.name === name);
         if (!spot) return null;
         try {
-            const res = await fetch(`http://localhost:3001/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
+            // CORRECTION RENDER : Chemin relatif
+            const res = await fetch(`/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
             const weather = await res.json();
             const quality = calculateQuality(weather.waveHeight, weather.windSpeed, weather.wavePeriod, weather.windDirection, "mid", spot.name);
             return { spot, weather, quality };
@@ -624,7 +637,6 @@ const handleAuthSwitch = () => {
         };
     }
     if (toLogin) {
-        // Le lien "Se connecter" est souvent créé dynamiquement ou présent dans le HTML
         toLogin.onclick = (e) => {
             e.preventDefault();
             if(registerView) registerView.style.display = "none";
@@ -632,7 +644,6 @@ const handleAuthSwitch = () => {
         };
     }
     
-    // Délégation d'événement de secours si les éléments sont dynamiques
     document.body.addEventListener('click', (e) => {
         if(e.target.id === 'link-to-register') {
             e.preventDefault();
@@ -676,16 +687,16 @@ const updateHomeStats = async () => {
   try {
       const refSpot = spots[0]; // Hossegor
 
-      // 1. Water Temp & Swell
-      const weatherRes = await fetch(`http://localhost:3001/api/marine?lat=${refSpot.coords[0]}&lng=${refSpot.coords[1]}`);
+      // 1. Water Temp & Swell (CORRECTION RENDER : Chemin relatif)
+      const weatherRes = await fetch(`/api/marine?lat=${refSpot.coords[0]}&lng=${refSpot.coords[1]}`);
       const weather = await weatherRes.json();
 
-      // 2. Tide
-      const tideRes = await fetch(`http://localhost:3001/api/tide?spot=${encodeURIComponent(refSpot.name)}`);
+      // 2. Tide (CORRECTION RENDER : Chemin relatif)
+      const tideRes = await fetch(`/api/tide?spot=${encodeURIComponent(refSpot.name)}`);
       const tide = await tideRes.json();
 
-      // 3. Live Spots
-      const statusRes = await fetch("http://localhost:3001/api/all-status");
+      // 3. Live Spots (CORRECTION RENDER : Chemin relatif)
+      const statusRes = await fetch("/api/all-status");
       const statuses = await statusRes.json();
       const liveCount = Object.values(statuses).filter(s => s === "LIVE").length;
 
@@ -695,7 +706,7 @@ const updateHomeStats = async () => {
       const activeEl = document.getElementById("stat-active");
       const tideEl = document.getElementById("stat-tide");
 
-      // Update Water Temp (Fix pour s'afficher même si 0)
+      // Update Water Temp
       if(waterEl && weather.waterTemperature != null) {
           waterEl.querySelector(".bubble-value").textContent = `${weather.waterTemperature}°C`;
           waterEl.querySelector(".bubble-value").style.color = "#4ade80";
@@ -707,19 +718,18 @@ const updateHomeStats = async () => {
           swellEl.querySelector(".bubble-value").style.color = weather.waveHeight > 1.5 ? "#d946ef" : "#fff";
       }
 
-      // Update Active Spots (Juste le chiffre)
+      // Update Active Spots
       if(activeEl) {
           activeEl.querySelector(".bubble-value").textContent = `${liveCount}`;
       }
 
-      // Update Tide (Montante/Descendante)
+      // Update Tide
       if(tideEl) {
           let tideText = "--";
           if (tide.allTides && tide.allTides.length) {
               const now = new Date();
               const next = tide.allTides.find(t => new Date(t.time) > now);
               if (next) {
-                  // Si la prochaine marée est HAUTE, alors ça MONTE.
                   const isRising = next.stage === "Haute" || next.stage === "high";
                   const direction = isRising ? "MONTANTE ↗" : "DESCENDANTE ↘";
                   tideText = direction;
@@ -734,9 +744,8 @@ const updateHomeStats = async () => {
 
 const initRadar = () => {
     const container = document.getElementById("radar-container");
-    if (!container) return; // Sécurité si on n'est pas sur la page d'accueil
+    if (!container) return; 
 
-    // On sélectionne 4 spots "populaires" pour la démo
     const trendingSpots = [spots[0], spots[7], spots[18], spots[9]]; // Hossegor, Anglet, La Torche, Guéthary
 
     container.innerHTML = trendingSpots.map(spot => `
@@ -755,8 +764,6 @@ const initRadar = () => {
         </div>
     `).join('');
 };
-
-// Suppression du doublon de 'let deferredPrompt;' ici.
 
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
@@ -862,7 +869,8 @@ const initCamerasPage = () => {
     const fetchCamStats = async () => {
         try {
             const spot = spots[0]; 
-            const res = await fetch(`http://localhost:3001/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
+            // CORRECTION RENDER : Chemin relatif
+            const res = await fetch(`/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
             const data = await res.json();
             if(document.getElementById("cs-wind")) document.getElementById("cs-wind").textContent = `${data.windSpeed} km/h`;
             if(document.getElementById("cs-swell")) document.getElementById("cs-swell").textContent = `${data.waveHeight.toFixed(1)}m`;
@@ -893,7 +901,8 @@ const initVersusPage = () => {
             const spot = spots.find(s => s.name === name);
             if (!spot) return null;
             try {
-                const res = await fetch(`http://localhost:3001/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
+                // CORRECTION RENDER : Chemin relatif
+                const res = await fetch(`/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
                 const weather = await res.json();
                 return { ...weather, quality: calculateQuality(weather.waveHeight, weather.windSpeed, weather.wavePeriod, weather.windDirection, "mid", spot.name) };
             } catch (e) { return null; }
@@ -971,13 +980,11 @@ window.addEventListener("load", () => {
 
   // 4. ÉCOUTEUR GLOBAL DE CLICS (Modaux + Légaux + Profil)
   document.body.addEventListener("click", e => {
-    // Fermeture générique
     if (e.target.matches("[data-modal-close]") || e.target.closest(".modal-close")) {
       const openModal = document.querySelector(".modal.is-open");
       if (openModal) openModal.classList.remove("is-open");
     }
     
-    // Switch Modaux Spécifiques (Login vs Profil)
     if (e.target.matches("[data-modal='auth']")) {
         if (localStorage.getItem("surfUser")) {
             updateProfileModal();
@@ -991,7 +998,6 @@ window.addEventListener("load", () => {
       document.getElementById("tech-modal").classList.add("is-open");
     }
 
-    // Moteur Légal Dynamique
     const legalTarget = e.target.closest("[data-modal^='legal-']");
     if (legalTarget) {
         e.preventDefault();
