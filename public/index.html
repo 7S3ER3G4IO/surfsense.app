@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: gap:; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline';">
+
+    <title>SurfSense - Prévisions Premium</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="logo.svg" type="image/svg+xml" />
+    <link rel="manifest" href="manifest.json">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js" defer></script>
+
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+
+    <div class="modal" id="gatekeeper-modal" style="z-index: 10000; display: none;">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content tech-modal" style="max-width: 850px; position: relative;">
+        <div class="tech-header" style="margin-bottom: 30px;">
+            <div style="font-size: 2.5rem; margin-bottom: 10px;">🛡️</div>
+            <h2>PROTOCOLE D'ACCÈS SURFSENSE</h2>
+            <span class="tech-label">SYSTÈME D'ANALYSE IA v2.0</span>
+        </div>
+
+        <div class="gatekeeper-grid" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 30px; align-items: start;">
+            
+            <div class="gate-left-col" style="color: #94a3b8; font-size: 0.9rem; line-height: 1.6;">
+                <p style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 10px;">Initialisation de la salle de contrôle...</p>
+                <p>SurfSense est une plateforme de prévisions premium. Pour garantir une expérience optimale, nos 11 robots d'analyse traitent les données satellites en temps réel.</p>
+                <p style="margin-top: 15px; font-size: 0.8rem; color: #666; font-style: italic;">
+                    En cliquant sur "ACCEPTER ET ENTRER", vous validez les <a href="#" data-modal="legal-cgu" style="color: var(--accent); text-decoration: underline;">conditions générales d'utilisation</a>. En cas de refus, l'accès à la plateforme vous sera révoqué.
+                </p>
+            </div>
+
+            <div class="gate-right-col">
+                <div style="background: rgba(255,255,255,0.03); border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.05);">
+                    <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.85rem;">
+                        <li style="margin-bottom: 10px;"><strong style="color: #4ade80;">🎯 Fiabilité :</strong> 98.5% (Satellite/Bouées)</li>
+                        <li style="margin-bottom: 10px;"><strong style="color: #4ade80;">🤖 IA :</strong> Traitement vectoriel 11 agents</li>
+                        <li style="margin-bottom: 10px;"><strong style="color: #4ade80;">⚖️ Juridique :</strong> Responsabilité utilisateur</li>
+                    </ul>
+                </div>
+                <div style="background: rgba(74, 222, 128, 0.05); padding: 10px; border-radius: 8px; margin-top: 15px; border: 1px solid rgba(74, 222, 128, 0.1); text-align: center;">
+                    <span style="color: #4ade80; font-family: monospace; font-size: 0.75rem;">> SYSTEM_READY_TO_BOOT_</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="tech-footer" style="display: flex; gap: 15px; margin-top: 35px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 25px;">
+            <button id="btn-refuse-access" class="ghost" style="flex: 1; border-color: #ff304a; color: #ff304a; border-radius: 99px; cursor: pointer;">REFUSER</button>
+            <button id="btn-accept-access" class="primary" style="flex: 2; background: #4ade80; color: #000; border: none; font-weight: 800; border-radius: 99px; cursor: pointer;">ACCEPTER ET ENTRER</button>
+        </div>
+      </div>
+    </div>
+    
+    <div id="global-alert-zone"></div>
+
+    <div id="app-loader">
+      <div class="spinner"></div>
+      <p>Synchronisation avec les robots...</p>
+    </div>
+
+    <header class="hero hero--photo">
+      <nav class="nav">
+        <div class="logo">
+          <img src="logo.svg" alt="Logo" class="logo-mark" />
+          SurfSense
+        </div>
+        <div class="nav-links">
+          <a href="index.html" class="active">Carte</a>
+          <a href="cameras.html">Caméras</a>
+          <a href="favorites.html">Favoris</a>
+          <a href="versus.html">Versus</a>
+          <a href="actus.html">News</a>
+        </div>
+        <div class="nav-actions">
+          <button class="cta" data-modal="auth">Mon Profil</button>
+        </div>
+      </nav>
+      
+      <div class="hero-content hero-content--center">
+        <div class="hero-stack">
+          <div class="badge-row">
+            <p class="badge badge--live animate-1">Robot Marine Actif</p>
+            <p class="badge badge--premium animate-1">Premium 500</p>
+          </div>
+          <h1 class="hero-title animate-2">Prévisions surf<br>essentielles.</h1>
+          <p class="hero-description animate-3">
+            Données satellitaires, robots d'analyse et intelligence marée en temps réel.
+          </p>
+          <div class="hero-actions animate-4">
+            <button class="primary" onclick="document.getElementById('map').scrollIntoView({behavior: 'smooth'})">Explorer les spots</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="partners-strip">
+        <span>DONNÉES CERTIFIÉES PAR :</span>
+        <div class="partner-logos">
+            <span class="p-logo">NOAA</span>
+            <span class="p-logo">STORMGLASS.IO</span>
+            <span class="p-logo">COPERNICUS</span>
+            <span class="p-logo">METEO-FRANCE</span>
+        </div>
+    </div>
+
+    <main>
+      <section class="quick-stats-bar">
+        <div class="stat-bubble" id="stat-water">
+            <span class="bubble-label">TEMP. EAU</span>
+            <span class="bubble-value">--</span>
+        </div>
+        <div class="stat-bubble" id="stat-swell"> 
+            <span class="bubble-label">ANALYSE HOULE</span>
+            <span class="bubble-value">--</span>
+        </div>
+        <div class="stat-bubble" id="stat-active">
+            <span class="bubble-label">SPOTS EN LIVE</span>
+            <span class="bubble-value">--</span>
+        </div>
+        <div class="stat-bubble" id="stat-tide">
+            <span class="bubble-label">MARÉE (GLOBAL)</span>
+            <span class="bubble-value">--</span>
+        </div>
+      </section>
+
+      <section id="map" class="section">
+        <div class="map-header-card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h2>Carte interactive</h2>
+                <p>Analyse précise via Stormglass Premium.</p>
+            </div>
+            <div class="storage-indicator" title="Données optimisées pour économiser la clé">
+                <span class="storage-icon">📦</span> Storage-First
+            </div>
+          </div>
+        </div>
+
+        <div class="map-layout">
+          <div class="map-container-wrapper">
+            <div id="surf-map"></div>
+          </div>
+
+          <aside class="spot-panel">
+            <div class="spot-panel-header">
+              <h3>Navigation Spots</h3>
+              <span id="call-count-ui" style="font-size: 0.7rem; color: #555;">Quota: --/500</span>
+            </div>
+            
+            <div class="spot-search">
+              <input type="search" id="spot-search" placeholder="Filtrer les spots..." />
+            </div>
+            
+            <div class="spot-list" id="spot-list"></div>
+
+            <div class="status-legend">
+              <h4>Légende Robots</h4>
+              <div class="legend-item">
+                <span class="dot dot--live"></span>
+                <span><strong>LIVE</strong> : Données Satellite 3h</span>
+              </div>
+              <div class="legend-item">
+                <span class="dot dot--wait"></span>
+                <span><strong>WAIT</strong> : Robot en route...</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="live-radar" class="section">
+        <div class="section-title">
+            <h2>Radar des Sessions</h2>
+            <p>Les spots les plus surveillés en ce moment.</p>
+        </div>
+        <div class="radar-grid" id="radar-container">
+            </div>
+      </section>
+
+      <section id="tech-showcase" class="section" style="padding-top: 0;">
+        <div class="tech-banner">
+            <div class="tech-text">
+                <span class="tech-label">TECHNOLOGIE PROPRIÉTAIRE</span>
+                <h2>11 Robots d'analyse. <br>Une précision chirurgicale.</h2>
+                <p>SurfSense ne se contente pas de lire la météo. Nos algorithmes croisent la bathymétrie, l'angle de houle et les marées pour éliminer les fausses alertes.</p>
+                <div class="tech-pills">
+                    <span class="pill">📐 Vector-Angle</span>
+                    <span class="pill">⚡ Energy-Core</span>
+                    <span class="pill">🛡️ Anti-Chop</span>
+                </div>
+            </div>
+            <div class="tech-visual">
+                <div class="visual-card visual-card--1">
+                    <span class="vc-icon">🌊</span>
+                    <strong>Swell-Pulse</strong>
+                    <small>Détection 24h</small>
+                </div>
+                <div class="visual-card visual-card--2">
+                    <span class="vc-icon">🤖</span>
+                    <strong>AI-Predict</strong>
+                    <small>Auto-Learning</small>
+                </div>
+                <div class="visual-card visual-card--3">
+                    <span class="vc-icon">🧬</span>
+                    <strong>Eco-Scan</strong>
+                    <small>Qualité Eau</small>
+                </div>
+            </div>
+        </div>
+      </section>
+
+      <section id="how-it-works" class="section">
+         <div class="section-title" style="text-align: center;">
+            <h2>Le Flux SurfSense</h2>
+            <p>De l'océan à votre écran en 3 étapes millimétrées.</p>
+        </div>
+        <div class="steps-container">
+            <div class="step-card">
+                <div class="step-icon">📡</div>
+                <h3>1. Scan Satellite</h3>
+                <p>Récupération des données brutes Stormglass et bouées océaniques.</p>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step-card">
+                <div class="step-icon">🧠</div>
+                <h3>2. Traitement IA</h3>
+                <p>Nos robots filtrent le clapot et calculent l'énergie réelle du spot.</p>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step-card">
+                <div class="step-icon">🔔</div>
+                <h3>3. Alertes Smart</h3>
+                <p>Vous recevez l'info uniquement quand c'est "Bon" ou "Épique".</p>
+            </div>
+        </div>
+      </section>
+
+      <section id="mobile-promo" class="section">
+        <div class="mobile-promo-container">
+            <div class="mobile-content">
+                <span class="tech-label">WEB APP & MOBILE</span>
+                <h2>Emportez le Forecast<br>sur la plage.</h2>
+                <p>Compatible iOS et Android. Ajoutez SurfSense à votre écran d'accueil pour un accès instantané aux caméras et aux alertes push.</p>
+                <div class="store-buttons">
+                    <button class="store-btn">  Ajouter sur iOS</button>
+                    <button class="store-btn">🤖  Ajouter sur Android</button>
+                </div>
+            </div>
+            <div class="mobile-visual">
+                <div class="phone-mockup">
+                    <div class="phone-screen">
+                        <div class="phone-notch"></div>
+                        <div class="phone-app-preview">
+                            <div class="app-header-preview">SurfSense</div>
+                            <div class="app-card-preview"></div>
+                            <div class="app-card-preview" style="height: 60px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </section>
+
+      <section id="home-news" class="section">
+        <div class="section-title" style="text-align: center; margin-bottom: 30px;">
+          <div class="title-with-robot">
+            <h2>Dernières Actus</h2>
+            <span class="robot-tag">🤖 Robot News Actif</span>
+          </div>
+          <p>Flux réel synchronisé toutes les 4 heures.</p>
+        </div>
+        <div class="news-preview-grid" id="news-preview">
+            </div>
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="actus.html" class="primary-pill" style="text-decoration: none;">Accéder au Journal Complet</a>
+        </div>
+      </section>
+
+      <section id="newsletter" class="section">
+          <div class="newsletter-box">
+              <div class="newsletter-content">
+                  <h2>Rejoignez le Club Privé</h2>
+                  <p>Recevez les alertes "ÉPIQUE" directement par email avant tout le monde.</p>
+                  <form class="newsletter-form" onsubmit="event.preventDefault(); alert('Bienvenue dans le club !');">
+                      <input type="email" placeholder="votre@email.com" required>
+                      <button type="submit">M'inscrire</button>
+                  </form>
+              </div>
+          </div>
+      </section>
+
+    </main>
+
+    <footer class="footer">
+        <div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; padding: 0 20px;">
+            <p>© 2026 SurfSense — Plateforme IA Marine — Données 500 req/j</p>
+            <div class="footer-legal-links" style="display: flex; gap: 25px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+                <a href="#" data-modal="legal-mentions" style="color: var(--muted);">Mentions Légales</a>
+                <a href="#" data-modal="legal-cgu" style="color: var(--muted);">CGU</a>
+                <a href="#" data-modal="legal-rgpd" style="color: var(--muted);">Confidentialité</a>
+            </div>
+        </div>
+    </footer>
+
+    <div class="modal" id="auth-modal">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-content">
+        <button class="modal-close" data-modal-close>✕</button>
+        <div id="auth-login-view">
+          <h3>Connexion</h3>
+          <form class="modal-form" id="login-form">
+            <input type="email" id="login-email" placeholder="Email" required />
+            <input type="password" id="login-pass" placeholder="Mot de passe" required />
+            <button type="submit" class="primary">Entrer</button>
+          </form>
+          <p class="modal-footer-text">Pas encore membre ? <a href="#" id="link-to-register">S'inscrire</a></p>
+        </div>
+        <div id="auth-register-view" style="display: none;">
+  <h3>Créer un compte</h3>
+  <form class="modal-form" id="register-form">
+    <input type="text" id="reg-name" placeholder="Nom complet" required />
+    <input type="email" id="reg-email" placeholder="Email" required />
+    <input type="password" id="reg-pass" placeholder="Mot de passe" required />
+    <button type="submit" class="primary">Rejoindre le Line-up</button>
+  </form>
+  <p class="modal-footer-text">Déjà membre ? <a href="#" id="link-to-login">Se connecter</a></p>
+</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="profile-modal">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-content tech-modal" style="max-width: 700px;">
+        <button class="modal-close" data-modal-close>✕</button>
+        
+        <div class="tech-header" style="display: flex; align-items: center; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 20px;">
+            <div class="agent-avatar" style="width: 80px; height: 80px; border: 2px solid var(--accent); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 2rem; background: rgba(42, 123, 255, 0.1);">
+                👤
+            </div>
+            <div>
+                <span class="tech-label">AGENT SURFSENSE</span>
+                <h2 id="profile-user-name" style="margin: 5px 0;">IDENTIFICATION...</h2>
+                <div id="profile-status-badge" class="badge badge--premium">STATUS: ACTIVE</div>
+            </div>
+        </div>
+
+        <div class="profile-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-top: 25px;">
+            <div class="profile-box" style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 4px; border: 1px solid var(--line);">
+                <span class="tech-label" style="font-size: 0.6rem;">ACCOUNT INTEL</span>
+                <p style="font-size: 0.9rem; margin: 10px 0;">Email: <span id="profile-email" style="color: #fff;">-</span></p>
+                <p style="font-size: 0.9rem; margin: 10px 0;">Liaison : <span style="color: #fff;">Chiffrée SSL</span></p>
+                <button class="ghost" style="width: 100%; margin-top: 10px; font-size: 0.7rem; padding: 8px;" onclick="logout()">DÉCONNEXION</button>
+            </div>
+
+            <div class="profile-box" style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 4px; border: 1px solid var(--line);">
+                <span class="tech-label" style="font-size: 0.6rem;">SATELLITE DATA USAGE</span>
+                <div id="quota-bar-container" style="margin: 15px 0;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.7rem; margin-bottom: 5px;">
+                        <span>API CALLS</span>
+                        <span id="quota-text">0/500</span>
+                    </div>
+                    <div style="width: 100%; height: 4px; background: #222; border-radius: 2px;">
+                        <div id="quota-fill" style="width: 0%; height: 100%; background: var(--accent); transition: width 1s ease-in-out;"></div>
+                    </div>
+                </div>
+                <p style="font-size: 0.75rem; color: var(--muted); font-style: italic;">Reset quotidien à 00:00</p>
+            </div>
+        </div>
+
+        <div class="subscription-section" style="margin-top: 25px; padding: 20px; border: 1px dashed var(--accent); border-radius: 4px; text-align: center; background: rgba(42, 123, 255, 0.05);">
+            <h4 style="margin: 0 0 10px 0; letter-spacing: 1px;">DÉBLOQUER LA LICENCE ELITE</h4>
+            <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px;">Accès illimité aux 11 robots H24 et alertes SMS prioritaires.</p>
+            <button class="primary" style="padding: 10px 25px; font-weight: 800;">ACTIVER L'ABONNEMENT (BIENTÔT)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="legal-modal">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-content tech-modal" style="max-width: 800px;">
+        <button class="modal-close" data-modal-close>✕</button>
+        <div class="tech-header">
+            <span class="tech-label">LEGAL DOCUMENTATION</span>
+            <h2 id="legal-title">TITRE DU DOCUMENT</h2>
+        </div>
+        <div id="legal-body" style="overflow-y: auto; max-height: 60vh; padding: 20px 0; color: #94a3b8; font-size: 0.9rem; line-height: 1.7;">
+            </div>
+      </div>
+    </div>
+
+    <div class="modal" id="install-modal">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-content" style="text-align: center;">
+        <button class="modal-close" data-modal-close>✕</button>
+        <div id="ios-install-guide" style="display: none;">
+            <div style="font-size: 3rem; margin-bottom: 10px;">📲</div>
+            <h3>Installer sur iOS</h3>
+            <p style="color: #ccc; margin-bottom: 20px;">Apple ne permet pas l'installation automatique. Suivez ces 2 étapes :</p>
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; text-align: left; margin-bottom: 10px;">
+                1. Cliquez sur l'icône <strong>Partager</strong> <span style="font-size:1.2rem">⎋</span> en bas de Safari.
+            </div>
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; text-align: left;">
+                2. Scrollez et choisissez <strong>"Sur l'écran d'accueil"</strong> ⊞.
+            </div>
+        </div>
+        <div id="android-install-guide" style="display: none;">
+            <div style="font-size: 3rem; margin-bottom: 10px;">🤖</div>
+            <h3>Installer sur Android</h3>
+            <p style="color: #ccc; margin-bottom: 20px;">Ajoutez SurfSense pour un accès plein écran.</p>
+            <button id="pwa-install-btn" class="primary" style="width: 100%;">Installer Maintenant</button>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

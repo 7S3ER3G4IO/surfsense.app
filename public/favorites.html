@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: gap:; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline';">
+
+    <title>SurfSense — Mes Favoris</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="logo.svg" type="image/svg+xml" />
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body class="favorites-page">
+    
+    <div id="app-loader">
+      <div class="spinner"></div>
+      <p>Chargement de vos spots...</p>
+    </div>
+
+    <header class="hero hero--photo" style="min-height: auto; padding-bottom: 40px;">
+      <nav class="nav">
+        <div class="logo">
+          <img src="logo.svg" alt="Logo" class="logo-mark" />
+          SurfSense
+        </div>
+        <div class="nav-links">
+          <a href="index.html">Carte</a>
+          <a href="cameras.html">Caméras</a>
+          <a href="favorites.html" class="active" style="color: #fff;">Favoris</a>
+          <a href="actus.html">News</a>
+        </div>
+        <div class="nav-actions">
+          <button class="cta" data-modal="auth">Mon Profil</button>
+        </div>
+      </nav>
+      
+      <div class="hero-content" style="text-align: center; margin-top: 20px;">
+          <h1 class="hero-title" style="font-size: 2.5rem; margin-bottom: 10px;">Mon Line-up</h1>
+          <p class="hero-description" style="font-size: 1rem; max-width: 600px; margin: 0 auto;">
+            Vos spots préférés en un coup d'œil. Analyse temps réel.
+          </p>
+      </div>
+    </header>
+
+    <main class="section">
+      <div id="fav-container">
+          <div id="fav-grid" class="favorites-grid">
+              </div>
+          
+          <div id="empty-favs" style="display: none; text-align: center; padding: 60px 20px;">
+              <div style="font-size: 4rem; margin-bottom: 20px; opacity: 0.5;">💔</div>
+              <h3 style="color: #fff; margin-bottom: 10px;">Aucun spot favori</h3>
+              <p style="color: #888; margin-bottom: 30px;">Explorez la carte et cliquez sur le cœur ♡ pour épingler vos spots ici.</p>
+              <a href="index.html" class="primary-pill" style="text-decoration: none;">Retourner à la Carte</a>
+          </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>© 2026 SurfSense — Votre sélection personnelle</p>
+    </footer>
+
+    <div class="modal" id="auth-modal">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-content">
+        <button class="modal-close" data-modal-close>✕</button>
+        <div id="auth-login-view">
+          <h3>Connexion</h3>
+          <form class="modal-form" id="login-form">
+            <input type="email" id="login-email" placeholder="Email" required />
+            <input type="password" id="login-pass" placeholder="Mot de passe" required />
+            <button type="submit" class="primary">Entrer</button>
+          </form>
+          <p class="modal-footer-text">Pas encore membre ? <a href="#" id="link-to-register">S'inscrire</a></p>
+        </div>
+        <div id="auth-register-view" style="display: none;">
+          <h3>Créer un compte</h3>
+          <form class="modal-form" id="register-form">
+            <input type="text" id="reg-name" placeholder="Nom complet" required />
+            <input type="email" id="reg-email" placeholder="Email" required />
+            <input type="password" id="reg-pass" placeholder="Mot de passe" required />
+            <button type="submit" class="primary">Rejoindre le Line-up</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

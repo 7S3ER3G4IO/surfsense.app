@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: gap:; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline';">
+
+    <title>SurfSense — Live Cams</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="logo.svg" type="image/svg+xml" />
+    <link rel="manifest" href="manifest.json">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body class="cameras-page">
+    
+    <div id="app-loader">
+      <div class="spinner"></div>
+      <p>Connexion au réseau satellite...</p>
+    </div>
+
+    <header class="hero hero--photo" style="min-height: auto; padding-bottom: 20px;">
+      <nav class="nav">
+        <div class="logo">
+          <img src="logo.svg" alt="Logo" class="logo-mark" />
+          SurfSense
+        </div>
+        <div class="nav-links">
+          <a href="index.html">Spots</a>
+          <a href="cameras.html" class="active" style="color: #fff;">Caméras</a>
+          <a href="favorites.html">Favoris</a>
+          <a href="actus.html">News</a>
+        </div>
+        <div class="nav-actions">
+          <button class="cta" data-modal="auth">Mon Profil</button>
+        </div>
+      </nav>
+    </header>
+
+    <main class="section" style="max-width: 1600px; margin: 0 auto; padding-top: 20px;">
+        
+        <div class="cam-dashboard">
+            <div class="cam-sidebar">
+                <div class="cam-sidebar-header">
+                    <h3>Réseau Live <span class="blink-dot"></span></h3>
+                    <span class="signal-ok">SIGNAL 100%</span>
+                </div>
+                <div class="cam-list" id="cam-list-container">
+                    </div>
+            </div>
+
+            <div class="cam-main-view">
+                <div class="cam-screen-wrapper">
+                    <div class="cam-screen" id="main-cam-screen">
+                        <div class="cam-overlay-top">
+                            <span class="cam-rec">● REC</span>
+                            <span id="cam-live-name">INITIALISATION...</span>
+                        </div>
+                        <div class="cam-overlay-center">
+                            <a id="cam-redirect-btn" href="#" target="_blank" class="cam-play-btn">
+                                <span>▶</span>
+                                <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                                    <span style="font-size:1rem; font-weight:800;">LANCER LE FLUX</span>
+                                    <span style="font-size:0.7rem; font-weight:400; opacity:0.8;">Redirection vers source officielle</span>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="cam-overlay-bottom">
+                            <span id="cam-live-time">--:--:--</span>
+                            <span>ISO 800 • 4K • SAT-LINK</span>
+                        </div>
+                        <div class="cam-scan-line"></div>
+                        <div class="cam-noise"></div>
+                    </div>
+                </div>
+                
+                <div class="cam-controls">
+                    <div class="cam-meta">
+                        <h2 id="meta-title">Sélectionnez une caméra</h2>
+                        <p id="meta-desc">Accès direct aux webcams partenaires.</p>
+                    </div>
+                    <div class="cam-stats-row">
+                        <div class="cs-item">
+                            <span class="cs-label">Vent</span>
+                            <span class="cs-val" id="cs-wind">--</span>
+                        </div>
+                        <div class="cs-item">
+                            <span class="cs-label">Houle</span>
+                            <span class="cs-val" id="cs-swell">--</span>
+                        </div>
+                        <div class="cs-item">
+                            <span class="cs-label">Marée</span>
+                            <span class="cs-val" id="cs-tide">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="footer">
+      <p>© 2026 SurfSense — Security Room Interface</p>
+    </footer>
+
+    <div class="modal" id="auth-modal">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-content">
+        <button class="modal-close" data-modal-close>✕</button>
+        <div id="auth-login-view">
+          <h3>Connexion</h3>
+          <form class="modal-form" id="login-form">
+            <input type="email" id="login-email" placeholder="Email" required />
+            <input type="password" id="login-pass" placeholder="Mot de passe" required />
+            <button type="submit" class="primary">Entrer</button>
+          </form>
+          <p class="modal-footer-text">Pas encore membre ? <a href="#" id="link-to-register">S'inscrire</a></p>
+        </div>
+        <div id="auth-register-view" style="display: none;">
+          <h3>Créer un compte</h3>
+          <form class="modal-form" id="register-form">
+            <input type="text" id="reg-name" placeholder="Nom complet" required />
+            <input type="email" id="reg-email" placeholder="Email" required />
+            <input type="password" id="reg-pass" placeholder="Mot de passe" required />
+            <button type="submit" class="primary">Rejoindre le Line-up</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

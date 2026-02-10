@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conditions Live - SurfSense</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="logo.svg" type="image/svg+xml" />
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+    <script src="app.js" defer></script>
+</head>
+<body class="conditions-page">
+
+    <nav class="nav" style="margin: 20px;">
+        <div class="logo">
+          <img src="logo.svg" alt="Logo" class="logo-mark" />
+          SurfSense
+        </div>
+        <div class="nav-links">
+          <a href="index.html">Retour Carte</a>
+          <a href="actus.html">News</a>
+        </div>
+    </nav>
+
+    <div class="cond-container">
+        <div class="cond-header">
+            <div class="cond-titles">
+                <p class="sub-text">LIVE REPORT • <span id="cond-updated">Chargement...</span></p>
+                <h1 id="cond-name">Chargement du spot...</h1>
+                <div class="premium-tags">
+                    <span class="tag">📡 Satellite Direct</span>
+                    <button class="tag tag--btn" data-modal="tech" style="cursor:pointer; border:1px solid #4ade80; color:#4ade80; background:rgba(74,222,128,0.1);">🤖 IA Active (11)</button>
+                </div>
+            </div>
+            <div class="cond-actions">
+                <button id="btn-fav" class="ghost-pill">♡ Favori</button>
+                <a id="btn-cam" href="#" class="primary-pill">Voir Webcams</a>
+            </div>
+        </div>
+
+        <div class="dashboard-layout">
+            <div class="main-column">
+                
+                <div id="status-box" class="status-banner">
+                    <div class="status-icon-circle"><span id="status-icon">🌊</span></div>
+                    <div class="status-content">
+                        <h3 id="status-title">ANALYSE EN COURS...</h3>
+                        <p id="status-desc">Connexion aux bouées...</p>
+                    </div>
+                </div>
+
+                <div id="ai-robot-hub" class="robots-grid-container"></div>
+
+                <div class="stats-grid-6">
+                    <div class="stat-item">
+                        <span class="stat-label">VAGUES</span>
+                        <span class="stat-value"><span id="val-wave">-</span><small>m</small></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">PÉRIODE</span>
+                        <span class="stat-value"><span id="val-period">-</span><small>s</small></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">VENT</span>
+                        <span class="stat-value"><span id="val-wind-speed">-</span><small>km/h</small></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">DIR. VENT</span>
+                        <span class="stat-value" id="val-wind-dir">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">DIR. HOULE</span>
+                        <span class="stat-value" id="val-swell-dir">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">QUALITÉ</span>
+                        <span class="stat-value" id="val-quality">-</span>
+                    </div>
+                </div>
+
+                <h3 style="margin: 30px 0 15px; color:#fff;">Prévisions 24h</h3>
+                <div id="forecast-list" class="forecast-scroller"></div>
+            </div>
+
+            <aside class="sidebar">
+                <div id="mini-map" class="sidebar-map"></div>
+                
+                <div class="info-bar info-bar--tide">
+                    <span class="info-label">PROCHAINE MARÉE</span>
+                    <span id="tide-display" class="tide-countdown">Calcul...</span>
+                </div>
+
+                <div style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                    <h4 style="margin-top:0; font-size:0.8rem; color:#666;">MONITORING</h4>
+                    <p style="font-size:0.75rem; color:#888;">
+                        API Latence: <span style="color:#4ade80">24ms</span><br>
+                        Précision: <span style="color:#4ade80">98.5%</span><br>
+                        Source: Stormglass v2
+                    </p>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>© 2026 SurfSense — IA Marine Premium</p>
+    </footer>
+
+    <div class="modal" id="tech-modal">
+        <div class="modal-backdrop" data-modal-close></div>
+        <div class="modal-content tech-modal">
+            <button class="modal-close" data-modal-close>✕</button>
+            <div class="tech-header">
+                <h2>Cerveau SurfSense v2.0</h2>
+                <span class="tech-label">SYSTÈME OPÉRATIONNEL</span>
+            </div>
+            
+            <div style="overflow-y: auto; max-height: 70vh; padding-right: 10px;">
+                <h4 style="color:#666; font-size:0.75rem; text-transform:uppercase; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:5px;">Moteur Physique (Core)</h4>
+                <div class="tech-grid">
+                    <div class="tech-item">
+                        <strong>📐 Vector-Angle</strong>
+                        <p>Calcule l'angle exact vent/plage. Valide l'Offshore à +/- 15°.</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>⚡ Energy-Core</strong>
+                        <p>Calcule la puissance réelle (H² x T) pour différencier houle et clapot.</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>🌊 Tide-Master</strong>
+                        <p>Détecte les seuils de marée haute qui saturent le spot.</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>🛡️ Anti-Chop</strong>
+                        <p>Filtre le bruit du vent local pour isoler la houle primaire.</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>⏱️ Swell-Pulse</strong>
+                        <p>Analyse la stabilité de la période sur 24h glissantes.</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>🤖 News-Bot</strong>
+                        <p>Scan sémantique des flux RSS & validation bouées.</p>
+                    </div>
+                </div>
+
+                <h4 style="color:#4ade80; font-size:0.75rem; text-transform:uppercase; margin:25px 0 15px; border-bottom:1px solid #333; padding-bottom:5px;">Intelligence Live (Confort)</h4>
+                <div class="tech-grid">
+                    <div class="tech-item">
+                        <strong>🏄‍♂️ Quiver-AI</strong>
+                        <p>Recommande la planche idéale selon la puissance de la vague.</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>👥 Crowd-Predict</strong>
+                        <p>Estime l'affluence (Heure + Qualité + Vacances).</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>🌡️ Feel-Real</strong>
+                        <p>Calcule la température ressentie avec le facteur vent (Windchill).</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>☀️ Solar-Sync</strong>
+                        <p>Suit le cycle solaire (UV & Golden Hour).</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>🧬 Eco-Scan</strong>
+                        <p>Surveille les risques de pollution après la pluie.</p>
+                    </div>
+                </div>
+                
+                <div class="tech-footer">
+                    <span class="status-ok">● TOUS LES SYSTÈMES EN LIGNE</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

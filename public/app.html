@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DoSurf - Conditions Live</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <p>Chargement des spots...</p>
+    </div>
+
+    <nav>
+        <div class="logo">DoSurf.</div>
+        <ul>
+            <li><a href="index.html">Accueil</a></li>
+            <li><a href="#" class="active">Live Map</a></li>
+        </ul>
+        <div class="user-profile">Mon Compte</div>
+    </nav>
+
+    <main class="app-layout">
+        <section class="left-panel">
+            <div class="map-container" id="surf-map"></div>
+            <div class="spot-info" id="spot-details">
+                <p style="color: #666;">Sélectionnez un spot sur la carte...</p>
+            </div>
+        </section>
+
+        <section class="right-panel">
+            <div class="hero-stats">
+                <div>
+                    <h1>Conditions Globales</h1>
+                    <p>Mise à jour dans <span id="next-refresh">60s</span></p>
+                </div>
+                <div class="global-metrics">
+                    <div class="metric"><span class="label">Swell</span><span class="value" id="global-swell">--</span></div>
+                    <div class="metric"><span class="label">Vent</span><span class="value" id="global-wind">--</span></div>
+                    <div class="metric"><span class="label">Temp</span><span class="value" id="global-temp">--</span></div>
+                </div>
+            </div>
+            <hr>
+            <div class="grid-container" id="conditions-grid"></div>
+            <div class="news-feed">
+                <h3>Flash Info Surf</h3>
+                <div id="news-grid"></div>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="app.js"></script>
+
+    <script>
+        setTimeout(() => {
+            const loader = document.getElementById('loader');
+            if (loader) { loader.style.display = 'none'; }
+        }, 4000);
+    </script>
+</body>
+</html>
+
+<div class="modal" id="auth-modal">
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-content">
+    <button class="modal-close" data-modal-close>✕</button>
+    
+    <div id="auth-login-view">
+      <h3>Connexion</h3>
+      <form class="modal-form" id="login-form">
+        <input type="email" id="login-email" placeholder="Email" required />
+        <input type="password" id="login-pass" placeholder="Mot de passe" required />
+        <button type="submit" class="primary">Entrer</button>
+      </form>
+      <p class="modal-footer-text">
+        Pas encore de compte ? <a href="#" id="link-to-register">S'inscrire</a>
+      </p>
+    </div>
+
+    <div id="auth-register-view" style="display: none;">
+      <h3>Créer un compte</h3>
+      <form class="modal-form" id="register-form">
+        <input type="text" id="reg-name" placeholder="Nom complet" required />
+        <input type="email" id="reg-email" placeholder="Email" required />
+        <input type="password" id="reg-pass" placeholder="Mot de passe" required />
+        <button type="submit" class="primary">C'est parti !</button>
+      </form>
+      <p class="modal-footer-text">
+        Déjà membre ? <a href="#" id="link-to-login">Se connecter</a>
+      </p>
+    </div>
+  </div>
+</div>
