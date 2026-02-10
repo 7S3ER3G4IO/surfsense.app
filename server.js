@@ -69,7 +69,7 @@ const robotLog = (robot, status = "OK", details = "") => {
 };
 
 // --- CONFIGURATION SÉCURISÉE ---
-const STORMGLASS_API_KEY = process.env.STORMGLASS_API_KEY || "91e3ecb4-0596-11f1-b82f-0242ac120004-91e3ed18-0596-11f1-b82f-0242ac120004";
+const STORMGLASS_API_KEY = process.env.STORMGLASS_API_KEY;
 
 // --- RÉGLAGES ÉCONOMIQUES ---
 const MAX_DAILY_CALLS = 480; 
