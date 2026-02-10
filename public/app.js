@@ -1,5 +1,5 @@
 /* ==========================================================================
-   APP.JS - VERSION PROD RENDER (CHEMINS RELATIFS)
+   APP.JS - VERSION PROD RENDER (OPTIMISÉE & CORRIGÉE)
    ========================================================================== */
 
 // --- 1. LISTE DES SPOTS (DATABASE) ---
@@ -39,86 +39,134 @@ let deferredPrompt;
 const legalTexts = {
     "legal-mentions": {
         title: "Mentions Légales",
-        body: `
-            <div class="legal-section">
-                <h3>1. Édition du Site</h3>
-                <p>Le site <strong>SurfSense Premium</strong> est une plateforme technologique éditée par la cellule SurfSense OPS (Projet SaaS).</p>
-                <p><strong>Contact :</strong> support@surfsense-premium.io</p>
-                <h3>2. Hébergement</h3>
-                <p>Infrastructure cloud sécurisée. Localisation des serveurs : Union Européenne.</p>
-                <h3>3. Propriété Intellectuelle</h3>
-                <p>L'intégralité du site (code source, interface "Security Room", logos) et les algorithmes propriétaires des 11 robots d'analyse sont la propriété exclusive de SurfSense.</p>
-                <p>Toute extraction ou "scraping" de données est strictement interdite.</p>
-            </div>`
+        body: `<div class="legal-section"><h3>1. Édition</h3><p>SurfSense Premium. Contact: support@surfsense.io</p></div>`
     },
     "legal-cgu": {
         title: "Conditions Générales d'Utilisation",
-        body: `
-            <div class="legal-section">
-                <h3 style="color:var(--live-red);">⚠️ AVERTISSEMENT DE SÉCURITÉ</h3>
-                <p style="border: 1px solid var(--live-red); padding: 10px; font-weight:bold;">
-                    Le surf est un sport à risque. SurfSense fournit des prévisions automatisées via IA à titre purement informatif.
-                </p>
-                <p><strong>L'utilisateur reconnaît que :</strong></p>
-                <ul>
-                    <li>L'éditeur décline toute responsabilité en cas d'accident, blessure ou dommage matériel.</li>
-                    <li>Les conditions réelles peuvent différer radicalement des prévisions numériques.</li>
-                    <li>Votre décision de mise à l'eau relève de votre seule responsabilité.</li>
-                </ul>
-                <h3>2. Abonnements Premium</h3>
-                <p>L'accès aux données haute précision est réservé aux membres. Certaines fonctionnalités futures seront soumises à un abonnement payant.</p>
-            </div>`
+        body: `<div class="legal-section"><h3>Avertissement</h3><p>Le surf est un sport à risque. SurfSense décline toute responsabilité.</p></div>`
     },
     "legal-rgpd": {
         title: "Politique de Confidentialité",
-        body: `
-            <div class="legal-section">
-                <h3>1. Collecte des Données</h3>
-                <p>Nous collectons votre email pour sécuriser votre compte Premium et vos favoris pour personnaliser votre dashboard.</p>
-                <h3>2. Vos Droits</h3>
-                <p>Conformément au RGPD, vous disposez d'un droit d'accès et de suppression de vos données via l'interface profil ou par email.</p>
-                <h3>3. Cookies</h3>
-                <p>Nous utilisons le stockage local (LocalStorage) pour mémoriser vos préférences et votre acceptation du protocole.</p>
-            </div>`
+        body: `<div class="legal-section"><h3>Données</h3><p>Vos données (email, favoris) sont stockées de manière sécurisée.</p></div>`
     }
 };
 
-// --- 3. GATEKEEPER (SÉCURITÉ ACCÈS) ---
+// --- 3. GATEKEEPER & AUTHENTIFICATION ---
 const initGatekeeper = () => {
     const modal = document.getElementById("gatekeeper-modal");
-    const btnAccept = document.getElementById("btn-accept-access");
-    const btnRefuse = document.getElementById("btn-refuse-access");
-
     if (!modal) return;
-
     const user = localStorage.getItem("surfUser");
     const session = sessionStorage.getItem("accessGranted");
-
-    if (user || session) {
-        modal.style.display = "none";
-        modal.classList.remove("is-open");
-        return;
-    }
-
+    if (user || session) { modal.style.display = "none"; return; }
+    
     modal.style.display = "flex";
     modal.classList.add("is-open");
+    
+    document.getElementById("btn-accept-access")?.addEventListener("click", () => {
+        sessionStorage.setItem("accessGranted", "true");
+        modal.classList.remove("is-open");
+        setTimeout(() => modal.style.display = "none", 300);
+    });
+    document.getElementById("btn-refuse-access")?.addEventListener("click", () => {
+        window.location.href = "https://google.com";
+    });
+};
 
-    if (btnAccept) {
-        btnAccept.onclick = () => {
-            sessionStorage.setItem("accessGranted", "true");
-            modal.classList.remove("is-open");
-            modal.style.display = "none";
+const handleAuthSwitch = () => {
+    const loginView = document.getElementById("auth-login-view");
+    const registerView = document.getElementById("auth-register-view");
+    
+    document.body.addEventListener('click', (e) => {
+        if(e.target.id === 'link-to-register') {
+            e.preventDefault();
+            if(loginView) loginView.style.display = "none";
+            if(registerView) registerView.style.display = "block";
+        }
+        if(e.target.id === 'link-to-login') {
+            e.preventDefault();
+            if(registerView) registerView.style.display = "none";
+            if(loginView) loginView.style.display = "block";
+        }
+    });
+};
+
+const initAuthLogic = () => {
+    const regForm = document.getElementById("register-form");
+    const loginForm = document.getElementById("login-form");
+
+    // INSCRIPTION
+    if (regForm) {
+        regForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const name = document.getElementById("reg-name").value;
+            const email = document.getElementById("reg-email").value;
+            const password = document.getElementById("reg-pass").value;
+
+            try {
+                const res = await fetch("/api/auth/register", {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name, email, password })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    localStorage.setItem("surfUser", JSON.stringify(data.user));
+                    alert("Compte créé. Bienvenue Agent " + data.user.name);
+                    window.location.reload();
+                } else alert("Erreur : " + data.error);
+            } catch (err) { alert("Erreur connexion serveur."); }
         };
     }
 
-    if (btnRefuse) {
-        btnRefuse.onclick = () => {
-            window.location.href = "https://www.google.com";
+    // CONNEXION + 2FA
+    if (loginForm) {
+        loginForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById("login-email").value;
+            const password = document.getElementById("login-pass").value;
+            const btn = loginForm.querySelector("button");
+            const originalText = btn.innerText;
+            btn.innerText = "SÉCURISATION...";
+
+            try {
+                // ÉTAPE 1 : LOGIN
+                const res = await fetch("/api/auth/login", {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+
+                if (data.step === "2FA") {
+                    // SI 2FA REQUIS -> ON AFFICHE L'INPUT CODE
+                    document.getElementById("auth-login-view").style.display = "none";
+                    document.getElementById("auth-2fa-view").style.display = "block";
+                    
+                    // GESTION DU FORMULAIRE CODE
+                    const form2FA = document.getElementById("2fa-form");
+                    form2FA.onsubmit = async (evt) => {
+                        evt.preventDefault();
+                        const code = document.getElementById("2fa-code").value;
+                        
+                        // ÉTAPE 2 : VERIFY CODE
+                        const res2 = await fetch("/api/auth/verify-2fa", {
+                            method: "POST", headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ email, code })
+                        });
+                        const data2 = await res2.json();
+                        
+                        if (data2.success) {
+                            localStorage.setItem("surfUser", JSON.stringify(data2.user));
+                            window.location.reload();
+                        } else alert("CODE INVALIDE OU EXPIRÉ");
+                    };
+                } else if (data.error) {
+                    alert("Erreur : " + data.error);
+                    btn.innerText = originalText;
+                }
+            } catch (err) { alert("Erreur serveur."); btn.innerText = originalText; }
         };
     }
 };
 
-// --- 4. GESTION PROFIL ET QUOTA ---
 const updateProfileModal = async () => {
     const user = JSON.parse(localStorage.getItem("surfUser"));
     if (!user) return;
@@ -130,13 +178,13 @@ const updateProfileModal = async () => {
         const res = await fetch("/api/quota");
         const data = await res.json();
         const percent = (data.used / data.limit) * 100;
-        
         document.getElementById("quota-text").textContent = `${data.used}/${data.limit}`;
-        document.getElementById("quota-fill").style.width = `${percent}%`;
-        if (percent > 80) document.getElementById("quota-fill").style.background = "var(--live-red)";
-    } catch (e) {
-        console.warn("Sync quota profil : ÉCHEC");
-    }
+        const fill = document.getElementById("quota-fill");
+        if(fill) {
+            fill.style.width = `${percent}%`;
+            if (percent > 80) fill.style.background = "var(--live-red)";
+        }
+    } catch (e) {}
 };
 
 const logout = () => {
@@ -147,7 +195,7 @@ const logout = () => {
     }
 };
 
-// --- 5. LOGIQUE MÉTIER (QUALITÉ & IA) ---
+// --- 5. LOGIQUE MÉTIER (MÉTÉO & IA) ---
 const calculateQuality = (waveHeight, windSpeed, wavePeriod, windDir, tideStage, spotName) => {
   const spot = spots.find(s => s.name === spotName) || { facing: 275, type: "beachbreak" };
   const energyScore = (waveHeight * waveHeight) * wavePeriod;
@@ -157,28 +205,22 @@ const calculateQuality = (waveHeight, windSpeed, wavePeriod, windDir, tideStage,
   const angularDiff = Math.min(Math.abs(windAngle - offshoreAngle), 360 - Math.abs(windAngle - offshoreAngle));
   
   const isOffshorePure = angularDiff < 30;
-  const isOffshoreSide = angularDiff < 60;
   const isOnshore = angularDiff > 120;
-
   let tideWarning = false;
   const stage = (tideStage || "").toLowerCase();
   if (spot.type === "beachbreak" && (stage === "haute" || stage === "high") && waveHeight > 1.8) tideWarning = true;
 
   let label = "Moyen", color = "#facc15", cls = "is-medium", msg = "Analyse : Plan d'eau moyen.";
 
-  if (windSpeed > 35) {
-    return { label: "TEMPÊTE", color: "#ef4444", class: "is-bad", botMsg: "Robot Alert : Vent violent.", energy: Math.round(energyScore) };
-  }
-
+  if (windSpeed > 35) return { label: "TEMPÊTE", color: "#ef4444", class: "is-bad", botMsg: "Robot Alert : Vent violent.", energy: Math.round(energyScore) };
   if (isOffshorePure && wavePeriod >= 10 && waveHeight >= 0.7 && !tideWarning) {
     label = "ÉPIQUE"; color = "#d946ef"; cls = "is-epic"; msg = `Verdict : Houle longue (${wavePeriod}s) + Offshore pur.`;
   } else if (isOnshore || wavePeriod < 6 || tideWarning) {
     label = "MAUVAIS"; color = "#ef4444", cls = "is-bad"; 
-    msg = isOnshore ? "Verdict : Vent de mer dégradé." : tideWarning ? "Verdict : Marée haute, vagues fermantes." : "Verdict : Période trop faible.";
-  } else if (waveHeight > 0.5 && wavePeriod > 8 && (isOffshoreSide || windSpeed < 12)) {
+    msg = isOnshore ? "Vent de mer dégradé." : "Conditions défavorables.";
+  } else if (waveHeight > 0.5 && wavePeriod > 8) {
     label = "BON"; color = "#4ade80", cls = "is-good", msg = "Verdict : Conditions propres.";
   }
-
   return { label, color, class: cls, botMsg: msg, energy: Math.round(energyScore) };
 };
 
@@ -216,7 +258,6 @@ const updateQuotaUI = async () => {
   const quotaLabel = document.getElementById("call-count-ui");
   if (!quotaLabel) return;
   try {
-    // CORRECTION RENDER : Chemin relatif
     const res = await fetch("/api/quota");
     if(!res.ok) throw new Error("Erreur quota");
     const data = await res.json();
@@ -338,7 +379,6 @@ const updateSpotListSelection = (name) => {
 
 const updateListStatus = async () => {
   try {
-    // CORRECTION RENDER : Chemin relatif
     const res = await fetch("/api/all-status");
     if (!res.ok) return;
     const statusMap = await res.json();
@@ -361,6 +401,7 @@ const toggleFavorite = (name) => {
   localStorage.setItem("surfFavorites", JSON.stringify(favs));
 };
 
+// --- 7. NEWS ET AUTRES PAGES ---
 const renderHomeNews = async () => {
   const container = document.getElementById("news-preview");
   if (!container) return;
@@ -383,14 +424,11 @@ const renderHomeNews = async () => {
   } catch (e) { container.innerHTML = "<p style='color:#666;'>Impossible de charger.</p>"; }
 };
 
-// DANS PUBLIC/APP.JS
-
 const renderFullNews = async () => {
     const grid = document.getElementById("full-news-grid");
     const hero = document.getElementById("news-hero-container");
     if (!grid || !hero) return;
     try {
-        // CORRECTION ICI : On appelle bien /api/news et non /api/marine
         const res = await fetch("/api/news"); 
         const allNews = await res.json();
         
@@ -415,12 +453,9 @@ const renderFullNews = async () => {
                 <div class="news-img-wrapper"><img src="${n.img}" class="news-img" loading="lazy"><span class="news-badge">${n.tag}</span></div>
                 <div class="news-content"><h3>${n.title}</h3><a href="${n.link}" target="_blank" class="news-btn">Lire la suite</a></div>
             </article>`).join('');
-    } catch (e) {
-        console.error("Erreur news:", e);
-    }
+    } catch (e) { console.error("Erreur news:", e); }
 };
 
-// --- 7. PAGE CONDITIONS (DASHBOARD) ---
 const initConditionsPage = () => {
   const params = new URLSearchParams(window.location.search);
   const spotName = params.get("spot");
@@ -451,10 +486,8 @@ const initConditionsPage = () => {
 
   const fetchConditions = async () => {
     try {
-      // CORRECTION RENDER : Chemin relatif
       const wRes = await fetch(`/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
       const weather = await wRes.json();
-      // CORRECTION RENDER : Chemin relatif
       const tRes = await fetch(`/api/tide?spot=${encodeURIComponent(spot.name)}`);
       const tide = await tRes.json();
       
@@ -582,7 +615,6 @@ const initFavoritesPage = async () => {
         const spot = spots.find(s => s.name === name);
         if (!spot) return null;
         try {
-            // CORRECTION RENDER : Chemin relatif
             const res = await fetch(`/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
             const weather = await res.json();
             const quality = calculateQuality(weather.waveHeight, weather.windSpeed, weather.wavePeriod, weather.windDirection, "mid", spot.name);
@@ -620,108 +652,6 @@ const initFavoritesPage = async () => {
     }).join('');
 };
 
-const checkGlobalLogin = () => { /* Code Auth Inchangé */ };
-
-// --- 8. FONCTIONS D'INSCRIPTION & AUTH (CORRIGÉES) ---
-const handleAuthSwitch = () => {
-    const loginView = document.getElementById("auth-login-view");
-    const registerView = document.getElementById("auth-register-view");
-    const toRegister = document.getElementById("link-to-register");
-    const toLogin = document.getElementById("link-to-login");
-
-    if (toRegister) {
-        toRegister.onclick = (e) => {
-            e.preventDefault();
-            if(loginView) loginView.style.display = "none";
-            if(registerView) registerView.style.display = "block";
-        };
-    }
-    if (toLogin) {
-        toLogin.onclick = (e) => {
-            e.preventDefault();
-            if(registerView) registerView.style.display = "none";
-            if(loginView) loginView.style.display = "block";
-        };
-    }
-    
-    document.body.addEventListener('click', (e) => {
-        if(e.target.id === 'link-to-register') {
-            e.preventDefault();
-            if(loginView) loginView.style.display = "none";
-            if(registerView) registerView.style.display = "block";
-        }
-        if(e.target.id === 'link-to-login') {
-            e.preventDefault();
-            if(registerView) registerView.style.display = "none";
-            if(loginView) loginView.style.display = "block";
-        }
-    });
-};
-
-// DANS PUBLIC/APP.JS
-
-const initRegisterLogic = () => {
-    const regForm = document.getElementById("register-form");
-    const loginForm = document.getElementById("login-form"); // Ajoute aussi l'ID au formulaire de login dans le HTML si besoin
-
-    // LOGIQUE D'INSCRIPTION
-    if (regForm) {
-        regForm.onsubmit = async (e) => {
-            e.preventDefault();
-            const name = document.getElementById("reg-name").value;
-            const email = document.getElementById("reg-email").value;
-            const password = document.getElementById("reg-pass").value;
-
-            try {
-                const res = await fetch("/api/auth/register", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name, email, password })
-                });
-
-                const data = await res.json();
-                if (data.success) {
-                    // On sauvegarde le token ou l'user dans le localStorage JUSTE pour s'en souvenir côté client
-                    localStorage.setItem("surfUser", JSON.stringify(data.user));
-                    alert("Bienvenue Agent " + data.user.name);
-                    window.location.reload();
-                } else {
-                    alert("Erreur : " + data.error);
-                }
-            } catch (err) {
-                alert("Erreur de connexion au serveur.");
-            }
-        };
-    }
-
-    // LOGIQUE DE CONNEXION (A ajouter)
-    if (loginForm) {
-        loginForm.onsubmit = async (e) => {
-            e.preventDefault();
-            const email = document.getElementById("login-email").value;
-            const password = document.getElementById("login-pass").value;
-
-            try {
-                const res = await fetch("/api/auth/login", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ email, password })
-                });
-
-                const data = await res.json();
-                if (data.success) {
-                    localStorage.setItem("surfUser", JSON.stringify(data.user));
-                    window.location.reload();
-                } else {
-                    alert("Erreur : " + data.error);
-                }
-            } catch (err) {
-                alert("Impossible de joindre le QG.");
-            }
-        };
-    }
-};
-
 const checkGlobalAlerts = async () => { /* Code Alerte Inchangé */ };
 
 // --- 9. STATS, RADAR & OUTILS ---
@@ -729,43 +659,35 @@ const updateHomeStats = async () => {
   try {
       const refSpot = spots[0]; // Hossegor
 
-      // 1. Water Temp & Swell (CORRECTION RENDER : Chemin relatif)
       const weatherRes = await fetch(`/api/marine?lat=${refSpot.coords[0]}&lng=${refSpot.coords[1]}`);
       const weather = await weatherRes.json();
 
-      // 2. Tide (CORRECTION RENDER : Chemin relatif)
       const tideRes = await fetch(`/api/tide?spot=${encodeURIComponent(refSpot.name)}`);
       const tide = await tideRes.json();
 
-      // 3. Live Spots (CORRECTION RENDER : Chemin relatif)
       const statusRes = await fetch("/api/all-status");
       const statuses = await statusRes.json();
       const liveCount = Object.values(statuses).filter(s => s === "LIVE").length;
 
-      // DOM Elements
       const waterEl = document.getElementById("stat-water");
       const swellEl = document.getElementById("stat-swell");
       const activeEl = document.getElementById("stat-active");
       const tideEl = document.getElementById("stat-tide");
 
-      // Update Water Temp
       if(waterEl && weather.waterTemperature != null) {
           waterEl.querySelector(".bubble-value").textContent = `${weather.waterTemperature}°C`;
           waterEl.querySelector(".bubble-value").style.color = "#4ade80";
       }
 
-      // Update Swell
       if(swellEl && weather.waveHeight) {
           swellEl.querySelector(".bubble-value").textContent = `${weather.waveHeight.toFixed(1)}m • ${Math.round(weather.wavePeriod)}s`;
           swellEl.querySelector(".bubble-value").style.color = weather.waveHeight > 1.5 ? "#d946ef" : "#fff";
       }
 
-      // Update Active Spots
       if(activeEl) {
           activeEl.querySelector(".bubble-value").textContent = `${liveCount}`;
       }
 
-      // Update Tide
       if(tideEl) {
           let tideText = "--";
           if (tide.allTides && tide.allTides.length) {
@@ -788,7 +710,7 @@ const initRadar = () => {
     const container = document.getElementById("radar-container");
     if (!container) return; 
 
-    const trendingSpots = [spots[0], spots[7], spots[18], spots[9]]; // Hossegor, Anglet, La Torche, Guéthary
+    const trendingSpots = [spots[0], spots[7], spots[18], spots[9]]; 
 
     container.innerHTML = trendingSpots.map(spot => `
         <div class="radar-card" onclick="window.location.href='conditions.html?spot=${encodeURIComponent(spot.name)}'">
@@ -911,7 +833,6 @@ const initCamerasPage = () => {
     const fetchCamStats = async () => {
         try {
             const spot = spots[0]; 
-            // CORRECTION RENDER : Chemin relatif
             const res = await fetch(`/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
             const data = await res.json();
             if(document.getElementById("cs-wind")) document.getElementById("cs-wind").textContent = `${data.windSpeed} km/h`;
@@ -943,7 +864,6 @@ const initVersusPage = () => {
             const spot = spots.find(s => s.name === name);
             if (!spot) return null;
             try {
-                // CORRECTION RENDER : Chemin relatif
                 const res = await fetch(`/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
                 const weather = await res.json();
                 return { ...weather, quality: calculateQuality(weather.waveHeight, weather.windSpeed, weather.wavePeriod, weather.windDirection, "mid", spot.name) };
@@ -997,17 +917,14 @@ const initVersusPage = () => {
 
 // --- 10. INITIALISATION AU CHARGEMENT ---
 window.addEventListener("load", () => {
-  // 1. SCAN DE SÉCURITÉ PRIORITAIRE
   initGatekeeper();
-  handleAuthSwitch(); // Activation switch Connexion/Inscription
-  initRegisterLogic(); // Activation logique inscription
+  handleAuthSwitch(); 
+  initAuthLogic(); 
 
-  // 2. GESTION DU LOADER VISUEL
   const loader = document.getElementById("app-loader");
   if(loader) { setTimeout(() => loader.classList.add("loader-hidden"), 800); }
 
   try {
-      // 3. ROUTAGE INTERNE (Selon la page active)
       if (document.getElementById("surf-map")) { 
         initMap(); renderSpotList(); renderHomeNews(); checkGlobalAlerts(); updateHomeStats(); initRadar(); initMobileInstall(); 
         document.getElementById("spot-search")?.addEventListener("input", () => setTimeout(renderSpotList, 200)); 
@@ -1017,10 +934,8 @@ window.addEventListener("load", () => {
       if (document.body.classList.contains("favorites-page")) initFavoritesPage(); 
       if (document.body.classList.contains("versus-page")) initVersusPage(); 
       if (document.body.classList.contains("actus-page")) renderFullNews(); 
-      checkGlobalLogin();
   } catch (e) { console.error("Erreur critique init:", e); }
 
-  // 4. ÉCOUTEUR GLOBAL DE CLICS (Modaux + Légaux + Profil)
   document.body.addEventListener("click", e => {
     if (e.target.matches("[data-modal-close]") || e.target.closest(".modal-close")) {
       const openModal = document.querySelector(".modal.is-open");

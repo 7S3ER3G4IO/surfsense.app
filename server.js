@@ -2,8 +2,8 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
-import pg from "pg"; // Module pour la base de données
-import bcrypt from "bcrypt"; // Module de sécurité pour les mots de passe
+import pg from "pg"; 
+import bcrypt from "bcrypt"; 
 import Parser from "rss-parser";
 import { fileURLToPath } from "url";
 import { spots } from "./spots.js";
@@ -23,9 +23,9 @@ const pool = new pg.Pool({
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json()); // Indispensable pour lire les JSON envoyés par le login/register
+app.use(express.json()); 
 
-// --- CONFIGURATION DES ROBOTS SURFSENSE (LOGS IMMERSIFS) ---
+// --- CONFIGURATION ROBOTS (Code inchangé) ---
 const ROBOTS = {
     TIDE: { name: "Tide-Master", icon: "🌊", msg: "Analyse des cycles de marée..." },
     SWELL: { name: "Swell-Pulse", icon: "⏱️", msg: "Mesure de la période et direction..." },
@@ -47,15 +47,11 @@ const robotLog = (robot, status = "OK", details = "") => {
     console.log(`[\x1b[90m${timestamp}\x1b[0m] ${robot.icon} \x1b[36mRobot ${robot.name}\x1b[0m : ${robot.msg} [\x1b[32m${status}\x1b[0m]${detailStr}`);
 };
 
-// --- CONFIGURATION SÉCURISÉE ---
 const STORMGLASS_API_KEY = process.env.STORMGLASS_API_KEY || "91e3ecb4-0596-11f1-b82f-0242ac120004-91e3ed18-0596-11f1-b82f-0242ac120004";
-
-// --- RÉGLAGES ÉCONOMIQUES ---
 const MAX_DAILY_CALLS = 480; 
 const CACHE_DURATION = 3 * 60 * 60 * 1000; 
 const WEATHER_ROBOT_INTERVAL = 45 * 60 * 1000; 
 
-// Mémoire globale
 let globalNews = [];
 let epicSpots = []; 
 let apiCallCount = 0;
@@ -70,12 +66,12 @@ const fallbackImages = [
     "https://images.unsplash.com/photo-1528150395403-992a693e26c8?w=800"
 ];
 
-// --- GESTION CACHE & BASE DE DONNÉES ---
-const cache = new Map(); // Mémoire vive pour la rapidité
+// --- GESTION DB & MIGRATION AUTOMATIQUE ---
+const cache = new Map(); 
 
 const initDB = async () => {
     try {
-        // 1. Créer la table CACHE
+        // 1. Table CACHE
         await pool.query(`
             CREATE TABLE IF NOT EXISTS cache (
                 key TEXT PRIMARY KEY,
@@ -84,7 +80,7 @@ const initDB = async () => {
             );
         `);
 
-        // 2. Créer la table USERS (NOUVEAU)
+        // 2. Table USERS
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -95,16 +91,26 @@ const initDB = async () => {
                 created_at TIMESTAMP DEFAULT NOW()
             );
         `);
-        console.log("✅ [DB] Base de données connectée (Tables Cache & Users).");
 
-        // 3. Vérifier si migration cache nécessaire
+        // 3. MIGRATION AUTOMATIQUE POUR 2FA (C'EST ICI QUE ÇA SE PASSE)
+        // Le serveur va essayer d'ajouter les colonnes. Si elles existent déjà, il ignore.
+        try {
+            await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_code TEXT;");
+            await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_expires BIGINT;");
+            console.log("✅ [DB] Colonnes 2FA (Secu) vérifiées.");
+        } catch (e) {
+            console.log("ℹ️ [DB] Colonnes 2FA déjà présentes.");
+        }
+
+        console.log("✅ [DB] Base de données prête.");
+
+        // 4. Migration Cache.json si vide
         const countRes = await pool.query("SELECT COUNT(*) FROM cache");
         if (parseInt(countRes.rows[0].count) === 0) {
             console.log("📂 [MIGRATION] Base vide. Importation de cache.json...");
             await migrateLocalCacheToDB();
         }
 
-        // 4. Charger les données dans la RAM
         await loadCacheFromDB();
     } catch (err) {
         console.error("❌ [DB CRITICAL] Erreur connexion:", err.message);
@@ -123,7 +129,6 @@ const migrateLocalCacheToDB = async () => {
                     [key, JSON.stringify(value.data), value.expires]
                 );
             }
-            console.log("✅ [MIGRATION] Succès !");
         } catch (e) { console.error("❌ Erreur migration:", e); }
     }
 };
@@ -152,7 +157,11 @@ const saveToDB = async (key, data, expires) => {
 
 app.use(cors());
 
-// --- ROUTES D'AUTHENTIFICATION (NOUVEAU) ---
+// --- FONCTION UTILITAIRE : GÉNÉRER CODE 2FA ---
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+
+// --- ROUTES D'AUTHENTIFICATION (AVEC 2FA) ---
 
 // INSCRIPTION
 app.post("/api/auth/register", async (req, res) => {
@@ -160,30 +169,27 @@ app.post("/api/auth/register", async (req, res) => {
     if (!name || !email || !password) return res.status(400).json({ error: "Champs manquants" });
 
     try {
-        // Vérifier si l'email existe
         const userCheck = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-        if (userCheck.rows.length > 0) return res.status(409).json({ error: "Cet email est déjà utilisé." });
+        if (userCheck.rows.length > 0) return res.status(409).json({ error: "Email déjà utilisé." });
 
-        // Hasher le mot de passe
         const salt = await bcrypt.genSalt(10);
         const hash = await bcrypt.hash(password, salt);
 
-        // Créer l'utilisateur
         const newUser = await pool.query(
             "INSERT INTO users (name, email, password, premium) VALUES ($1, $2, $3, $4) RETURNING id, name, email, premium",
             [name, email, hash, true]
         );
 
         res.json({ success: true, user: newUser.rows[0] });
-        console.log(`👤 [AUTH] Nouvel agent inscrit : ${name}`);
+        console.log(`👤 [AUTH] Nouvel agent : ${name}`);
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Erreur serveur interne" });
+        res.status(500).json({ error: "Erreur serveur" });
     }
 });
 
-// CONNEXION
+// CONNEXION (ÉTAPE 1 : CHECK PASS + GEN CODE)
 app.post("/api/auth/login", async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -195,31 +201,66 @@ app.post("/api/auth/login", async (req, res) => {
 
         if (!validPass) return res.status(401).json({ error: "Mot de passe incorrect." });
 
+        // GÉNÉRATION 2FA
+        const code = generateOTP();
+        const expires = Date.now() + 5 * 60 * 1000; // 5 min
+
+        await pool.query("UPDATE users SET otp_code = $1, otp_expires = $2 WHERE id = $3", [code, expires, user.id]);
+
+        // LOG POUR LE DEV (Simule l'envoi d'email)
+        console.log(`📨 [EMAIL SIMULATION] Code pour ${user.email} : ${code}`);
+
+        res.json({ step: "2FA", email: user.email, message: "Code envoyé" });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Erreur connexion" });
+    }
+});
+
+// VÉRIFICATION (ÉTAPE 2 : CHECK CODE)
+app.post("/api/auth/verify-2fa", async (req, res) => {
+    const { email, code } = req.body;
+    try {
+        const userRes = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+        if (userRes.rows.length === 0) return res.status(404).json({ error: "Utilisateur introuvable." });
+        
+        const user = userRes.rows[0];
+
+        if (!user.otp_code || user.otp_code !== code) {
+            return res.status(400).json({ error: "Code invalide." });
+        }
+        if (Date.now() > parseInt(user.otp_expires)) {
+            return res.status(400).json({ error: "Code expiré." });
+        }
+
+        // Nettoyage code
+        await pool.query("UPDATE users SET otp_code = NULL, otp_expires = NULL WHERE id = $1", [user.id]);
+
         res.json({ 
             success: true, 
             user: { id: user.id, name: user.name, email: user.email, premium: user.premium } 
         });
-        console.log(`🔑 [AUTH] Connexion agent : ${user.name}`);
+        console.log(`🔓 [AUTH] Succès 2FA : ${user.name}`);
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ error: "Erreur serveur connexion" });
+        res.status(500).json({ error: "Erreur serveur 2FA" });
     }
 });
 
 
-// --- MIDDLEWARE DE MONITORING API ---
+// --- RESTES DES ROUTES & LOGIQUE MÉTIER ---
+
 app.use((req, res, next) => {
     if (req.url.startsWith('/api/')) {
         const randomRobots = [ROBOTS.ENERGY, ROBOTS.VECTOR, ROBOTS.CHOP, ROBOTS.FEEL];
         const robot = randomRobots[Math.floor(Math.random() * randomRobots.length)];
-        // Logs réduits pour éviter le spam, décommenter si besoin
         // robotLog(robot, "SCANNING", `${req.method} ${req.url}`);
     }
     next();
 });
 
-// --- ROBOT 1 : SWELL HUNTER ---
 const runSwellHunter = () => {
   robotLog(ROBOTS.HUNTER, "RUNNING");
   const alerts = [];
@@ -244,7 +285,6 @@ const runSwellHunter = () => {
   if(epicSpots.length > 0) robotLog(ROBOTS.HUNTER, "SUCCESS", `${epicSpots.length} sessions validées`);
 };
 
-// --- ROBOT 2 : TIDE MASTER ---
 const runTideMaster = async () => {
   robotLog(ROBOTS.TIDE, "CHECKING");
   const now = Date.now();
@@ -282,15 +322,13 @@ const runTideMaster = async () => {
       const expiresAt = now + (12 * 60 * 60 * 1000);
 
       cache.set(key, { data: dataToStore, expires: expiresAt });
-      saveToDB(key, dataToStore, expiresAt); // Sauvegarde DB
-      
+      saveToDB(key, dataToStore, expiresAt);
       apiCallCount++;
       robotLog(ROBOTS.TIDE, "UPDATE", spot.name);
     } catch (e) { robotLog(ROBOTS.TIDE, "ERROR", spot.name); }
   }
 };
 
-// --- ROBOT 3 : NEWS BOT ---
 const fetchSurfNews = async () => {
   robotLog(ROBOTS.NEWS, "SCANNING");
   try {
@@ -375,13 +413,10 @@ const getDataSmart = async (lat, lng, spotName = "Inconnu", isAuto = false) => {
 
     const expiresAt = now + CACHE_DURATION;
     cache.set(key, { data: realData, expires: expiresAt });
-    saveToDB(key, realData, expiresAt); // Sauvegarde DB
-    
+    saveToDB(key, realData, expiresAt); 
     apiCallCount++;
     return realData;
-  } catch (e) {
-    return cache.get(key)?.data || null;
-  }
+  } catch (e) { return cache.get(key)?.data || null; }
 };
 
 const startBackgroundWorkers = () => {
@@ -422,7 +457,6 @@ app.get("/api/all-status", (req, res) => {
   res.json(statusMap);
 });
 
-// CATCH-ALL pour renvoyer le frontend sur n'importe quelle autre route
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -431,9 +465,8 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
     console.log("\n\x1b[44m\x1b[37m  SURFSENSE PREMIUM v2.0 - SYSTÈME OPÉRATIONNEL  \x1b[0m\n");
     
-    initDB(); // Initialisation DB (Cache + Users) et Migration
+    initDB(); // CETTE FONCTION FAIT TOUT LE TRAVAIL (Création tables + Migration 2FA)
 
-    // Boot visuel des robots
     const startupRobots = Object.values(ROBOTS).slice(0, 6);
     startupRobots.forEach((robot, index) => {
         setTimeout(() => {
