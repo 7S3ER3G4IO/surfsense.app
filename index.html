@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SurfSense — Prévisions en temps réel</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+      defer
+    ></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="hero">
+      <nav class="nav">
+        <div class="logo">SurfSense</div>
+        <div class="nav-links">
+          <a href="#map">Spots</a>
+          <a href="#conditions">Conditions</a>
+          <a href="#cams">Live Cams</a>
+          <a href="#news">Actu</a>
+        </div>
+        <button class="cta">Essayer Premium</button>
+      </nav>
+      <div class="hero-content">
+        <div>
+          <p class="badge">Realtime surf intelligence</p>
+          <h1>Prévisions de surf en temps réel.</h1>
+          <p>
+            Cartographie interactive, données météo-océanographiques live et flux de
+            caméras — réunis dans une expérience futuriste.
+          </p>
+          <div class="hero-actions">
+            <button class="primary">Voir la carte live</button>
+            <button class="ghost">Voir les actus</button>
+          </div>
+        </div>
+        <div class="hero-panel">
+          <div class="panel-header">
+            <span>État global</span>
+            <span class="pulse">LIVE</span>
+          </div>
+          <div class="panel-grid">
+            <div>
+              <h3 id="global-swell">1.8m</h3>
+              <p>Swell moyen</p>
+            </div>
+            <div>
+              <h3 id="global-wind">12kt</h3>
+              <p>Vent offshore</p>
+            </div>
+            <div>
+              <h3 id="global-temp">21°C</h3>
+              <p>Eau</p>
+            </div>
+            <div>
+              <h3 id="global-qa">87%</h3>
+              <p>Qualité</p>
+            </div>
+          </div>
+          <div class="panel-footer">
+            Prochaine mise à jour dans <span id="next-refresh">58s</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="map" class="section">
+        <div class="section-title">
+          <h2>Carte interactive — +20 spots live</h2>
+          <p>Cliquer pour voir les conditions détaillées et la caméra associée.</p>
+        </div>
+        <div class="map-layout">
+          <div id="surf-map"></div>
+          <aside class="spot-panel">
+            <h3>Spot sélectionné</h3>
+            <div id="spot-details" class="spot-details">
+              <p>Sélectionnez un spot sur la carte pour afficher les infos live.</p>
+            </div>
+            <div class="spot-meta">
+              <div>
+                <span>Prochaine marée</span>
+                <strong id="tide">14:25</strong>
+              </div>
+              <div>
+                <span>Indice crowd</span>
+                <strong id="crowd">Modéré</strong>
+              </div>
+              <div>
+                <span>Visibilité</span>
+                <strong id="visibility">10km</strong>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="conditions" class="section">
+        <div class="section-title">
+          <h2>Conditions temps réel</h2>
+          <p>Les données évoluent toutes les 30 secondes pour suivre le spot parfait.</p>
+        </div>
+        <div class="conditions-grid" id="conditions-grid"></div>
+      </section>
+
+      <section id="cams" class="section">
+        <div class="section-title">
+          <h2>Caméras live (DoSurf)</h2>
+          <p>Ajoutez vos identifiants DoSurf pour activer les flux officiels.</p>
+        </div>
+        <div class="cams-grid">
+          <div class="cam-card">
+            <div class="cam-header">
+              <span>Hossegor La Gravière</span>
+              <span class="pulse">LIVE</span>
+            </div>
+            <div class="cam-video">Flux DoSurf à connecter</div>
+          </div>
+          <div class="cam-card">
+            <div class="cam-header">
+              <span>Lacanau Central</span>
+              <span class="pulse">LIVE</span>
+            </div>
+            <div class="cam-video">Flux DoSurf à connecter</div>
+          </div>
+          <div class="cam-card">
+            <div class="cam-header">
+              <span>Biarritz Côte des Basques</span>
+              <span class="pulse">LIVE</span>
+            </div>
+            <div class="cam-video">Flux DoSurf à connecter</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="news" class="section">
+        <div class="section-title">
+          <h2>Actu surf temps réel</h2>
+          <p>Les dernières news et alertes de houle, mises à jour instantanément.</p>
+        </div>
+        <div class="news-grid" id="news-grid"></div>
+      </section>
+
+      <section class="section cta-section">
+        <div>
+          <h2>Déployez SurfSense sur votre serveur cloud.</h2>
+          <p>
+            Connectez les APIs météo, DoSurf et vos capteurs locaux pour un monitoring
+            total.
+          </p>
+        </div>
+        <button class="primary">Démarrer le déploiement</button>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>SurfSense — Prototype UI temps réel. ©2024</p>
+    </footer>
+  </body>
+</html>
