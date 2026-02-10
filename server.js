@@ -3,6 +3,7 @@ import cors from "cors";
 import path from "path";
 import fs from "fs";
 import pg from "pg"; // Module pour la base de données
+import bcrypt from "bcrypt"; // Module de sécurité pour les mots de passe
 import Parser from "rss-parser";
 import { fileURLToPath } from "url";
 import { spots } from "./spots.js";
@@ -22,6 +23,7 @@ const pool = new pg.Pool({
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json()); // Indispensable pour lire les JSON envoyés par le login/register
 
 // --- CONFIGURATION DES ROBOTS SURFSENSE (LOGS IMMERSIFS) ---
 const ROBOTS = {
@@ -73,7 +75,7 @@ const cache = new Map(); // Mémoire vive pour la rapidité
 
 const initDB = async () => {
     try {
-        // 1. Créer la table si elle n'existe pas
+        // 1. Créer la table CACHE
         await pool.query(`
             CREATE TABLE IF NOT EXISTS cache (
                 key TEXT PRIMARY KEY,
@@ -81,16 +83,28 @@ const initDB = async () => {
                 expires BIGINT
             );
         `);
-        console.log("✅ [DB] Base de données connectée.");
 
-        // 2. Vérifier si migration nécessaire
+        // 2. Créer la table USERS (NOUVEAU)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password TEXT NOT NULL,
+                premium BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        `);
+        console.log("✅ [DB] Base de données connectée (Tables Cache & Users).");
+
+        // 3. Vérifier si migration cache nécessaire
         const countRes = await pool.query("SELECT COUNT(*) FROM cache");
         if (parseInt(countRes.rows[0].count) === 0) {
             console.log("📂 [MIGRATION] Base vide. Importation de cache.json...");
             await migrateLocalCacheToDB();
         }
 
-        // 3. Charger les données dans la RAM
+        // 4. Charger les données dans la RAM
         await loadCacheFromDB();
     } catch (err) {
         console.error("❌ [DB CRITICAL] Erreur connexion:", err.message);
@@ -138,12 +152,69 @@ const saveToDB = async (key, data, expires) => {
 
 app.use(cors());
 
+// --- ROUTES D'AUTHENTIFICATION (NOUVEAU) ---
+
+// INSCRIPTION
+app.post("/api/auth/register", async (req, res) => {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) return res.status(400).json({ error: "Champs manquants" });
+
+    try {
+        // Vérifier si l'email existe
+        const userCheck = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+        if (userCheck.rows.length > 0) return res.status(409).json({ error: "Cet email est déjà utilisé." });
+
+        // Hasher le mot de passe
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(password, salt);
+
+        // Créer l'utilisateur
+        const newUser = await pool.query(
+            "INSERT INTO users (name, email, password, premium) VALUES ($1, $2, $3, $4) RETURNING id, name, email, premium",
+            [name, email, hash, true]
+        );
+
+        res.json({ success: true, user: newUser.rows[0] });
+        console.log(`👤 [AUTH] Nouvel agent inscrit : ${name}`);
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Erreur serveur interne" });
+    }
+});
+
+// CONNEXION
+app.post("/api/auth/login", async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        const userRes = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+        if (userRes.rows.length === 0) return res.status(404).json({ error: "Utilisateur inconnu." });
+
+        const user = userRes.rows[0];
+        const validPass = await bcrypt.compare(password, user.password);
+
+        if (!validPass) return res.status(401).json({ error: "Mot de passe incorrect." });
+
+        res.json({ 
+            success: true, 
+            user: { id: user.id, name: user.name, email: user.email, premium: user.premium } 
+        });
+        console.log(`🔑 [AUTH] Connexion agent : ${user.name}`);
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: "Erreur serveur connexion" });
+    }
+});
+
+
 // --- MIDDLEWARE DE MONITORING API ---
 app.use((req, res, next) => {
     if (req.url.startsWith('/api/')) {
         const randomRobots = [ROBOTS.ENERGY, ROBOTS.VECTOR, ROBOTS.CHOP, ROBOTS.FEEL];
         const robot = randomRobots[Math.floor(Math.random() * randomRobots.length)];
-        robotLog(robot, "SCANNING", `${req.method} ${req.url}`);
+        // Logs réduits pour éviter le spam, décommenter si besoin
+        // robotLog(robot, "SCANNING", `${req.method} ${req.url}`);
     }
     next();
 });
@@ -351,11 +422,16 @@ app.get("/api/all-status", (req, res) => {
   res.json(statusMap);
 });
 
+// CATCH-ALL pour renvoyer le frontend sur n'importe quelle autre route
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 // --- DÉMARRAGE AVEC SÉQUENCE BOOT ROBOTS ---
 app.listen(PORT, () => {
     console.log("\n\x1b[44m\x1b[37m  SURFSENSE PREMIUM v2.0 - SYSTÈME OPÉRATIONNEL  \x1b[0m\n");
     
-    initDB(); // Initialisation et Migration DB
+    initDB(); // Initialisation DB (Cache + Users) et Migration
 
     // Boot visuel des robots
     const startupRobots = Object.values(ROBOTS).slice(0, 6);

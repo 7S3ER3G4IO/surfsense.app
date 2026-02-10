@@ -658,26 +658,68 @@ const handleAuthSwitch = () => {
     });
 };
 
+// DANS PUBLIC/APP.JS
+
 const initRegisterLogic = () => {
     const regForm = document.getElementById("register-form");
-    if (!regForm) return;
+    const loginForm = document.getElementById("login-form"); // Ajoute aussi l'ID au formulaire de login dans le HTML si besoin
 
-    regForm.onsubmit = (e) => {
-        e.preventDefault();
-        const name = document.getElementById("reg-name").value;
-        const email = document.getElementById("reg-email").value;
-        
-        if(!name || !email) {
-            alert("Erreur : Champs manquants.");
-            return;
-        }
+    // LOGIQUE D'INSCRIPTION
+    if (regForm) {
+        regForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const name = document.getElementById("reg-name").value;
+            const email = document.getElementById("reg-email").value;
+            const password = document.getElementById("reg-pass").value;
 
-        const newUser = { name, email, premium: true };
-        localStorage.setItem("surfUser", JSON.stringify(newUser));
-        
-        alert("COMPTE CRÉÉ : Bienvenue dans la cellule SurfSense, Agent " + name);
-        window.location.reload();
-    };
+            try {
+                const res = await fetch("/api/auth/register", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name, email, password })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    // On sauvegarde le token ou l'user dans le localStorage JUSTE pour s'en souvenir côté client
+                    localStorage.setItem("surfUser", JSON.stringify(data.user));
+                    alert("Bienvenue Agent " + data.user.name);
+                    window.location.reload();
+                } else {
+                    alert("Erreur : " + data.error);
+                }
+            } catch (err) {
+                alert("Erreur de connexion au serveur.");
+            }
+        };
+    }
+
+    // LOGIQUE DE CONNEXION (A ajouter)
+    if (loginForm) {
+        loginForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const email = document.getElementById("login-email").value;
+            const password = document.getElementById("login-pass").value;
+
+            try {
+                const res = await fetch("/api/auth/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await res.json();
+                if (data.success) {
+                    localStorage.setItem("surfUser", JSON.stringify(data.user));
+                    window.location.reload();
+                } else {
+                    alert("Erreur : " + data.error);
+                }
+            } catch (err) {
+                alert("Impossible de joindre le QG.");
+            }
+        };
+    }
 };
 
 const checkGlobalAlerts = async () => { /* Code Alerte Inchangé */ };
