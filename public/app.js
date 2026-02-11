@@ -51,998 +51,958 @@ const legalTexts = {
     }
 };
 
-// --- 3. GATEKEEPER & AUTHENTIFICATION ---
+
+// --- 3. GATEKEEPER & AUTHENTIFICATION (STABLE) ---
 const initGatekeeper = () => {
     const modal = document.getElementById("gatekeeper-modal");
     if (!modal) return;
+
     const user = localStorage.getItem("surfUser");
     const session = sessionStorage.getItem("accessGranted");
     if (user || session) { modal.style.display = "none"; return; }
-    
+
     modal.style.display = "flex";
     modal.classList.add("is-open");
-    
+
     document.getElementById("btn-accept-access")?.addEventListener("click", () => {
         sessionStorage.setItem("accessGranted", "true");
         modal.classList.remove("is-open");
         setTimeout(() => modal.style.display = "none", 300);
     });
+
     document.getElementById("btn-refuse-access")?.addEventListener("click", () => {
         window.location.href = "https://google.com";
     });
 };
 
-const handleAuthSwitch = () => {
-    const loginView = document.getElementById("auth-login-view");
-    const registerView = document.getElementById("auth-register-view");
+// --- 4. AUTH MODAL (NORMALISATION DOM + SWITCH + 2FA) ---
+const normalizeAuthDom = () => {
+    const authModal = document.getElementById("auth-modal");
+    if (!authModal) return;
 
-    // L'écouteur d'événement pour basculer entre Inscription et Connexion
-    document.body.addEventListener('click', (e) => {
-        if(e.target.id === 'link-to-register') {
-            e.preventDefault();
-            if(loginView) loginView.style.display = "none";
-            if(registerView) registerView.style.display = "block";
+    const content = authModal.querySelector(".modal-content") || authModal;
+
+    // 1) Register view manquant (certains HTML ont le <h3> + <form> sans wrapper)
+    const regForm = document.getElementById("register-form");
+    let regView = document.getElementById("auth-register-view");
+    if (!regView && regForm) {
+        regView = document.createElement("div");
+        regView.id = "auth-register-view";
+        regView.style.display = "none";
+
+        // Essaye de récupérer le <h3> juste au-dessus
+        const maybeH3 = regForm.previousElementSibling && regForm.previousElementSibling.tagName === "H3"
+            ? regForm.previousElementSibling
+            : null;
+
+        if (maybeH3) regView.appendChild(maybeH3);
+        regView.appendChild(regForm);
+
+        // Injecte après la vue login si possible, sinon à la fin
+        const loginView = document.getElementById("auth-login-view");
+        if (loginView && loginView.parentElement) {
+            loginView.parentElement.insertBefore(regView, loginView.nextSibling);
+        } else {
+            content.appendChild(regView);
         }
-        if(e.target.id === 'link-to-login') {
+    }
+
+    // 2) 2FA view parfois hors modal / dupliquée : on garde la première trouvée et on la remet dans la modal
+    const all2fa = Array.from(document.querySelectorAll("#auth-2fa-view"));
+    if (all2fa.length > 0) {
+        const preferred2fa = all2fa.find(el => content.contains(el)) || all2fa[0];
+        if (!content.contains(preferred2fa)) content.appendChild(preferred2fa);
+        preferred2fa.style.display = preferred2fa.style.display || "none";
+
+        // Cache les doublons (sinon getElementById devient non-déterministe)
+        all2fa.forEach((el) => {
+            if (el !== preferred2fa) el.style.display = "none";
+        });
+    }
+
+    // 3) twofa-form dupliqué : idem, on cache les doublons
+    const allTwofaForms = Array.from(document.querySelectorAll("#twofa-form"));
+    if (allTwofaForms.length > 1) {
+        const preferredForm = allTwofaForms.find(el => content.contains(el)) || allTwofaForms[0];
+        allTwofaForms.forEach((el) => {
+            if (el !== preferredForm) el.style.display = "none";
+        });
+    }
+};
+
+const openAuthModal = () => {
+    const authModal = document.getElementById("auth-modal");
+    if (!authModal) return;
+    authModal.classList.add("is-open");
+};
+
+const closeAuthModal = () => {
+    const authModal = document.getElementById("auth-modal");
+    if (!authModal) return;
+    authModal.classList.remove("is-open");
+};
+
+const setLoggedState = (email) => {
+    localStorage.setItem("surfUser", email);
+    document.body.classList.add("user-is-logged");
+};
+
+const clearLoggedState = () => {
+    localStorage.removeItem("surfUser");
+    document.body.classList.remove("user-is-logged");
+};
+
+const showAuthView = (view) => {
+    const loginView = document.getElementById("auth-login-view");
+    const regView = document.getElementById("auth-register-view");
+    const twofaView = document.getElementById("auth-2fa-view");
+
+    // Fallbacks si wrappers absents
+    const regForm = document.getElementById("register-form");
+    const loginForm = document.getElementById("login-form");
+
+    if (loginView) loginView.style.display = "none";
+    if (regView) regView.style.display = "none";
+    if (twofaView) twofaView.style.display = "none";
+
+    if (!regView && regForm) regForm.style.display = "none";
+    if (loginForm) loginForm.style.display = "";
+
+    if (view === "login") {
+        if (loginView) loginView.style.display = "block";
+        else if (loginForm) loginForm.style.display = "";
+    } else if (view === "register") {
+        if (regView) regView.style.display = "block";
+        else if (regForm) regForm.style.display = "";
+        if (loginView) loginView.style.display = "none";
+        if (loginForm) loginForm.style.display = "none";
+    } else if (view === "2fa") {
+        if (twofaView) twofaView.style.display = "block";
+        if (loginView) loginView.style.display = "none";
+        if (regView) regView.style.display = "none";
+        if (loginForm) loginForm.style.display = "none";
+        if (regForm) regForm.style.display = "none";
+    }
+};
+
+const initAuthModalSystem = () => {
+    const authModal = document.getElementById("auth-modal");
+    if (!authModal) return;
+
+    // Ouvrir
+    document.body.addEventListener("click", (e) => {
+        const opener = e.target.closest('[data-modal="auth"]');
+        if (opener) {
             e.preventDefault();
-            if(registerView) registerView.style.display = "none";
-            if(loginView) loginView.style.display = "block";
+            normalizeAuthDom();
+            openAuthModal();
+            showAuthView("login");
+        }
+    });
+
+    // Fermer
+    document.body.addEventListener("click", (e) => {
+        if (e.target.matches("[data-modal-close]")) {
+            e.preventDefault();
+            closeAuthModal();
         }
     });
 };
 
-// --- 4. GESTIONNAIRE D'AUTHENTIFICATION & 2FA ---
+const initAuthSwitch = () => {
+    document.body.addEventListener("click", (e) => {
+        if (e.target.id === "link-to-register") {
+            e.preventDefault();
+            normalizeAuthDom();
+            showAuthView("register");
+        }
+        if (e.target.id === "link-to-login") {
+            e.preventDefault();
+            normalizeAuthDom();
+            showAuthView("login");
+        }
+    });
+};
+
+// --- 4B. LOGIQUE AUTH (REGISTER / LOGIN / 2FA) ---
 const initAuthLogic = () => {
+    normalizeAuthDom();
+
     const regForm = document.getElementById("register-form");
     const loginForm = document.getElementById("login-form");
     const twofaForm = document.getElementById("twofa-form");
-    
-    const authLoginView = document.getElementById("auth-login-view");
-    const authRegisterView = document.getElementById("auth-register-view");
-    const auth2faView = document.getElementById("auth-2fa-view");
+
     const twofaEmailInput = document.getElementById("twofa-email");
 
-    // 🛡️ 1. INSCRIPTION
+    // INSCRIPTION
     if (regForm) {
-        regForm.onsubmit = async (e) => {
+        regForm.addEventListener("submit", async (e) => {
             e.preventDefault();
-            const name = document.getElementById("reg-name").value;
-            const email = document.getElementById("reg-email").value;
-            const password = document.getElementById("reg-pass").value;
+
+            const name = document.getElementById("reg-name")?.value?.trim();
+            const email = document.getElementById("reg-email")?.value?.trim();
+            const password = document.getElementById("reg-pass")?.value;
 
             try {
                 const res = await fetch("/api/auth/register", {
-                    method: "POST", headers: { "Content-Type": "application/json" },
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ name, email, password })
                 });
-                const data = await res.json();
-                
-                if (data.success) {
-                    // 🛑 ON NE RECHARGE PLUS LA PAGE ICI ! On passe au 2FA.
-                    console.log(`[ SYSTÈME ] Compte créé pour ${email}. Attente 2FA...`);
-                    
-                    if (authRegisterView) authRegisterView.style.display = "none";
-                    if (auth2faView) auth2faView.style.display = "block";
-                    if (twofaEmailInput) twofaEmailInput.value = email; // On mémorise l'email
-                } else {
-                    alert("Erreur : " + data.error);
+
+                const data = await res.json().catch(() => ({}));
+                if (!data?.success) {
+                    alert("Erreur : " + (data?.error || data?.message || "Inscription impossible"));
+                    return;
                 }
-            } catch (err) { alert("Erreur connexion serveur."); }
-        };
+
+                console.log(`[ SYSTÈME ] Compte créé pour ${email}. Attente 2FA...`);
+                if (twofaEmailInput) twofaEmailInput.value = email;
+                showAuthView("2fa");
+            } catch (err) {
+                console.error(err);
+                alert("Erreur connexion serveur.");
+            }
+        }, { passive: false });
     }
 
-    // 🛡️ 2. CONNEXION
+    // CONNEXION
     if (loginForm) {
-        loginForm.onsubmit = async (e) => {
+        loginForm.addEventListener("submit", async (e) => {
             e.preventDefault();
-            const email = document.getElementById("login-email").value;
-            const password = document.getElementById("login-pass").value;
+
+            const email = document.getElementById("login-email")?.value?.trim();
+            const password = document.getElementById("login-pass")?.value;
             const btn = loginForm.querySelector("button");
-            const originalText = btn.innerText;
-            btn.innerText = "SÉCURISATION...";
+            const originalText = btn?.innerText;
+
+            if (btn) btn.innerText = "SÉCURISATION...";
 
             try {
                 const res = await fetch("/api/auth/login", {
-                    method: "POST", headers: { "Content-Type": "application/json" },
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ email, password })
                 });
-                const data = await res.json();
 
-                // On simule que la connexion demande toujours le 2FA pour la démo
+                const data = await res.json().catch(() => ({}));
+                if (!data?.success) {
+                    alert("Erreur : " + (data?.error || data?.message || "Connexion impossible"));
+                    if (btn && originalText) btn.innerText = originalText;
+                    return;
+                }
+
                 console.log(`[ SYSTÈME ] Login OK pour ${email}. Attente 2FA...`);
-                if (authLoginView) authLoginView.style.display = "none";
-                if (auth2faView) auth2faView.style.display = "block";
                 if (twofaEmailInput) twofaEmailInput.value = email;
-
-            } catch (err) { alert("Erreur serveur."); btn.innerText = originalText; }
-        };
+                showAuthView("2fa");
+            } catch (err) {
+                console.error(err);
+                alert("Erreur serveur.");
+            } finally {
+                if (btn && originalText) btn.innerText = originalText;
+            }
+        }, { passive: false });
     }
 
-    // 🛡️ 3. VALIDATION DU CODE 2FA
+    // VALIDATION 2FA
     if (twofaForm) {
-        twofaForm.onsubmit = async (e) => {
+        twofaForm.addEventListener("submit", async (e) => {
             e.preventDefault();
-            const email = twofaEmailInput.value;
-            const code = document.getElementById("twofa-code").value;
+
+            const email = (twofaEmailInput?.value || "").trim();
+            const code = document.getElementById("twofa-code")?.value?.trim();
 
             try {
                 const response = await fetch("/api/auth/verify-2fa", {
-                    method: "POST", headers: { "Content-Type": "application/json" },
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ email, code })
                 });
-                const data = await response.json();
 
-                if (data.success) {
-                    console.log("[ SECURITY-BOT ] Accès 2FA autorisé.");
-                    
-                    // On valide les accès finaux
-                    sessionStorage.setItem("accessGranted", "true");
-                    
-                    // ON RECHARGE LA PAGE SEULEMENT MAINTENANT !
-                    alert("Authentification validée. Bienvenue Agent.");
-                    window.location.reload(); 
-                } else {
-                    alert("❌ " + data.error);
-                    document.getElementById("twofa-code").value = "";
+                const data = await response.json().catch(() => ({}));
+                if (!data?.success) {
+                    alert("Code invalide.");
+                    return;
                 }
-            } catch (error) { console.error("Erreur 2FA", error); }
-        };
+
+                // ✅ On marque l'utilisateur comme connecté
+                setLoggedState(email);
+
+                closeAuthModal();
+                showAuthView("login");
+                // Nettoyage code 2FA
+                const codeInput = document.getElementById("twofa-code");
+                if (codeInput) codeInput.value = "";
+            } catch (err) {
+                console.error(err);
+                alert("Erreur validation 2FA.");
+            }
+        }, { passive: false });
     }
 };
 
-const updateProfileModal = async () => {
-    const user = JSON.parse(localStorage.getItem("surfUser"));
-    if (!user) return;
+// --- 4C. PROTECTION "MON COMPTE" / PROFIL ---
+const initProfileGate = () => {
+    // Élément possible : .user-profile (conditions.html) + bouton "Mon Profil" (nav)
+    document.body.addEventListener("click", (e) => {
+        const profileClick = e.target.closest(".user-profile");
+        if (!profileClick) return;
 
-    document.getElementById("profile-user-name").textContent = user.name || "Agent Identifié";
-    document.getElementById("profile-email").textContent = user.email || "N/A";
-
-    try {
-        const res = await fetch("/api/quota");
-        const data = await res.json();
-        const percent = (data.used / data.limit) * 100;
-        document.getElementById("quota-text").textContent = `${data.used}/${data.limit}`;
-        const fill = document.getElementById("quota-fill");
-        if(fill) {
-            fill.style.width = `${percent}%`;
-            if (percent > 80) fill.style.background = "var(--live-red)";
+        // Si pas connecté → ouvre auth modal
+        if (!localStorage.getItem("surfUser")) {
+            e.preventDefault();
+            normalizeAuthDom();
+            openAuthModal();
+            showAuthView("login");
         }
-    } catch (e) {}
+    });
+
+    // Logout si présent
+    document.body.addEventListener("click", (e) => {
+        const btn = e.target.closest(".btn-logout");
+        if (!btn) return;
+        e.preventDefault();
+        clearLoggedState();
+        closeAuthModal();
+        alert("Déconnecté.");
+    });
 };
 
-const logout = () => {
-    if(confirm("DÉCONNEXION : Couper la liaison avec le terminal ?")) {
-        localStorage.removeItem("surfUser");
-        sessionStorage.removeItem("accessGranted");
-        window.location.reload();
-    }
+
+// --- 5. LOGIQUE MÉTÉO / QUALITÉ / ROBOTS ---
+const degToCompass = (deg) => {
+  const dirs = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+  return dirs[Math.round(((deg % 360) / 22.5)) % 16];
 };
 
-// --- 5. LOGIQUE MÉTIER (MÉTÉO & IA) ---
-const calculateQuality = (waveHeight, windSpeed, wavePeriod, windDir, tideStage, spotName) => {
-  const spot = spots.find(s => s.name === spotName) || { facing: 275, type: "beachbreak" };
-  const energyScore = (waveHeight * waveHeight) * wavePeriod;
-  const dirAngles = { "N": 0, "NE": 45, "E": 90, "SE": 135, "S": 180, "SO": 225, "O": 270, "NO": 315 };
-  const windAngle = dirAngles[windDir] || 270;
-  const offshoreAngle = (spot.facing + 180) % 360;
-  const angularDiff = Math.min(Math.abs(windAngle - offshoreAngle), 360 - Math.abs(windAngle - offshoreAngle));
-  
-  const isOffshorePure = angularDiff < 30;
-  const isOnshore = angularDiff > 120;
-  let tideWarning = false;
-  const stage = (tideStage || "").toLowerCase();
-  if (spot.type === "beachbreak" && (stage === "haute" || stage === "high") && waveHeight > 1.8) tideWarning = true;
+const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
-  let label = "MOYEN", color = "#facc15", cls = "is-medium", msg = "Analyse : Plan d'eau moyen.";
+const computeQuality = (spot, swellHeight, swellPeriod, swellDir, windSpeed, windDir) => {
+  const spotFacing = spot.facing;
+  const swellAngleDiff = Math.abs(((swellDir - spotFacing + 540) % 360) - 180);
+  const windAngleDiff = Math.abs(((windDir - spotFacing + 540) % 360) - 180);
 
-  // 1. DANGER : Tempête de vent absolue
-  if (windSpeed > 35) {
-      return { label: "TEMPÊTE", color: "#ef4444", class: "is-bad", botMsg: "Robot Alert : Vent violent.", energy: Math.round(energyScore) };
-  }
-  
-  // 2. DANGER : Houle XXL impraticable pour un beachbreak normal
-  if (waveHeight > 2.5) {
-      return { label: "MAUVAIS", color: "#ef4444", class: "is-bad", botMsg: `Robot Alert : Houle massive (${waveHeight.toFixed(1)}m).`, energy: Math.round(energyScore) };
-  }
+  const swellOk = swellHeight >= 0.6 && swellHeight <= 2.5 && swellPeriod >= 8;
+  const swellDirOk = swellAngleDiff <= 55;
+  const windOk = windSpeed <= 25;
+  const offshore = windAngleDiff >= 135;
 
-  // 3. MAUVAIS : Trop de vent, vent onshore, ou houle trop courte
-  if (windSpeed > 25 || isOnshore || wavePeriod < 6 || tideWarning) {
-      label = "MAUVAIS"; color = "#ef4444"; cls = "is-bad"; 
-      msg = windSpeed > 25 ? "Trop de vent pour surfer." : (isOnshore ? "Vent de mer dégradé." : "Conditions défavorables.");
-  } 
-  // 4. ÉPIQUE : Les conditions parfaites (Offshore pur, houle longue)
-  else if (isOffshorePure && wavePeriod >= 10 && waveHeight >= 0.7 && !tideWarning) {
-      label = "ÉPIQUE"; color = "#d946ef"; cls = "is-epic"; 
-      msg = `Verdict : Houle longue (${Math.round(wavePeriod)}s) + Offshore pur.`;
-  } 
-  // 5. BON : Conditions de base propres (Houle correcte, peu de vent)
-  else if (waveHeight >= 0.8 && wavePeriod >= 8 && windSpeed <= 15) {
-      label = "BON"; color = "#4ade80"; cls = "is-good"; 
-      msg = "Verdict : Conditions propres et surfables.";
-  }
+  let score = 0;
+  if (swellOk) score += 35;
+  if (swellDirOk) score += 25;
+  if (windOk) score += 20;
+  if (offshore) score += 20;
 
-  return { label, color, class: cls, botMsg: msg, energy: Math.round(energyScore) };
+  if (swellHeight > 2.8) score -= 10;
+  if (windSpeed > 35) score -= 25;
+
+  score = clamp(score, 0, 100);
+
+  if (score >= 80) return { label: "ÉPIQUE", className: "is-epic", badge: "LIVE" };
+  if (score >= 60) return { label: "BON", className: "is-good", badge: "LIVE" };
+  if (score >= 40) return { label: "MOYEN", className: "is-medium", badge: "SIMU" };
+  return { label: "MAUVAIS", className: "is-bad", badge: "SIMU" };
 };
 
-const getWeatherIcon = (cloudCover, precipitation) => {
-  // 1. La pluie est prioritaire (si > 0.1mm/h)
-  if (precipitation > 0.1) {
-      if (precipitation > 2) return "⛈️"; // Grosse pluie / Orage
-      return "🌧️"; // Pluie normale
-  }
-  // 2. Si pas de pluie, on regarde les nuages
-  if (cloudCover == null || cloudCover < 20) return "☀️"; 
-  if (cloudCover < 60) return "⛅"; 
-  if (cloudCover < 90) return "☁️"; 
-  return "🌫️"; 
+const pickBest3 = (allData) => {
+  const sorted = [...allData].sort((a,b) => b.score - a.score);
+  return sorted.slice(0, 3);
 };
 
-const runAiRobots = (weather) => {
-    const hub = document.getElementById("ai-robot-hub");
-    if(!hub) return;
-
-    let board = "Hybride"; if(weather.waveHeight < 0.8) board = "Longboard 9'"; else if(weather.waveHeight < 1.5) board = "Shortboard"; else board = "Gun / Step-up";
-    const now = new Date();
-    const isWeekend = (now.getDay() === 0 || now.getDay() === 6);
-    let crowd = "Calme 🟢"; if(weather.waveHeight > 1.0 && isWeekend) crowd = "Saturé 🔴"; else if(weather.waveHeight > 1.0) crowd = "Moyen 🟠";
-    const feel = Math.round((weather.airTemperature || 15) - ((weather.windSpeed || 10) * 0.1)); 
-    let solar = "Standard";
-    if(now.getHours() > 20 || now.getHours() < 7) solar = "Nuit 🌙"; else if(weather.cloudCover < 30) solar = "UV Fort ☀️"; else solar = "Nuageux ☁️";
-    const pollution = (weather.cloudCover > 95) ? "Risque ⚠️" : "Eau Claire 💧";
-
-    hub.innerHTML = `
-        <div class="ai-robot-card"><div class="robot-icon">🏄‍♂️</div><div class="robot-info"><span class="robot-name">Quiver-AI</span><span class="robot-value">${board}</span></div></div>
-        <div class="ai-robot-card"><div class="robot-icon">👥</div><div class="robot-info"><span class="robot-name">Crowd-Predict</span><span class="robot-value">${crowd}</span></div></div>
-        <div class="ai-robot-card"><div class="robot-icon">🌡️</div><div class="robot-info"><span class="robot-name">Feel-Real</span><span class="robot-value">${feel}°C</span></div></div>
-        <div class="ai-robot-card"><div class="robot-icon">☀️</div><div class="robot-info"><span class="robot-name">Solar-Sync</span><span class="robot-value">${solar}</span></div></div>
-        <div class="ai-robot-card"><div class="robot-icon">🧬</div><div class="robot-info"><span class="robot-name">Eco-Scan</span><span class="robot-value">${pollution}</span></div></div>
-    `;
+const formatSwellSummary = (swellHeight, period, swellDir) => {
+  if (swellHeight == null) return "--";
+  return `${swellHeight.toFixed(1)}m / ${Math.round(period)}s / ${degToCompass(swellDir)}`;
 };
 
-// --- 6. INTERFACE CARTE & LISTES ---
-const updateQuotaUI = async () => {
-  const quotaLabel = document.getElementById("call-count-ui");
-  if (!quotaLabel) return;
+const formatWindSummary = (windSpeed, windDir) => {
+  if (windSpeed == null) return "--";
+  return `${Math.round(windSpeed)} km/h ${degToCompass(windDir)}`;
+};
+
+const showGlobalAlert = (message, type="info") => {
+  const zone = document.getElementById("global-alert-zone");
+  if (!zone) return;
+
+  const el = document.createElement("div");
+  el.className = `global-alert global-alert--${type}`;
+  el.innerHTML = `<strong>${type.toUpperCase()}</strong> ${message}`;
+  zone.appendChild(el);
+  setTimeout(() => el.classList.add("is-visible"), 30);
+  setTimeout(() => {
+    el.classList.remove("is-visible");
+    setTimeout(() => el.remove(), 400);
+  }, 3500);
+};
+
+// --- STORAGE / QUOTA ---
+const STORAGE_KEY = "surfsense_spot_cache_v1";
+const CALL_COUNT_KEY = "surfsense_call_count_v1";
+const CALL_MAX = 500;
+
+const getCallCount = () => {
   try {
-    const res = await fetch("/api/quota");
-    if(!res.ok) throw new Error("Erreur quota");
-    const data = await res.json();
-    quotaLabel.textContent = `Quota: ${data.used}/${data.limit} (${data.remaining} restants)`;
-  } catch (e) { quotaLabel.textContent = "Quota: --/500"; }
-};
-
-const initMap = () => {
-  if (map) { map.remove(); map = null; }
-  if (!document.getElementById("surf-map")) return;
-  
-  map = L.map("surf-map", { zoomControl: false }).setView([46.8, 2.0], 5.5);
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(map);
-  L.control.zoom({ position: 'bottomright' }).addTo(map);
-
-  markersCluster = L.markerClusterGroup({
-    showCoverageOnHover: false,
-    zoomToBoundsOnClick: true,
-    spiderfyOnMaxZoom: true,
-    removeOutsideVisibleBounds: true,
-    iconCreateFunction: function(cluster) {
-        const count = cluster.getChildCount();
-        return L.divIcon({ html: `<div class="surf-cluster-marker"><span>${count}</span></div>`, className: 'surf-cluster', iconSize: L.point(40, 40) });
-    }
-  });
-  const glowIcon = L.divIcon({ className: "leaflet-marker-wrapper", html: '<div class="spot-marker"></div>', iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -35] });
-  spots.forEach((spot) => {
-    const marker = L.marker(spot.coords, { icon: glowIcon });
-    marker.bindPopup(renderSpotPopup(spot), { closeButton: false, offset: [0, -10], className: "surf-popup" });
-    marker.on("click", () => selectSpot(spot, marker));
-    markersCluster.addLayer(marker);
-    markersByName.set(spot.name, marker);
-  });
-  map.addLayer(markersCluster);
-  setTimeout(() => map.invalidateSize(), 200);
-};
-
-const selectSpot = (spot, marker, { openPopup = true } = {}) => {
-  if (!spot) return;
-
-  // 📡 SIGNAL RADAR : Envoie l'info au serveur pour affichage dans Render
-  fetch(`/api/log-click?spot=${encodeURIComponent(spot.name)}`).catch(() => {});
-
-  const resolvedMarker = marker || markersByName.get(spot.name);
-  if (activeMarker && activeMarker.getElement()) activeMarker.getElement().querySelector('.spot-marker')?.classList.remove("spot-marker--active");
-  
-  if (resolvedMarker) {
-      markersCluster.zoomToShowLayer(resolvedMarker, () => {
-          if (resolvedMarker.getElement()) { resolvedMarker.getElement().querySelector('.spot-marker')?.classList.add("spot-marker--active"); }
-          if (openPopup) resolvedMarker.openPopup();
-          activeMarker = resolvedMarker;
-      });
-  } else { 
-      map.setView(spot.coords, 9, { animate: true }); 
+    const raw = localStorage.getItem(CALL_COUNT_KEY);
+    if (!raw) return { count: 0, date: new Date().toDateString() };
+    const obj = JSON.parse(raw);
+    if (obj.date !== new Date().toDateString()) return { count: 0, date: new Date().toDateString() };
+    return obj;
+  } catch {
+    return { count: 0, date: new Date().toDateString() };
   }
-  
-  updateSpotListSelection(spot.name);
-  localStorage.setItem("selectedSpot", spot.name);
 };
 
-const renderSpotPopup = (spot) => {
-  const isFav = (JSON.parse(localStorage.getItem("surfFavorites") || "[]")).includes(spot.name);
-  const badgeId = `badge-${spot.name.replace(/[^a-zA-Z0-9]/g, '')}`;
-  const isLive = document.getElementById(badgeId)?.classList.contains('is-live');
-  const statusHtml = isLive 
-    ? '<span style="color: #4ade80; font-size: 0.8rem; font-weight: 800; margin-left: 10px;">● LIVE</span>' 
-    : '<span style="color: #94a3b8; font-size: 0.8rem; font-weight: 800; margin-left: 10px;">○ WAITING</span>';
+const incCallCount = () => {
+  const obj = getCallCount();
+  obj.count++;
+  localStorage.setItem(CALL_COUNT_KEY, JSON.stringify(obj));
+  return obj.count;
+};
 
-  return `
+const updateQuotaUI = () => {
+  const ui = document.getElementById("call-count-ui");
+  if (!ui) return;
+  const { count } = getCallCount();
+  ui.innerText = `Quota: ${count}/${CALL_MAX}`;
+};
+
+const loadCache = () => {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+  } catch {
+    return {};
+  }
+};
+
+const saveCache = (cache) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
+};
+
+// --- API FETCH (via backend proxy) ---
+const fetchSpotConditions = async (spot) => {
+  // Storage-first
+  const cache = loadCache();
+  const key = spot.name;
+  const cached = cache[key];
+
+  const now = Date.now();
+  const maxAge = 1000 * 60 * 45; // 45 min
+
+  if (cached && (now - cached.ts) < maxAge) {
+    return { ...cached.data, fromCache: true };
+  }
+
+  // Quota check
+  const { count } = getCallCount();
+  if (count >= CALL_MAX) {
+    showGlobalAlert("Quota Stormglass atteint (500/j). Mode Storage-First.", "warning");
+    if (cached) return { ...cached.data, fromCache: true };
+    return null;
+  }
+
+  incCallCount();
+  updateQuotaUI();
+
+  const url = `/api/conditions?lat=${spot.coords[0]}&lng=${spot.coords[1]}`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("API error");
+    const data = await res.json();
+
+    cache[key] = { ts: now, data };
+    saveCache(cache);
+
+    return { ...data, fromCache: false };
+  } catch (e) {
+    console.error(e);
+    if (cached) return { ...cached.data, fromCache: true };
+    return null;
+  }
+};
+
+// --- MAP & UI ---
+const initMap = () => {
+  const mapEl = document.getElementById("surf-map");
+  if (!mapEl) return;
+
+  map = L.map("surf-map", { zoomControl: true }).setView([46.6, 2.2], 5);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+
+  markersCluster = L.markerClusterGroup();
+  markersCluster.addTo(map);
+
+  spots.forEach((spot) => {
+    const markerIcon = L.divIcon({
+      className: "",
+      html: `<div class="spot-marker"></div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 30],
+    });
+
+    const marker = L.marker(spot.coords, { icon: markerIcon });
+
+    marker.on("click", () => {
+      openSpotPopup(spot, marker);
+      highlightSpotCard(spot.name);
+    });
+
+    markersByName.set(spot.name, marker);
+    markersCluster.addLayer(marker);
+  });
+};
+
+const openSpotPopup = (spot, marker) => {
+  if (activeMarker) activeMarker.getElement()?.classList.remove("spot-marker--active");
+  activeMarker = marker;
+  marker.getElement()?.classList.add("spot-marker--active");
+
+  const popupContent = `
     <div class="spot-popup compact-popup">
-        <button class="popup-close" onclick="map.closePopup()">✕</button>
-        <div class="popup-header" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-            <h4 style="margin:0;">${spot.name}</h4>
-            ${statusHtml}
-        </div>
-        <div class="spot-popup-actions" style="display:flex; flex-direction:column; gap:8px;">
-            <a class="popup-btn popup-btn--primary" href="conditions.html?spot=${encodeURIComponent(spot.name)}" style="text-align:center; text-decoration:none;">Voir Conditions</a>
-            <a class="popup-btn" href="cameras.html?spot=${encodeURIComponent(spot.name)}" style="text-align:center; text-decoration:none; background: rgba(255,255,255,0.1); color: #fff;">📷 Webcams</a>
-            <button class="popup-btn popup-btn--fav ${isFav ? 'active' : ''}" onclick="window.toggleFav('${spot.name}', this)" style="width:100%;">
-               ${isFav ? '♥ Retirer Favori' : '♡ Ajouter Favori'}
-            </button>
-        </div>
-    </div>`;
-};
+      <button class="popup-close" onclick="this.closest('.leaflet-popup').querySelector('.leaflet-popup-close-button').click()">✕</button>
+      <h4>${spot.name}</h4>
+      <p style="margin:0; color:#888; font-size:0.8rem;">${spot.region}</p>
+      <a href="conditions.html?spot=${encodeURIComponent(spot.name)}" class="popup-btn popup-btn--primary">Voir conditions</a>
+      <button class="popup-btn popup-btn--fav" onclick="toggleFavorite('${encodeURIComponent(spot.name)}')">♡ Ajouter Favori</button>
+    </div>
+  `;
 
-window.toggleFav = (name, btn) => {
-    toggleFavorite(name);
-    const isFav = (JSON.parse(localStorage.getItem("surfFavorites") || "[]")).includes(name);
-    if(btn && btn.classList) {
-        btn.classList.toggle('active');
-        btn.innerHTML = isFav ? '♥ Favori' : '♡ Ajouter Favori';
-        btn.style.color = isFav ? '#ff304a' : '#fff';
-    }
-    if (document.body.classList.contains("favorites-page")) initFavoritesPage();
+  marker.bindPopup(popupContent, { closeButton: false, offset: [0, -20] }).openPopup();
 };
 
 const renderSpotList = () => {
-  const list = document.getElementById("spot-list");
-  if (!list) return;
-  const query = (document.getElementById("spot-search")?.value || "").toLowerCase();
-  const selected = localStorage.getItem("selectedSpot");
-  list.innerHTML = "";
+  const listEl = document.getElementById("spot-list");
+  if (!listEl) return;
+
+  listEl.innerHTML = "";
   spots.forEach((spot) => {
-    if (query && !spot.name.toLowerCase().includes(query)) return;
-    const badgeId = `badge-${spot.name.replace(/[^a-zA-Z0-9]/g, '')}`; 
     const card = document.createElement("button");
-    card.type = "button";
-    card.className = `spot-card${spot.name === selected ? " is-active" : ""}`;
+    card.className = "spot-card";
     card.dataset.spot = spot.name;
-    card.innerHTML = `<div class="spot-card-header"><h4 class="spot-name">${spot.name}</h4><span class="spot-live-badge" id="${badgeId}">...</span></div><div class="spot-card-meta"><span class="spot-region">${spot.region}</span></div>`;
+
+    card.innerHTML = `
+      <div class="spot-card-header">
+        <div>
+          <p class="spot-name">${spot.name}</p>
+          <span class="spot-region">${spot.region}</span>
+        </div>
+        <span class="spot-live-badge">--</span>
+      </div>
+      <div class="spot-card-meta">
+        <span class="tide-tag">Marée: --</span>
+        <span class="swell-alert-badge" style="display:none;">ALERTE</span>
+      </div>
+    `;
+
     card.addEventListener("click", () => {
       const marker = markersByName.get(spot.name);
-      if (marker) selectSpot(spot, marker);
-    });
-    list.appendChild(card);
-  });
-  updateListStatus();
-  updateQuotaUI();
-};
-
-const updateSpotListSelection = (name) => {
-  document.querySelectorAll(".spot-card").forEach(c => {
-    c.classList.toggle("is-active", c.dataset.spot === name);
-    if (c.dataset.spot === name) c.scrollIntoView({ behavior: "smooth", block: "center" });
-  });
-};
-
-const updateListStatus = async () => {
-  try {
-    const res = await fetch("/api/all-status");
-    if (!res.ok) return;
-    const statusMap = await res.json();
-    spots.forEach(spot => {
-      const badgeId = `badge-${spot.name.replace(/[^a-zA-Z0-9]/g, '')}`;
-      const badge = document.getElementById(badgeId);
-      if (badge && statusMap[spot.name]) {
-        badge.textContent = statusMap[spot.name];
-        badge.className = `spot-live-badge is-${statusMap[spot.name].toLowerCase()}`;
-        if(statusMap[spot.name] === "LIVE") badge.classList.add("is-live");
+      if (marker) {
+        map.setView(marker.getLatLng(), 10, { animate: true });
+        openSpotPopup(spot, marker);
       }
+      highlightSpotCard(spot.name);
     });
-  } catch (e) {}
+
+    listEl.appendChild(card);
+  });
 };
 
-const toggleFavorite = (name) => {
-  const favs = JSON.parse(localStorage.getItem("surfFavorites") || "[]");
-  const idx = favs.indexOf(name);
-  if (idx >= 0) favs.splice(idx, 1); else favs.push(name);
-  localStorage.setItem("surfFavorites", JSON.stringify(favs));
+const highlightSpotCard = (spotName) => {
+  document.querySelectorAll(".spot-card").forEach((el) => {
+    el.classList.toggle("is-active", el.dataset.spot === spotName);
+  });
 };
 
-// --- 7. NEWS ET AUTRES PAGES ---
-const renderHomeNews = async () => {
-  const container = document.getElementById("news-preview");
+// --- SEARCH ---
+const initSpotSearch = () => {
+  const input = document.getElementById("spot-search");
+  if (!input) return;
+
+  input.addEventListener("input", () => {
+    const val = input.value.toLowerCase();
+    document.querySelectorAll(".spot-card").forEach((card) => {
+      const name = card.dataset.spot.toLowerCase();
+      card.style.display = name.includes(val) ? "" : "none";
+    });
+  });
+};
+
+// --- LIVE STATS BAR (HOME) ---
+const updateQuickStats = async () => {
+  const waterEl = document.querySelector("#stat-water .bubble-value");
+  const swellEl = document.querySelector("#stat-swell .bubble-value");
+  const activeEl = document.querySelector("#stat-active .bubble-value");
+  const tideEl = document.querySelector("#stat-tide .bubble-value");
+
+  if (!waterEl || !swellEl || !activeEl || !tideEl) return;
+
+  // On prend un spot "référence" (Lacanau)
+  const refSpot = spots.find(s => s.name.toLowerCase().includes("lacanau")) || spots[0];
+  const data = await fetchSpotConditions(refSpot);
+  if (!data) return;
+
+  const swellHeight = data?.swell?.height ?? null;
+  const swellPeriod = data?.swell?.period ?? null;
+  const swellDir = data?.swell?.direction ?? null;
+  const waterTemp = data?.water?.temperature ?? null;
+
+  waterEl.innerText = waterTemp != null ? `${Math.round(waterTemp)}°C` : "--";
+  swellEl.innerText = swellHeight != null ? `${swellHeight.toFixed(1)}m` : "--";
+
+  // Spots live = nombre cache valide <45min
+  const cache = loadCache();
+  const now = Date.now();
+  const maxAge = 1000*60*45;
+  const liveCount = Object.values(cache).filter(v => v && (now - v.ts) < maxAge).length;
+  activeEl.innerText = `${liveCount}`;
+
+  tideEl.innerText = "SYNC";
+};
+
+// --- RADAR SESSIONS (TOP SPOTS) ---
+const updateRadar = async () => {
+  const container = document.getElementById("radar-container");
   if (!container) return;
+
+  const results = [];
+
+  // On limite pour performance (15 spots)
+  const sample = spots.slice(0, 15);
+  for (const spot of sample) {
+    const data = await fetchSpotConditions(spot);
+    if (!data) continue;
+
+    const swellHeight = data?.swell?.height ?? 0;
+    const swellPeriod = data?.swell?.period ?? 0;
+    const swellDir = data?.swell?.direction ?? 0;
+    const windSpeed = data?.wind?.speed ?? 0;
+    const windDir = data?.wind?.direction ?? 0;
+
+    const q = computeQuality(spot, swellHeight, swellPeriod, swellDir, windSpeed, windDir);
+    const score =
+      (q.label === "ÉPIQUE" ? 100 :
+      q.label === "BON" ? 80 :
+      q.label === "MOYEN" ? 55 : 25);
+
+    results.push({
+      spot,
+      q,
+      score,
+      swellHeight,
+      swellPeriod,
+      swellDir,
+      windSpeed,
+      windDir
+    });
+  }
+
+  const best = pickBest3(results);
+
+  container.innerHTML = "";
+  best.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "card-panel";
+    card.style.cursor = "pointer";
+    card.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h3 style="margin:0;">${item.spot.name}</h3>
+          <p style="margin:6px 0 0; color:#666; font-size:0.85rem;">
+            ${formatSwellSummary(item.swellHeight, item.swellPeriod, item.swellDir)} · ${formatWindSummary(item.windSpeed, item.windDir)}
+          </p>
+        </div>
+        <span class="quality-badge ${item.q.className}" style="min-width:90px;">${item.q.label}</span>
+      </div>
+      <div style="margin-top:14px; display:flex; gap:10px; flex-wrap:wrap;">
+        <span class="pill">🤖 ${item.q.badge}</span>
+        <span class="pill">⚡ Score ${item.score}</span>
+      </div>
+    `;
+    card.addEventListener("click", () => {
+      window.location.href = `conditions.html?spot=${encodeURIComponent(item.spot.name)}`;
+    });
+    container.appendChild(card);
+  });
+};
+
+// --- FAVORIS ---
+const FAVORITES_KEY = "surfsense_favs_v1";
+
+const getFavorites = () => {
+  try {
+    return JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+
+const setFavorites = (arr) => {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify(arr));
+};
+
+window.toggleFavorite = (encodedSpotName) => {
+  const spotName = decodeURIComponent(encodedSpotName);
+  const favs = getFavorites();
+  const exists = favs.includes(spotName);
+  const newFavs = exists ? favs.filter(n => n !== spotName) : [...favs, spotName];
+  setFavorites(newFavs);
+  showGlobalAlert(exists ? "Retiré des favoris." : "Ajouté aux favoris.", exists ? "info" : "success");
+};
+
+// --- PAGE FAVORITES RENDER ---
+const renderFavoritesPage = async () => {
+  const grid = document.getElementById("fav-grid");
+  const empty = document.getElementById("empty-favs");
+  if (!grid || !empty) return;
+
+  const favs = getFavorites();
+  if (!favs.length) {
+    empty.style.display = "block";
+    grid.innerHTML = "";
+    return;
+  }
+
+  empty.style.display = "none";
+  grid.innerHTML = "";
+
+  for (const name of favs) {
+    const spot = spots.find(s => s.name === name);
+    if (!spot) continue;
+
+    const data = await fetchSpotConditions(spot);
+    const swellHeight = data?.swell?.height ?? 0;
+    const swellPeriod = data?.swell?.period ?? 0;
+    const swellDir = data?.swell?.direction ?? 0;
+    const windSpeed = data?.wind?.speed ?? 0;
+    const windDir = data?.wind?.direction ?? 0;
+
+    const q = computeQuality(spot, swellHeight, swellPeriod, swellDir, windSpeed, windDir);
+
+    const card = document.createElement("div");
+    card.className = `fav-card ${q.className}`;
+    card.innerHTML = `
+      <div class="fav-card-header">
+        <h3>${spot.name}</h3>
+        <button class="fav-remove-btn" title="Retirer" aria-label="Retirer">✕</button>
+      </div>
+      <p style="margin:0; color:#888; font-size:0.85rem;">${spot.region}</p>
+      <div class="fav-stats">
+        <div class="fav-stat-item">
+          <span class="fav-stat-label">HOULE</span>
+          <span class="fav-stat-value">${swellHeight ? swellHeight.toFixed(1) : "-"} m</span>
+        </div>
+        <div class="fav-stat-item">
+          <span class="fav-stat-label">VENT</span>
+          <span class="fav-stat-value">${windSpeed ? Math.round(windSpeed) : "-"} km/h</span>
+        </div>
+        <div class="fav-stat-item">
+          <span class="fav-stat-label">QUALITÉ</span>
+          <span class="fav-stat-value">${q.label}</span>
+        </div>
+      </div>
+    `;
+
+    card.querySelector(".fav-remove-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      setFavorites(getFavorites().filter(x => x !== spot.name));
+      renderFavoritesPage();
+    });
+
+    card.addEventListener("click", () => {
+      window.location.href = `conditions.html?spot=${encodeURIComponent(spot.name)}`;
+    });
+
+    grid.appendChild(card);
+  }
+};
+
+// --- PAGE CONDITIONS (DASHBOARD) ---
+const initConditionsPage = async () => {
+  const url = new URL(window.location.href);
+  const spotName = url.searchParams.get("spot");
+  if (!spotName) return;
+
+  const spot = spots.find(s => s.name === spotName);
+  if (!spot) return;
+
+  // Header
+  const title = document.getElementById("spot-title");
+  const sub = document.getElementById("spot-subtitle");
+  if (title) title.innerText = spot.name;
+  if (sub) sub.innerText = `${spot.region} • ${spot.country}`;
+
+  // Mini map
+  const mini = document.getElementById("mini-map");
+  if (mini) {
+    const miniMap = L.map("mini-map", { zoomControl: false, dragging: false, scrollWheelZoom: false }).setView(spot.coords, 10);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "" }).addTo(miniMap);
+    L.marker(spot.coords).addTo(miniMap);
+  }
+
+  const data = await fetchSpotConditions(spot);
+  if (!data) return;
+
+  const swellHeight = data?.swell?.height ?? 0;
+  const swellPeriod = data?.swell?.period ?? 0;
+  const swellDir = data?.swell?.direction ?? 0;
+  const windSpeed = data?.wind?.speed ?? 0;
+  const windDir = data?.wind?.direction ?? 0;
+
+  const q = computeQuality(spot, swellHeight, swellPeriod, swellDir, windSpeed, windDir);
+
+  const setVal = (id, v) => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = v;
+  };
+
+  setVal("val-wave", swellHeight ? swellHeight.toFixed(1) : "-");
+  setVal("val-period", swellPeriod ? Math.round(swellPeriod) : "-");
+  setVal("val-wind-speed", windSpeed ? Math.round(windSpeed) : "-");
+  setVal("val-wind-dir", degToCompass(windDir));
+  setVal("val-swell-dir", degToCompass(swellDir));
+  setVal("val-quality", q.label);
+
+  // Status banner
+  const banner = document.getElementById("status-banner");
+  const bannerTitle = document.getElementById("status-title");
+  const bannerMsg = document.getElementById("status-msg");
+  if (banner) {
+    banner.classList.remove("is-epic","is-good","is-warning","is-bad");
+    banner.classList.add(q.className === "is-epic" ? "is-epic" : q.className === "is-good" ? "is-good" : q.className === "is-medium" ? "is-warning" : "is-bad");
+  }
+  if (bannerTitle) bannerTitle.innerText = q.label;
+  if (bannerMsg) bannerMsg.innerText = q.label === "ÉPIQUE" ? "Créneau rare. Activez le mode session." : "Conditions analysées par les robots.";
+
+  // Forecast (placeholder)
+  const list = document.getElementById("forecast-list");
+  if (list) {
+    list.innerHTML = "";
+    for (let i = 0; i < 7; i++) {
+      const row = document.createElement("div");
+      row.className = "day-row";
+      row.innerHTML = `
+        <div class="day-card is-medium">
+          <div class="day-header">
+            <div class="day-date">J+${i}</div>
+            <div class="quality-badge">SIMU</div>
+            <div class="surf-stats-group">
+              <div class="surf-primary">${swellHeight ? swellHeight.toFixed(1) : "-"}m | ${windSpeed ? Math.round(windSpeed) : "-"} km/h</div>
+              <div class="surf-secondary">Période ${swellPeriod ? Math.round(swellPeriod) : "-"}s · Dir ${degToCompass(swellDir)}</div>
+            </div>
+            <div></div>
+            <div class="weather-stats-group">
+              <div class="weather-pill"><span class="w-icon">🌡️</span><span class="w-val">--</span></div>
+            </div>
+            <div class="day-arrow">›</div>
+          </div>
+          <div class="day-details">
+            <div class="detail-box"><div class="detail-label">Énergie</div><div class="detail-value">--</div></div>
+            <div class="detail-box"><div class="detail-label">Marée</div><div class="detail-value">--</div></div>
+            <div class="detail-box"><div class="detail-label">Crowd</div><div class="detail-value">--</div></div>
+          </div>
+        </div>
+      `;
+      row.querySelector(".day-card").addEventListener("click", () => {
+        row.querySelector(".day-card").classList.toggle("is-open");
+      });
+      list.appendChild(row);
+    }
+  }
+
+  // Tide (placeholder)
+  const tideDisplay = document.getElementById("tide-display");
+  if (tideDisplay) tideDisplay.innerText = "SYNC...";
+
+  if (tideInterval) clearInterval(tideInterval);
+  tideInterval = setInterval(() => {
+    if (tideDisplay) tideDisplay.innerText = "SYNC...";
+  }, 10000);
+};
+
+// --- CAMERAS PAGE (placeholder) ---
+const initCamerasPage = () => {
+  const grid = document.getElementById("cam-grid");
+  if (!grid) return;
+  // Ton code cam est dans cameras.html (iframe) → ici on laisse minimal
+};
+
+// --- NEWS PAGE (placeholder) ---
+const initNewsPage = async () => {
+  const preview = document.getElementById("news-preview");
+  if (!preview) return;
+
   try {
     const res = await fetch("/api/news");
-    const newsData = await res.json();
-    if (newsData.length === 0) { container.innerHTML = '<p style="color:#666; text-align:center;">Aucune actu.</p>'; return; }
-    container.innerHTML = newsData.slice(0, 3).map(n => `
-      <article class="news-card">
-        <div class="news-img-wrapper">
-            <img src="${n.img}" class="news-img" alt="${n.title}" loading="lazy">
-            <span class="news-badge">${n.tag}</span>
+    const data = await res.json();
+    preview.innerHTML = "";
+    (data?.items || []).slice(0, 10).forEach((item) => {
+      const card = document.createElement("div");
+      card.className = "news-card";
+      card.innerHTML = `
+        <div class="news-img-wrapper"></div>
+        <div class="news-body" style="padding:16px;">
+          <h3 style="margin:0 0 8px;">${item.title || "News"}</h3>
+          <p style="margin:0; color:#94a3b8; font-size:0.9rem;">${item.snippet || ""}</p>
         </div>
-        <div class="news-content">
-          <h3>${n.title}</h3>
-          <a href="${n.link}" target="_blank" class="news-btn">Lire l'article →</a>
-        </div>
-      </article>
-    `).join('');
-  } catch (e) { container.innerHTML = "<p style='color:#666;'>Impossible de charger.</p>"; }
-};
-
-const renderFullNews = async () => {
-    const grid = document.getElementById("full-news-grid");
-    const hero = document.getElementById("news-hero-container");
-    if (!grid || !hero) return;
-    try {
-        const res = await fetch("/api/news"); 
-        const allNews = await res.json();
-        
-        if (allNews.length === 0) { hero.innerHTML = "<p style='color:#fff;'>Chargement...</p>"; return; }
-        
-        const topStory = allNews[0];
-        const otherStories = allNews.slice(1);
-        
-        hero.innerHTML = `
-            <div class="hero-news-card">
-                <div class="hero-bg" style="background-image: url('${topStory.img}');"></div>
-                <div class="hero-overlay">
-                    <span class="hero-tag">🔥 À LA UNE</span>
-                    <h1 class="hero-title">${topStory.title}</h1>
-                    <p class="hero-desc">${topStory.desc}</p>
-                    <a href="${topStory.link}" target="_blank" class="hero-btn">Lire l'article</a>
-                </div>
-            </div>`;
-            
-        grid.innerHTML = otherStories.map(n => `
-            <article class="news-card">
-                <div class="news-img-wrapper"><img src="${n.img}" class="news-img" loading="lazy"><span class="news-badge">${n.tag}</span></div>
-                <div class="news-content"><h3>${n.title}</h3><a href="${n.link}" target="_blank" class="news-btn">Lire la suite</a></div>
-            </article>`).join('');
-    } catch (e) { console.error("Erreur news:", e); }
-};
-
-const initConditionsPage = () => {
-  const params = new URLSearchParams(window.location.search);
-  const spotName = params.get("spot");
-  const spot = spots.find(s => s.name === spotName);
-  if (!spot) { window.location.href = "index.html"; return; }
-  document.getElementById("cond-name").textContent = spot.name;
-  const btnCam = document.getElementById("btn-cam");
-  if(btnCam) btnCam.href = `cameras.html?spot=${encodeURIComponent(spot.name)}`;
-  
-  const updateFavBtn = () => {
-    const isFav = (JSON.parse(localStorage.getItem("surfFavorites") || "[]")).includes(spot.name);
-    const btnFav = document.getElementById("btn-fav");
-    if(btnFav) {
-      btnFav.textContent = isFav ? "♥ Favori" : "♡ Ajouter";
-      btnFav.style.color = isFav ? "#ff304a" : "#fff";
-    }
-  };
-  updateFavBtn();
-  document.getElementById("btn-fav")?.addEventListener("click", () => { toggleFavorite(spot.name); updateFavBtn(); });
-
-  setTimeout(() => {
-    const container = document.getElementById("mini-map");
-    if (!container) return;
-    const miniMap = L.map("mini-map", { zoomControl: false, dragging: false, scrollWheelZoom: false, attributionControl: false }).setView(spot.coords, 10);
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 19 }).addTo(miniMap);
-    L.circleMarker(spot.coords, { radius: 8, fillColor: "#ff304a", color: "#fff", weight: 2, fillOpacity: 1 }).addTo(miniMap);
-  }, 200);
-
-  const fetchConditions = async () => {
-    try {
-      const wRes = await fetch(`/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
-      const weather = await wRes.json();
-      const tRes = await fetch(`/api/tide?spot=${encodeURIComponent(spot.name)}`);
-      const tide = await tRes.json();
-      
-      updateDashboard(weather, tide);
-      runAiRobots(weather);
-      
-      setTimeout(() => { updateListStatus(); updateQuotaUI(); }, 500);
-    } catch (e) { document.getElementById("status-title").textContent = "ERREUR CONNEXION"; }
-  };
-
-  const updateDashboard = (weather, tide) => {
-    const now = new Date();
-    const dataTime = new Date(weather.sourceTime || now);
-    const diffMins = Math.floor((now - dataTime) / 60000);
-    let timeText = diffMins < 60 ? `${diffMins} min` : `${Math.floor(diffMins/60)}h${diffMins%60}`;
-    if(document.getElementById("cond-updated")) document.getElementById("cond-updated").textContent = `Mise à jour : il y a ${timeText}`;
-    
-    const statusBox = document.getElementById("status-box");
-    const statusTitle = document.getElementById("status-title");
-    const statusDesc = document.getElementById("status-desc");
-    const statusIcon = document.getElementById("status-icon");
-    statusBox.className = "status-banner"; 
-    
-    const spotNameActual = document.getElementById("cond-name").textContent;
-    const safeTideStage = tide.stage || (tide.allTides && tide.allTides[0] ? tide.allTides[0].stage : "Stable");
-    const qual = calculateQuality(weather.waveHeight, weather.windSpeed, weather.wavePeriod, weather.windDirection, safeTideStage, spotNameActual);
-    
-    statusBox.classList.add(qual.class);
-    statusTitle.textContent = qual.label;
-    statusDesc.textContent = qual.botMsg;
-    statusIcon.textContent = qual.label === "ÉPIQUE" ? "⚡️" : "🌊";
-
-    if(document.getElementById("val-quality")) { 
-        document.getElementById("val-quality").textContent = qual.label; 
-        document.getElementById("val-quality").style.color = qual.color; 
-    }
-    document.getElementById("val-wave").textContent = weather.waveHeight?.toFixed(1) || "-";
-    document.getElementById("val-period").textContent = weather.wavePeriod?.toFixed(0) || "-";
-    document.getElementById("val-wind-speed").textContent = weather.windSpeed || "-";
-    document.getElementById("val-wind-dir").textContent = weather.windDirection || "-";
-    document.getElementById("val-swell-dir").textContent = weather.swellDirection || "-";
-
-    const tideDisplay = document.getElementById("tide-display");
-    if (tideInterval) clearInterval(tideInterval); 
-    
-    const updateTideTimer = () => {
-      let nextTideObj = null;
-      if (tide.allTides && Array.isArray(tide.allTides)) {
-          nextTideObj = tide.allTides.find(t => new Date(t.time) > new Date());
-      } else if (tide.nextTime && new Date(tide.nextTime) > new Date()) {
-          nextTideObj = { time: tide.nextTime, stage: tide.stage, level: tide.level };
-      }
-
-      if (nextTideObj) {
-        const nextTideTime = new Date(nextTideObj.time);
-        const diffMs = nextTideTime - new Date();
-        const h = Math.floor(diffMs / 3600000);
-        const m = Math.floor((diffMs % 3600000) / 60000);
-        const state = (nextTideObj.stage === 'high' || nextTideObj.stage === 'Haute') ? 'Haute' : 'Basse';
-        const timeColor = h === 0 ? "#4ade80" : "#fff";
-        tideDisplay.innerHTML = `<strong style="color:var(--accent)">MARÉE ${state.toUpperCase()}</strong> dans <span style="color:${timeColor}; font-weight:800;">${h}h ${m}m</span> <small style="opacity:0.6">(${nextTideObj.level})</small>`;
-      } else { 
-        tideDisplay.innerHTML = `<span style="color:#facc15; font-weight:bold;">🌊 MARÉE : CALCUL EN COURS...</span>`;
-      }
-    };
-    updateTideTimer(); 
-    tideInterval = setInterval(updateTideTimer, 30000);
-
-    const list = document.getElementById("forecast-list");
-    if (list && weather.forecast) {
-        list.innerHTML = weather.forecast.map(item => {
-            const d = new Date(item.time);
-            const isToday = d.getDate() === now.getDate();
-            const timeLabel = isToday ? d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : d.toLocaleDateString("fr-FR", { weekday: 'short', day: 'numeric' });
-            const dayQual = calculateQuality(item.waveHeight, item.windSpeed, item.wavePeriod, item.windDirection, safeTideStage, spotNameActual);
-            const icon = getWeatherIcon(item.cloudCover);
-            return `
-              <div class="day-card ${dayQual.class} ${isToday ? 'is-hourly' : ''}">
-                <div class="day-header">
-                  <div style="display:flex; flex-direction:column; min-width:70px;">
-                    <span class="day-date">${timeLabel}</span>
-                    ${isToday ? '<span style="font-size:0.6rem; color:var(--accent); font-weight:700;">PRO-BOT</span>' : ''}
-                  </div>
-                  <span class="quality-badge" style="color:${dayQual.color}">${dayQual.label}</span>
-                  <div class="surf-stats-group" style="flex:1; margin-left:20px;">
-                    <span class="surf-primary" style="font-weight:700;">${item.waveHeight?.toFixed(1)}m | ${item.windSpeed} km/h</span><br>
-                    <span class="surf-secondary" style="font-size:0.75rem; color:#888;">Energie ${dayQual.energy} | Période ${Math.round(item.wavePeriod)}s</span>
-                  </div>
-                  <div class="weather-stats-group">
-                    <div class="weather-pill"><span>${icon}</span><span>${item.airTemperature}°</span></div>
-                  </div>
-                  <span class="day-arrow">▼</span>
-                </div>
-                <div class="day-details">
-                  <div class="detail-box"><span class="detail-label">BOT-INFO</span><span class="detail-value">${dayQual.botMsg}</span></div>
-                  <div class="detail-box"><span class="detail-label">VENT</span><span class="detail-value">${item.windDirection}</span></div>
-                  <div class="detail-box"><span class="detail-label">HOULE</span><span class="detail-value">${item.swellDirection || 'N/A'}</span></div>
-                </div>
-              </div>`;
-        }).join('');
-        document.querySelectorAll('.day-card').forEach(c => c.onclick = () => c.classList.toggle("is-open"));
-    }
-  };
-  fetchConditions();
-};
-
-const initFavoritesPage = async () => {
-    const container = document.getElementById("fav-grid");
-    const emptyState = document.getElementById("empty-favs");
-    if (!container || !emptyState) return;
-
-    const favs = JSON.parse(localStorage.getItem("surfFavorites") || "[]");
-    
-    if (favs.length === 0) {
-        container.style.display = "none";
-        emptyState.style.display = "block";
-        return;
-    }
-
-    container.style.display = "grid";
-    emptyState.style.display = "none";
-    container.innerHTML = "<p style='grid-column: 1/-1; text-align:center;'>Synchronisation des favoris...</p>";
-
-    const promises = favs.map(async (name) => {
-        const spot = spots.find(s => s.name === name);
-        if (!spot) return null;
-        try {
-            const res = await fetch(`/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
-            const weather = await res.json();
-            const quality = calculateQuality(weather.waveHeight, weather.windSpeed, weather.wavePeriod, weather.windDirection, "mid", spot.name);
-            return { spot, weather, quality };
-        } catch (e) {
-            return { spot, weather: null, quality: { label: "--", color: "#666", class: "is-medium" } };
-        }
+      `;
+      card.addEventListener("click", () => {
+        if (item.link) window.open(item.link, "_blank");
+      });
+      preview.appendChild(card);
     });
-
-    const results = await Promise.all(promises);
-    
-    container.innerHTML = results.filter(r => r !== null).map(item => {
-        const { spot, weather, quality } = item;
-        return `
-        <div class="fav-card ${quality.class}" onclick="window.location.href='conditions.html?spot=${encodeURIComponent(spot.name)}'">
-            <div class="fav-card-header">
-                <h3>${spot.name}</h3>
-                <button class="fav-remove-btn" onclick="event.stopPropagation(); window.toggleFav('${spot.name}');">✕</button>
-            </div>
-            <div class="fav-stats">
-                <div class="fav-stat-main">
-                    <span class="fs-val">${weather ? weather.waveHeight.toFixed(1) : "-"}m</span>
-                    <span class="fs-label">${weather ? Math.round(weather.wavePeriod) : "-"}s</span>
-                </div>
-                <div class="fav-stat-secondary">
-                    <span class="fs-wind">${weather ? weather.windSpeed : "-"} km/h ${weather ? weather.windDirection : ""}</span>
-                    <span class="quality-pill" style="background:${quality.color}">${quality.label}</span>
-                </div>
-            </div>
-            <div class="fav-footer">
-                ${spot.region} • <span style="color:${quality.color}">${quality.botMsg.split(':')[0]}</span>
-            </div>
-        </div>
-        `;
-    }).join('');
+  } catch (e) {
+    console.error(e);
+  }
 };
 
-const checkGlobalAlerts = async () => { /* Code Alerte Inchangé */ };
+// --- LEGAL MODAL (simple) ---
+const initLegalModal = () => {
+  document.body.addEventListener("click", (e) => {
+    const trigger = e.target.closest("[data-modal]");
+    if (!trigger) return;
 
-// --- 9. STATS, RADAR & OUTILS ---
-const updateHomeStats = async () => {
-  try {
-      const refSpot = spots[0]; // Hossegor
+    const key = trigger.dataset.modal;
+    if (!legalTexts[key]) return;
 
-      const weatherRes = await fetch(`/api/marine?lat=${refSpot.coords[0]}&lng=${refSpot.coords[1]}`);
-      const weather = await weatherRes.json();
-
-      const tideRes = await fetch(`/api/tide?spot=${encodeURIComponent(refSpot.name)}`);
-      const tide = await tideRes.json();
-
-      const statusRes = await fetch("/api/all-status");
-      const statuses = await statusRes.json();
-      const liveCount = Object.values(statuses).filter(s => s === "LIVE").length;
-
-      const waterEl = document.getElementById("stat-water");
-      const swellEl = document.getElementById("stat-swell");
-      const activeEl = document.getElementById("stat-active");
-      const tideEl = document.getElementById("stat-tide");
-
-      if(waterEl && weather.waterTemperature != null) {
-          waterEl.querySelector(".bubble-value").textContent = `${weather.waterTemperature}°C`;
-          waterEl.querySelector(".bubble-value").style.color = "#4ade80";
-      }
-
-      if(swellEl && weather.waveHeight) {
-          swellEl.querySelector(".bubble-value").textContent = `${weather.waveHeight.toFixed(1)}m • ${Math.round(weather.wavePeriod)}s`;
-          swellEl.querySelector(".bubble-value").style.color = weather.waveHeight > 1.5 ? "#d946ef" : "#fff";
-      }
-
-      if(activeEl) {
-          activeEl.querySelector(".bubble-value").textContent = `${liveCount}`;
-      }
-
-      if(tideEl) {
-          let tideText = "--";
-          if (tide.allTides && tide.allTides.length) {
-              const now = new Date();
-              const next = tide.allTides.find(t => new Date(t.time) > now);
-              if (next) {
-                  const isRising = next.stage === "Haute" || next.stage === "high";
-                  const direction = isRising ? "MONTANTE ↗" : "DESCENDANTE ↘";
-                  tideText = direction;
-                  tideEl.querySelector(".bubble-value").style.fontSize = "1rem"; 
-              }
-          }
-          tideEl.querySelector(".bubble-value").textContent = tideText;
-      }
-
-  } catch (e) { console.error("Erreur stats accueil", e); }
+    e.preventDefault();
+    alert(`${legalTexts[key].title}\n\n${legalTexts[key].body.replace(/<[^>]*>/g, "")}`);
+  });
 };
 
-const initRadar = () => {
-    const container = document.getElementById("radar-container");
-    if (!container) return; 
-
-    const trendingSpots = [spots[0], spots[7], spots[18], spots[9]]; 
-
-    container.innerHTML = trendingSpots.map(spot => `
-        <div class="radar-card" onclick="window.location.href='conditions.html?spot=${encodeURIComponent(spot.name)}'">
-            <div class="radar-header">
-                <span class="radar-live-dot"></span>
-                <span class="radar-status">SCAN LIVE</span>
-            </div>
-            <h3 class="radar-title">${spot.name}</h3>
-            <p class="radar-region">${spot.region}</p>
-            <div class="radar-wave">
-                <div class="wave-line"></div>
-                <div class="wave-line" style="animation-delay: 0.2s"></div>
-                <div class="wave-line" style="animation-delay: 0.4s"></div>
-            </div>
-        </div>
-    `).join('');
+// --- PWA INSTALL PROMPT (OPTIONNEL) ---
+const initPWAInstall = () => {
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+  });
 };
 
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredPrompt = e;
-});
-
-const initMobileInstall = () => {
-    const installModal = document.getElementById("install-modal");
-    const iosGuide = document.getElementById("ios-install-guide");
-    const androidGuide = document.getElementById("android-install-guide");
-    const androidBtn = document.getElementById("pwa-install-btn");
-
-    const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-    document.querySelectorAll(".store-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
-            installModal.classList.add("is-open");
-            
-            if (isIOS) {
-                iosGuide.style.display = "block";
-                androidGuide.style.display = "none";
-            } else {
-                iosGuide.style.display = "none";
-                androidGuide.style.display = "block";
-            }
-        });
-    });
-
-    if(androidBtn) {
-        androidBtn.addEventListener("click", async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                deferredPrompt = null;
-                installModal.classList.remove("is-open");
-            } else {
-                alert("L'installation n'est pas supportée par ce navigateur ou l'app est déjà installée.");
-            }
-        });
-    }
-};
-
-const initCamerasPage = () => {
-    const listContainer = document.getElementById("cam-list-container");
-    const mainScreen = document.getElementById("main-cam-screen");
-    const liveName = document.getElementById("cam-live-name");
-    const metaTitle = document.getElementById("meta-title");
-    const metaDesc = document.getElementById("meta-desc");
-    const btnRedirect = document.getElementById("cam-redirect-btn");
-    const timeDisplay = document.getElementById("cam-live-time");
-
-    if (!listContainer || !mainScreen) return;
-
-    if (camClockInterval) clearInterval(camClockInterval);
-    camClockInterval = setInterval(() => {
-        const now = new Date();
-        if(timeDisplay) timeDisplay.textContent = now.toLocaleTimeString();
-    }, 1000);
-
-    const camImages = [
-        "https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=800",
-        "https://images.unsplash.com/photo-1520443240718-fce21901db79?w=800",
-        "https://images.unsplash.com/photo-1496568816309-51d7c20e3b21?w=800",
-        "https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=800",
-        "https://images.unsplash.com/photo-1471922694854-ff1b63b20054?w=800",
-        "https://images.unsplash.com/photo-1506477331477-33d5d8b3dc85?w=800",
-        "https://images.unsplash.com/photo-1531771686035-25f475954919?w=800",
-        "https://images.unsplash.com/photo-1415604934674-561df9abf539?w=800"
-    ];
-
-    const loadCam = (spot, imgUrl) => {
-        mainScreen.style.backgroundImage = `url('${imgUrl}')`;
-        if(liveName) liveName.textContent = spot.name.toUpperCase();
-        if(metaTitle) metaTitle.textContent = spot.name;
-        if(metaDesc) metaDesc.textContent = `Vue directe sur le spot de ${spot.name} (${spot.region}). Flux HD optimisé.`;
-        
-        const searchUrl = `https://www.google.com/search?q=webcam+surf+${encodeURIComponent(spot.name)}+live`;
-        if(btnRedirect) btnRedirect.href = searchUrl;
-
-        document.querySelectorAll(".cam-item").forEach(c => c.classList.remove("active"));
-        const activeItem = document.getElementById(`cam-item-${spot.name.replace(/[^a-zA-Z0-9]/g, '')}`);
-        if(activeItem) activeItem.classList.add("active");
-    };
-
-    listContainer.innerHTML = spots.map((spot, index) => {
-        const img = camImages[index % camImages.length];
-        const safeId = spot.name.replace(/[^a-zA-Z0-9]/g, '');
-        return `
-            <div class="cam-item" id="cam-item-${safeId}" onclick='window.selectCam(${JSON.stringify(spot)}, "${img}")'>
-                <div class="cam-thumb" style="background-image: url('${img}');"></div>
-                <div class="cam-info">
-                    <h4>${spot.name}</h4>
-                    <span class="cam-status">● LIVE</span>
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    window.selectCam = (spot, img) => loadCam(spot, img);
-
-    if (spots.length > 0) loadCam(spots[0], camImages[0]);
-    
-    const fetchCamStats = async () => {
-        try {
-            const spot = spots[0]; 
-            const res = await fetch(`/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
-            const data = await res.json();
-            if(document.getElementById("cs-wind")) document.getElementById("cs-wind").textContent = `${data.windSpeed} km/h`;
-            if(document.getElementById("cs-swell")) document.getElementById("cs-swell").textContent = `${data.waveHeight.toFixed(1)}m`;
-            if(document.getElementById("cs-tide")) document.getElementById("cs-tide").textContent = "Montante"; 
-        } catch(e) {}
-    };
-    fetchCamStats();
-};
-
-const initVersusPage = () => {
-    const selA = document.getElementById("select-spot-a");
-    const selB = document.getElementById("select-spot-b");
-    if (!selA || !selB) return;
-
-    const options = spots.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
-    selA.innerHTML = options;
-    selB.innerHTML = options;
-    if (spots.length > 1) selB.selectedIndex = 1;
-
-    const updateComparison = async () => {
-        const nameA = selA.value;
-        const nameB = selB.value;
-        
-        document.getElementById("verdict-text").textContent = "Calcul IA en cours...";
-        document.getElementById("versus-verdict").style.display = "none";
-
-        const fetchData = async (name) => {
-            const spot = spots.find(s => s.name === name);
-            if (!spot) return null;
-            try {
-                const res = await fetch(`/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
-                const weather = await res.json();
-                return { ...weather, quality: calculateQuality(weather.waveHeight, weather.windSpeed, weather.wavePeriod, weather.windDirection, "mid", spot.name) };
-            } catch (e) { return null; }
-        };
-
-        const [dataA, dataB] = await Promise.all([fetchData(nameA), fetchData(nameB)]);
-
-        const renderSide = (side, data) => {
-            if (!data) return;
-            const container = document.getElementById(`stats-${side}`);
-            
-            container.querySelector(".main-score").textContent = data.quality.label;
-            container.querySelector(".main-score").style.color = data.quality.color;
-            
-            container.querySelector(".val-wave").textContent = `${data.waveHeight.toFixed(1)}m`;
-            container.querySelector(".val-period").textContent = `${Math.round(data.wavePeriod)}s`;
-            container.querySelector(".val-wind").textContent = `${data.windSpeed} km/h ${data.windDirection}`;
-        };
-
-        renderSide('a', dataA);
-        renderSide('b', dataB);
-
-        if (dataA && dataB) {
-            let scoreA = 0; let scoreB = 0;
-            if (dataA.waveHeight > dataB.waveHeight) scoreA++; else scoreB++;
-            if (dataA.wavePeriod > dataB.wavePeriod) scoreA++; else scoreB++;
-            if (dataA.windSpeed < dataB.windSpeed) scoreA++; else scoreB++;
-            if (dataA.quality.label === "ÉPIQUE") scoreA += 2;
-            if (dataB.quality.label === "ÉPIQUE") scoreB += 2;
-
-            const verdictBox = document.getElementById("versus-verdict");
-            const verdictText = document.getElementById("verdict-text");
-            
-            verdictBox.style.display = "block";
-            
-            if (scoreA > scoreB) {
-                verdictText.innerHTML = `Vainqueur : <strong style="color:#4ade80">${nameA}</strong>`;
-            } else if (scoreB > scoreA) {
-                verdictText.innerHTML = `Vainqueur : <strong style="color:#4ade80">${nameB}</strong>`;
-            } else {
-                verdictText.innerHTML = "Égalité parfaite. Faites votre choix !";
-            }
-        }
-    };
-
-    selA.addEventListener("change", updateComparison);
-    selB.addEventListener("change", updateComparison);
-    updateComparison();
-};
-
-// --- 10. INITIALISATION AU CHARGEMENT ---
+// --- INITIALISATION AU CHARGEMENT ---
 window.addEventListener("load", () => {
   initGatekeeper();
-  handleAuthSwitch(); 
-  initAuthLogic(); 
+  initAuthModalSystem();
+  initAuthSwitch();
+  initAuthLogic();
+  initProfileGate();
 
   const loader = document.getElementById("app-loader");
-  if(loader) { setTimeout(() => loader.classList.add("loader-hidden"), 800); }
+  if(loader) { setTimeout(() => loader.classList.add("loader-hidden"), 900); }
 
-  try {
-      if (document.getElementById("surf-map")) { 
-        initMap(); renderSpotList(); renderHomeNews(); checkGlobalAlerts(); updateHomeStats(); initRadar(); initMobileInstall(); 
-        document.getElementById("spot-search")?.addEventListener("input", () => setTimeout(renderSpotList, 200)); 
-      }
-      if (document.body.classList.contains("conditions-page")) initConditionsPage();
-      if (document.body.classList.contains("cameras-page")) initCamerasPage(); 
-      if (document.body.classList.contains("favorites-page")) initFavoritesPage(); 
-      if (document.body.classList.contains("versus-page")) initVersusPage(); 
-      if (document.body.classList.contains("actus-page")) renderFullNews(); 
-  } catch (e) { console.error("Erreur critique init:", e); }
+  initLegalModal();
+  initPWAInstall();
+  updateQuotaUI();
 
-  document.body.addEventListener("click", e => {
-    if (e.target.matches("[data-modal-close]") || e.target.closest(".modal-close")) {
-      const openModal = document.querySelector(".modal.is-open");
-      if (openModal) openModal.classList.remove("is-open");
-    }
-    
-    if (e.target.matches("[data-modal='auth']")) {
-        if (localStorage.getItem("surfUser")) {
-            updateProfileModal();
-            document.getElementById("profile-modal").classList.add("is-open");
-        } else {
-            document.getElementById("auth-modal").classList.add("is-open");
-        }
-    }
+  // Init selon page
+  initMap();
+  renderSpotList();
+  initSpotSearch();
+  updateQuickStats();
+  updateRadar();
 
-    if (e.target.matches("[data-modal='tech']")) {
-      document.getElementById("tech-modal").classList.add("is-open");
-    }
-
-    const legalTarget = e.target.closest("[data-modal^='legal-']");
-    if (legalTarget) {
-        e.preventDefault();
-        const type = legalTarget.getAttribute("data-modal");
-        const doc = legalTexts[type];
-        if (doc) {
-            document.getElementById("legal-title").textContent = doc.title;
-            document.getElementById("legal-body").innerHTML = doc.body;
-            document.getElementById("legal-modal").classList.add("is-open");
-        }
-    }
-  });
+  renderFavoritesPage();
+  initConditionsPage();
+  initCamerasPage();
+  initNewsPage();
 });
-
-// AFFICHER BANNIÈRE COOKIES
-window.addEventListener("load", () => {
-    if (!localStorage.getItem("surfSenseCookies")) {
-        setTimeout(() => {
-            const banner = document.getElementById("cookie-banner");
-            if (banner) banner.style.display = "block";
-        }, 2000); // Apparaît après 2 secondes
-    }
-});
-
-window.acceptCookies = () => {
-    localStorage.setItem("surfSenseCookies", "accepted");
-    document.getElementById("cookie-banner").style.display = "none";
-};
-
-// --- ACTIVATION PWA (APPLICATION MOBILE) ---
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(reg => console.log('Terminal PWA : Connecté', reg))
-      .catch(err => console.error('Terminal PWA : Erreur', err));
-  });
-}

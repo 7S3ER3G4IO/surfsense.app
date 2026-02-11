@@ -53,17 +53,27 @@
         <p>© 2026 SurfSense — Journalisme IA & Flux RSS</p>
     </footer>
 
+    <div class="modal" id="auth-modal">
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-content">
+    <button class="modal-close" data-modal-close>✕</button>
+
+    <div id="auth-login-view">
+      ...
+    </div>
+
+    <div id="auth-register-view" style="display:none;">
+      ...
+    </div>
+
+    <div id="auth-2fa-view" style="display:none;">
+      ...
+    </div>
+
+  </div>
+</div>
+
+
 </body>
 </html>
 
-<div id="auth-register-view" style="display: none;">
-          </div>
-
-        <div id="auth-2fa-view" style="display: none;">
-          <h3 style="color: var(--live-red);">Alerte Sécurité : 2FA</h3>
-          <form class="modal-form" id="twofa-form">
-            <input type="hidden" id="twofa-email" /> 
-            <input type="text" id="twofa-code" placeholder="Code (ex: 000000)" required maxlength="6" style="text-align: center; letter-spacing: 5px; font-weight: bold;" />
-            <button type="submit" class="primary" style="background: var(--live-red);">Vérifier l'Identité</button>
-          </form>
-        </div>

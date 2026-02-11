@@ -65,44 +65,27 @@
             if (loader) { loader.style.display = 'none'; }
         }, 4000);
     </script>
-</body>
-</html>
 
-<div class="modal" id="auth-modal">
+    <div class="modal" id="auth-modal">
   <div class="modal-backdrop" data-modal-close></div>
   <div class="modal-content">
     <button class="modal-close" data-modal-close>✕</button>
-    
+
     <div id="auth-login-view">
-      <h3>Connexion</h3>
-      <form class="modal-form" id="login-form">
-        <input type="email" id="login-email" placeholder="Email" required />
-        <input type="password" id="login-pass" placeholder="Mot de passe" required />
-        <button type="submit" class="primary">Entrer</button>
-      </form>
-      <p class="modal-footer-text">
-        Pas encore de compte ? <a href="#" id="link-to-register">S'inscrire</a>
-      </p>
+      ...
     </div>
 
-    <div id="auth-2fa-view" style="display: none;">
-  <h3 style="color: var(--live-red);">Alerte Sécurité : 2FA</h3>
-  <p class="modal-footer-text">Veuillez entrer votre code d'habilitation d'agent.</p>
-  <form class="modal-form" id="twofa-form">
-    <input type="hidden" id="twofa-email" /> 
-    <input type="text" id="twofa-code" placeholder="Code à 6 chiffres (ex: 000000)" required maxlength="6" style="text-align: center; letter-spacing: 5px; font-weight: bold;" />
-    <button type="submit" class="primary" style="background: var(--live-red);">Vérifier l'Identité</button>
-  </form>
+    <div id="auth-register-view" style="display:none;">
+      ...
+    </div>
+
+    <div id="auth-2fa-view" style="display:none;">
+      ...
+    </div>
+
+  </div>
 </div>
 
-<div id="auth-register-view" style="display: none;">
-          </div>
+</body>
+</html>
 
-        <div id="auth-2fa-view" style="display: none;">
-          <h3 style="color: var(--live-red);">Alerte Sécurité : 2FA</h3>
-          <form class="modal-form" id="twofa-form">
-            <input type="hidden" id="twofa-email" /> 
-            <input type="text" id="twofa-code" placeholder="Code (ex: 000000)" required maxlength="6" style="text-align: center; letter-spacing: 5px; font-weight: bold;" />
-            <button type="submit" class="primary" style="background: var(--live-red);">Vérifier l'Identité</button>
-          </form>
-        </div>
