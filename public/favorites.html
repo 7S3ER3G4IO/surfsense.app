@@ -94,12 +94,12 @@
           <p class="modal-footer-text">Déjà membre ? <a href="#" id="link-to-login">Se connecter</a></p>
         </div>
         <div id="auth-2fa-view" style="display:none;">
-          <h3 style="color: var(--live-red);">Alerte Sécurité : 2FA</h3>
-          <p class="modal-footer-text">Veuillez entrer votre code d'habilitation d'agent.</p>
+          <h3 style="color: var(--live-red);">Vérification par Email (2FA)</h3>
+          <p class="modal-footer-text" id="twofa-instructions">Un code à 6 chiffres vous a été envoyé par email. Si vous ne le voyez pas, vérifiez le dossier Spam/Indésirables. Le code expire dans 10 minutes.</p>
           <form class="modal-form" id="twofa-form">
             <input type="hidden" id="twofa-email" />
-            <input type="text" id="twofa-code" placeholder="Code à 6 chiffres (ex: 000000)" required maxlength="6" style="text-align: center; letter-spacing: 5px; font-weight: bold;" />
-            <button type="submit" class="primary" style="background: var(--live-red);">Vérifier l'Identité</button>
+            <input type="text" id="twofa-code" placeholder="Code à 6 chiffres" required maxlength="6" style="text-align: center; letter-spacing: 5px; font-weight: bold;" />
+            <button type="submit" class="primary" style="background: var(--live-red);">Valider le code</button>
           </form>
         </div>
         </div>

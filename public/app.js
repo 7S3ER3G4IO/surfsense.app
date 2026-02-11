@@ -521,7 +521,7 @@ const renderHomeNews = async () => {
     container.innerHTML = newsData.slice(0, 3).map(n => `
       <article class="news-card">
         <div class="news-img-wrapper">
-            <img src="${n.img}" class="news-img" alt="${n.title}" loading="lazy">
+            <img src="/api/proxy-img?url=${encodeURIComponent(n.img)}" class="news-img" alt="${n.title}" loading="lazy" referrerpolicy="no-referrer">
             <span class="news-badge">${n.tag}</span>
         </div>
         <div class="news-content">
@@ -548,7 +548,7 @@ const renderFullNews = async () => {
         
         hero.innerHTML = `
             <div class="hero-news-card">
-                <div class="hero-bg" style="background-image: url('${topStory.img}');"></div>
+                <div class="hero-bg" style="background-image: url('/api/proxy-img?url=${encodeURIComponent(topStory.img)}');"></div>
                 <div class="hero-overlay">
                     <span class="hero-tag">🔥 À LA UNE</span>
                     <h1 class="hero-title">${topStory.title}</h1>
@@ -559,10 +559,106 @@ const renderFullNews = async () => {
             
         grid.innerHTML = otherStories.map(n => `
             <article class="news-card">
-                <div class="news-img-wrapper"><img src="${n.img}" class="news-img" loading="lazy"><span class="news-badge">${n.tag}</span></div>
+                <div class="news-img-wrapper"><img src="/api/proxy-img?url=${encodeURIComponent(n.img)}" class="news-img" loading="lazy" referrerpolicy="no-referrer"><span class="news-badge">${n.tag}</span></div>
                 <div class="news-content"><h3>${n.title}</h3><a href="${n.link}" target="_blank" class="news-btn">Lire la suite</a></div>
             </article>`).join('');
     } catch (e) { console.error("Erreur news:", e); }
+};
+
+const fetchJsonWithRetry = async (url, opts = {}, retries = 3, baseDelay = 300) => {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const res = await fetch(url, opts);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      if (attempt === retries - 1) throw e;
+      await new Promise(r => setTimeout(r, baseDelay * (attempt + 1)));
+    }
+  }
+};
+
+let lastRobotsData = null;
+
+const renderHomeRobotsHub = async () => {
+  const container = document.getElementById("home-robots-hub");
+  if (!container) return;
+  try {
+    const base = window.location.origin;
+    const data = await fetchJsonWithRetry(`${base}/api/robots-status`, {}, 3, 300);
+    lastRobotsData = data;
+    const list = [
+      { key: "Tide-Master", icon: "🌊" },
+      { key: "Swell-Pulse", icon: "⏱️" },
+      { key: "Vector-Angle", icon: "📐" },
+      { key: "Energy-Core", icon: "⚡" },
+      { key: "Anti-Chop", icon: "🛡️" },
+      { key: "News-Bot", icon: "🤖" },
+      { key: "Crowd-Predict", icon: "👥" },
+      { key: "Feel-Real", icon: "🌡️" },
+      { key: "Solar-Sync", icon: "☀️" },
+      { key: "Eco-Scan", icon: "🧬" },
+      { key: "Swell-Hunter", icon: "🏹" }
+    ];
+    const colorFor = s => {
+      const v = (s || "").toUpperCase();
+      if (["ERROR", "CRITICAL", "WARN", "OFF"].includes(v)) return "#ff304a";
+      if (["READY", "ACTIF", "RUNNING", "RESP", "DATA", "SUCCESS"].includes(v)) return "#4ade80";
+      return "#2a7bff";
+    };
+    container.innerHTML = list.map(r => {
+      const st = data[r.key] || {};
+      const c = colorFor(st.status);
+      const desc = st.details || "";
+      return `
+        <div class="ai-robot-card" data-name="${r.key}">
+          <span class="robot-icon">${r.icon}</span>
+          <div class="robot-info">
+            <span class="robot-name"><span class="status-dot" style="background:${c}"></span>${r.key}</span>
+            <span class="robot-value" style="color:${c}">${st.status || "--"}</span>
+            <span class="robot-desc">${desc}</span>
+          </div>
+        </div>
+      `;
+    }).join("");
+  } catch (e) {
+    if (lastRobotsData) {
+      const list = [
+        { key: "Tide-Master", icon: "🌊" },
+        { key: "Swell-Pulse", icon: "⏱️" },
+        { key: "Vector-Angle", icon: "📐" },
+        { key: "Energy-Core", icon: "⚡" },
+        { key: "Anti-Chop", icon: "🛡️" },
+        { key: "News-Bot", icon: "🤖" },
+        { key: "Crowd-Predict", icon: "👥" },
+        { key: "Feel-Real", icon: "🌡️" },
+        { key: "Solar-Sync", icon: "☀️" },
+        { key: "Eco-Scan", icon: "🧬" },
+        { key: "Swell-Hunter", icon: "🏹" }
+      ];
+      const colorFor = s => {
+        const v = (s || "").toUpperCase();
+        if (["ERROR", "CRITICAL", "WARN", "OFF"].includes(v)) return "#ff304a";
+        if (["READY", "ACTIF", "RUNNING", "RESP", "DATA", "SUCCESS"].includes(v)) return "#4ade80";
+        return "#2a7bff";
+      };
+      container.innerHTML = list.map(r => {
+        const st = lastRobotsData[r.key] || {};
+        const c = colorFor(st.status);
+        const desc = st.details || "";
+        return `
+          <div class="ai-robot-card" data-name="${r.key}">
+            <span class="robot-icon">${r.icon}</span>
+            <div class="robot-info">
+              <span class="robot-name"><span class="status-dot" style="background:${c}"></span>${r.key}</span>
+              <span class="robot-value" style="color:${c}">${st.status || "--"}</span>
+              <span class="robot-desc">${desc}</span>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+  }
 };
 
 const initConditionsPage = () => {
@@ -863,22 +959,31 @@ const initMobileInstall = () => {
     const iosGuide = document.getElementById("ios-install-guide");
     const androidGuide = document.getElementById("android-install-guide");
     const androidBtn = document.getElementById("pwa-install-btn");
+    const iosCta = document.getElementById("btn-install-ios");
+    const androidCta = document.getElementById("btn-install-android");
 
     const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-    document.querySelectorAll(".store-btn").forEach(btn => {
-        btn.addEventListener("click", () => {
+    if (iosCta) {
+        iosCta.addEventListener("click", () => {
             installModal.classList.add("is-open");
-            
-            if (isIOS) {
-                iosGuide.style.display = "block";
-                androidGuide.style.display = "none";
+            iosGuide.style.display = "block";
+            androidGuide.style.display = "none";
+        });
+    }
+    if (androidCta) {
+        androidCta.addEventListener("click", async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                deferredPrompt = null;
             } else {
+                installModal.classList.add("is-open");
                 iosGuide.style.display = "none";
                 androidGuide.style.display = "block";
             }
         });
-    });
+    }
 
     if(androidBtn) {
         androidBtn.addEventListener("click", async () => {
@@ -1060,7 +1165,7 @@ window.addEventListener("load", () => {
 
   try {
       if (document.getElementById("surf-map")) { 
-        initMap(); renderSpotList(); renderHomeNews(); checkGlobalAlerts(); updateHomeStats(); initRadar(); initMobileInstall(); 
+        initMap(); renderSpotList(); renderHomeNews(); renderHomeRobotsHub(); checkGlobalAlerts(); updateHomeStats(); initRadar(); initMobileInstall(); 
         document.getElementById("spot-search")?.addEventListener("input", () => setTimeout(renderSpotList, 200)); 
       }
       if (document.body.classList.contains("conditions-page")) initConditionsPage();
@@ -1126,3 +1231,5 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.error('Terminal PWA : Erreur', err));
   });
 }
+
+setInterval(() => { renderHomeRobotsHub(); }, 5000);

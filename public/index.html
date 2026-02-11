@@ -240,30 +240,23 @@
       <section id="tech-showcase" class="section" style="padding-top: 0;">
         <div class="tech-banner">
             <div class="tech-text">
-                <span class="tech-label">TECHNOLOGIE PROPRIÉTAIRE</span>
-                <h2>11 Robots d'analyse. <br>Une précision chirurgicale.</h2>
-                <p>SurfSense ne se contente pas de lire la météo. Nos algorithmes croisent la bathymétrie, l'angle de houle et les marées pour éliminer les fausses alertes.</p>
-                <div class="tech-pills">
-                    <span class="pill">📐 Vector-Angle</span>
-                    <span class="pill">⚡ Energy-Core</span>
-                    <span class="pill">🛡️ Anti-Chop</span>
-                </div>
+                <span class="tech-label">STATUTS DES ROBOTS</span>
+                <h2>Monitoring en direct</h2>
+                <p>Suivez l'activité des 11 robots IA. Les cartes se mettent à jour en temps réel.</p>
             </div>
-            <div class="tech-visual">
-                <div class="visual-card visual-card--1">
-                    <span class="vc-icon">🌊</span>
-                    <strong>Swell-Pulse</strong>
-                    <small>Détection 24h</small>
-                </div>
-                <div class="visual-card visual-card--2">
-                    <span class="vc-icon">🤖</span>
-                    <strong>AI-Predict</strong>
-                    <small>Auto-Learning</small>
-                </div>
-                <div class="visual-card visual-card--3">
-                    <span class="vc-icon">🧬</span>
-                    <strong>Eco-Scan</strong>
-                    <small>Qualité Eau</small>
+            <div class="tech-visual" style="width:100%;">
+                <div id="home-robots-hub" class="robots-grid-container">
+                    <div class="ai-robot-card"><span class="robot-icon">🌊</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Tide-Master</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">⏱️</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Swell-Pulse</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">📐</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Vector-Angle</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">⚡</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Energy-Core</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">🛡️</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Anti-Chop</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">🤖</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>News-Bot</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">👥</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Crowd-Predict</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">🌡️</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Feel-Real</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">☀️</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Solar-Sync</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">🧬</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Eco-Scan</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">🏹</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Swell-Hunter</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
                 </div>
             </div>
         </div>
@@ -302,8 +295,8 @@
                 <h2>Emportez le Forecast<br>sur la plage.</h2>
                 <p>Compatible iOS et Android. Ajoutez SurfSense à votre écran d'accueil pour un accès instantané aux caméras et aux alertes push.</p>
                 <div class="store-buttons">
-                    <button class="store-btn">  Ajouter sur iOS</button>
-                    <button class="store-btn">🤖  Ajouter sur Android</button>
+                    <button class="store-btn" id="btn-install-ios">  Installer sur iOS</button>
+                    <button class="store-btn" id="btn-install-android">🤖  Installer sur Android</button>
                 </div>
             </div>
             <div class="mobile-visual">
@@ -389,12 +382,12 @@
         </div>
 
         <div id="auth-2fa-view" style="display:none;">
-          <h3 style="color: var(--live-red);">Alerte Sécurité : 2FA</h3>
-          <p class="modal-footer-text">Veuillez entrer votre code d'habilitation d'agent.</p>
+          <h3 style="color: var(--live-red);">Vérification par Email (2FA)</h3>
+          <p class="modal-footer-text" id="twofa-instructions">Un code à 6 chiffres vous a été envoyé par email. Si vous ne le voyez pas, vérifiez le dossier Spam/Indésirables. Le code expire dans 10 minutes.</p>
           <form class="modal-form" id="twofa-form">
             <input type="hidden" id="twofa-email" />
-            <input type="text" id="twofa-code" placeholder="Code à 6 chiffres (ex: 000000)" required maxlength="6" style="text-align: center; letter-spacing: 5px; font-weight: bold;" />
-            <button type="submit" class="primary" style="background: var(--live-red);">Vérifier l'Identité</button>
+            <input type="text" id="twofa-code" placeholder="Code à 6 chiffres" required maxlength="6" style="text-align: center; letter-spacing: 5px; font-weight: bold;" />
+            <button type="submit" class="primary" style="background: var(--live-red);">Valider le code</button>
           </form>
         </div>
         </div>

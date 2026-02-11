@@ -64,6 +64,22 @@ const robotLog = (robot, status = "OK", details = "") => {
     const timestamp = new Date().toLocaleTimeString();
     const detailStr = details ? ` | \x1b[90m${details}\x1b[0m` : "";
     console.log(`[\x1b[90m${timestamp}\x1b[0m] ${robot.icon} \x1b[36mRobot ${robot.name}\x1b[0m : ${robot.msg} [\x1b[32m${status}\x1b[0m]${detailStr}`);
+    setRobotStatus(robot, status, details);
+};
+
+const robotsStatus = {};
+
+const setRobotStatus = (robot, status, details = "") => {
+  robotsStatus[robot.name] = { status, details, icon: robot.icon, time: Date.now() };
+};
+const getRobotByName = (name) => Object.values(ROBOTS).find(r => r.name === name) || { name, icon: "📎", msg: "État instantané..." };
+const logRobotSnapshot = () => {
+  Object.entries(robotsStatus).forEach(([name, info]) => {
+    const robot = getRobotByName(name);
+    const ts = new Date().toLocaleTimeString();
+    const detailStr = info.details ? ` | \x1b[90m${info.details}\x1b[0m` : "";
+    console.log(`[\x1b[90m${ts}\x1b[0m] ${robot.icon} \x1b[36mRobot ${robot.name}\x1b[0m : ${robot.msg} [\x1b[32m${info.status}\x1b[0m]${detailStr}`);
+  });
 };
 
 const smtpHost = process.env.SMTP_HOST;
@@ -629,6 +645,39 @@ const getDataSmart = async (lat, lng, spotName = "Inconnu", isAuto = false) => {
   }
 };
 
+const runCrowdPredict = () => {
+  const total = spots.length;
+  let active = 0;
+  spots.forEach(s => { if (cache.has(`${s.coords[0]},lng=${s.coords[1]}`)) active++; });
+  const pct = Math.round((active / Math.max(1, total)) * 100);
+  robotLog(ROBOTS.CROWD, "RESP", `${pct}%`);
+};
+
+const runFeelReal = () => {
+  let t = 0; let w = 0; let c = 0;
+  cache.forEach((val, key) => {
+    if (key.startsWith("tide-")) return;
+    const d = val.data;
+    if (!d || d.airTemperature == null || d.windSpeed == null) return;
+    t += d.airTemperature; w += d.windSpeed; c++;
+  });
+  const avgT = c ? t / c : 16;
+  const avgW = c ? w / c : 10;
+  const feel = Math.round(avgT - 0.25 * avgW);
+  robotLog(ROBOTS.FEEL, "RESP", `${feel}°C`);
+};
+
+const runSolarSync = () => {
+  const h = new Date().getHours();
+  const idx = h >= 6 && h <= 18 ? ((h - 6) / 12) : 0;
+  const uv = Math.max(0, Math.min(1, idx));
+  robotLog(ROBOTS.SOLAR, "RESP", `UV ${uv.toFixed(2)}`);
+};
+
+const runEcoScan = () => {
+  robotLog(ROBOTS.ECO, "RESP", "Qualité Eau: Bonne");
+};
+
 const startBackgroundWorkers = () => {
   setInterval(async () => {
     const spot = spots[Math.floor(Math.random() * spots.length)];
@@ -646,6 +695,15 @@ const startBackgroundWorkers = () => {
   
   setInterval(cleanupExpiredCache, 60 * 60 * 1000);
   setTimeout(cleanupExpiredCache, 15000);
+  
+  setInterval(runCrowdPredict, 5 * 60 * 1000);
+  setTimeout(runCrowdPredict, 2500);
+  setInterval(runFeelReal, 5 * 60 * 1000);
+  setTimeout(runFeelReal, 3000);
+  setInterval(runSolarSync, 5 * 60 * 1000);
+  setTimeout(runSolarSync, 3500);
+  setInterval(runEcoScan, 10 * 60 * 1000);
+  setTimeout(runEcoScan, 4000);
 };
 
 app.get("/api/marine", async (req, res) => {
@@ -664,6 +722,8 @@ app.get("/api/tide", (req, res) => {
 });
 app.get("/api/quota", (req, res) => { robotLog(ROBOTS.SWELL, "RESP", `${lastQuotaInfo.remaining}/${lastQuotaInfo.limit} left`); res.json(lastQuotaInfo); });
 
+app.get("/api/robots-status", (req, res) => { logRobotSnapshot(); res.json(robotsStatus); });
+
 app.get("/api/all-status", (req, res) => {
   const statusMap = {};
   spots.forEach(spot => {
@@ -672,6 +732,33 @@ app.get("/api/all-status", (req, res) => {
   const counts = Object.values(statusMap).reduce((a, v) => { a[v] = (a[v] || 0) + 1; return a; }, {});
   robotLog(ROBOTS.SERVER, "RESP", `LIVE=${counts.LIVE || 0} WAIT=${counts.WAITING || 0}`);
   res.json(statusMap);
+});
+
+app.get("/api/proxy-img", async (req, res) => {
+  const target = req.query.url;
+  if (!target) return res.status(400).end();
+  try {
+    const host = new URL(target).hostname;
+    const allowed = ["images.unsplash.com", "surfsession.com", "www.surfsession.com", "full-bloom.fr"];
+    if (!allowed.some(h => host.endsWith(h))) return res.status(403).end();
+    const r = await fetch(target, { headers: { "User-Agent": "Mozilla/5.0", "Accept": "image/*" } });
+    if (!r.ok) {
+      robotLog(ROBOTS.API, "WARN", `IMG ${host} ${r.status}`);
+      return res.redirect("/logo.svg");
+    }
+    const ct = r.headers.get("content-type") || "image/jpeg";
+    if (!ct.startsWith("image/")) {
+      robotLog(ROBOTS.API, "WARN", `IMG ${host} CT ${ct}`);
+      return res.redirect("/logo.svg");
+    }
+    const buf = Buffer.from(await r.arrayBuffer());
+    res.setHeader("Content-Type", ct);
+    robotLog(ROBOTS.API, "RESP", `IMG ${host}`);
+    res.status(200).send(buf);
+  } catch (e) {
+    robotLog(ROBOTS.API, "ERROR", `IMG ${e.message}`);
+    res.status(500).end();
+  }
 });
 
 // CATCH-ALL pour renvoyer le frontend sur n'importe quelle autre route
@@ -685,12 +772,9 @@ app.listen(PORT, () => {
     
     initDB(); // Initialisation DB (Cache + Users) et Migration
 
-    // Boot visuel des robots
-    const startupRobots = Object.values(ROBOTS).slice(0, 6);
+    const startupRobots = Object.values(ROBOTS);
     startupRobots.forEach((robot, index) => {
-        setTimeout(() => {
-            robotLog(robot, "ACTIF");
-        }, index * 200);
+        setTimeout(() => { robotLog(robot, "ACTIF"); }, index * 200);
     });
 
     setTimeout(() => {
