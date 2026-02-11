@@ -7,6 +7,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SurfSense - Le Journal</title>
+    <link rel="canonical" href="https://swellsync.fr/actus.html" />
     <link rel="stylesheet" href="styles.css">
     <link rel="icon" href="logo.svg" type="image/svg+xml" />
     
@@ -51,6 +52,18 @@
             <div id="full-news-grid" class="news-preview-grid">
                 </div>
         </section>
+        
+        <section class="section">
+            <div class="section-title" style="display:flex; gap:12px; align-items:center; padding:0 4vw;">
+              <h2>Surf report Lacanau, Windguru (Alternative)</h2>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:10px; padding:0 4vw;">
+              <a href="conditions.html?spot=Lacanau%20Central" class="primary-pill" style="text-decoration:none;">Surf report Lacanau</a>
+              <a href="conditions.html?spot=Hossegor%20-%20La%20Nord" class="primary-pill" style="text-decoration:none;">Surf report Hossegor</a>
+              <a href="conditions.html?spot=Capbreton%20-%20Le%20Santocha" class="primary-pill" style="text-decoration:none;">Windguru Capbreton (Alternative)</a>
+              <a href="conditions.html?spot=Saint-Jean-de-Luz%20-%20Lafitenia" class="primary-pill" style="text-decoration:none;">Surf info Lafitenia</a>
+            </div>
+        </section>
     </main>
 
     <footer class="footer">
@@ -63,7 +76,8 @@
           <a href="#" data-modal="legal-mentions" style="color: var(--muted);">Mentions Légales</a>
           <a href="#" data-modal="legal-cgu" style="color: var(--muted);">CGU</a>
           <a href="#" data-modal="legal-rgpd" style="color: var(--muted);">Confidentialité</a>
-          <a href="mailto:support@surfsense.io" style="color: var(--muted);">Contact</a>
+          <a href="contact.html" style="color: var(--muted);">Contact</a>
+          <a href="contact.html" style="color: var(--muted);">Page Contact</a>
         </div>
       </div>
     </footer>
@@ -71,7 +85,6 @@
     <div class="modal" id="auth-modal">
   <div class="modal-backdrop" data-modal-close></div>
   <div class="modal-content">
-    <button class="modal-close" data-modal-close>✕</button>
 
     <div id="auth-login-view">
       ...
@@ -91,7 +104,6 @@
 <div class="modal" id="legal-modal">
   <div class="modal-backdrop" data-modal-close></div>
   <div class="modal-content tech-modal" style="max-width: 800px;">
-    <button class="modal-close" data-modal-close>✕</button>
     <div class="tech-header">
         <span class="tech-label">LEGAL DOCUMENTATION</span>
         <h2 id="legal-title">TITRE DU DOCUMENT</h2>

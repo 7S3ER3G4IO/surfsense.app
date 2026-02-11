@@ -2,5 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /admin/
-
-Sitemap: https://surfsense.onrender.com/sitemap.xml
+Sitemap: https://swellsync.fr/sitemap.xml

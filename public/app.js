@@ -5,7 +5,8 @@ const initGatekeeper = () => {
     if (!modal) return;
     const user = localStorage.getItem("surfUser");
     const session = sessionStorage.getItem("accessGranted");
-    if (user || session) { modal.style.display = "none"; return; }
+    const accepted = localStorage.getItem("surfAccessAccepted");
+    if (user || session || accepted === "true") { modal.style.display = "none"; return; }
     
     modal.style.display = "flex";
     modal.classList.add("is-open");
@@ -45,6 +46,7 @@ const initGatekeeper = () => {
     
     document.getElementById("btn-accept-access")?.addEventListener("click", () => {
         sessionStorage.setItem("accessGranted", "true");
+        localStorage.setItem("surfAccessAccepted", "true");
         modal.classList.remove("is-open");
         clearInterval(gateInterval);
         setTimeout(() => modal.style.display = "none", 300);
@@ -137,6 +139,7 @@ const initAuthLogic = () => {
                 if (data && data.success) {
                     localStorage.setItem("surfUser", JSON.stringify(data.user));
                     sessionStorage.setItem("accessGranted", "true");
+                    localStorage.setItem("surfAccessAccepted", "true");
                     document.getElementById("auth-modal")?.classList.remove("is-open");
                     window.location.reload();
                 } else {
@@ -170,6 +173,7 @@ const initAuthLogic = () => {
                         localStorage.setItem("surfUser", JSON.stringify(u));
                     } catch {}
                     sessionStorage.setItem("accessGranted", "true");
+                    localStorage.setItem("surfAccessAccepted", "true");
                     alert("Authentification validée. Bienvenue Agent.");
                     window.location.reload(); 
                 } else {
@@ -265,14 +269,17 @@ const calculateQuality = (waveHeight, windSpeed, wavePeriod, windDir, tideStage,
   return { label, color, class: cls, botMsg: msg, energy: Math.round(energyScore) };
 };
 
-const getWeatherIcon = (cloudCover, precipitation) => {
-  // 1. La pluie est prioritaire (si > 0.1mm/h)
-  if (precipitation > 0.1) {
-      if (precipitation > 2) return "⛈️"; // Grosse pluie / Orage
-      return "🌧️"; // Pluie normale
+const getWeatherIcon = (cloudCover, precipitation, windSpeed) => {
+  if (precipitation != null && precipitation > 0.1) {
+      if (precipitation > 2) return "⛈️"; 
+      return "🌧️"; 
   }
-  // 2. Si pas de pluie, on regarde les nuages
-  if (cloudCover == null || cloudCover < 20) return "☀️"; 
+  if (windSpeed != null) {
+      if (windSpeed >= 55) return "⛈️";
+      if (windSpeed >= 30) return "🌧️";
+  }
+  if (cloudCover == null) return "⛅";
+  if (cloudCover < 20) return "☀️"; 
   if (cloudCover < 60) return "⛅"; 
   if (cloudCover < 90) return "☁️"; 
   return "🌫️"; 
@@ -773,6 +780,12 @@ const initConditionsPage = () => {
   const spotName = params.get("spot");
   const spot = spots.find(s => s.name === spotName);
   if (!spot) { window.location.href = "index.html"; return; }
+  (function() {
+    const href = `https://swellsync.fr/conditions.html?spot=${encodeURIComponent(spot.name)}`;
+    let link = document.querySelector('link[rel="canonical"]');
+    if (!link) { link = document.createElement('link'); link.rel = 'canonical'; document.head.appendChild(link); }
+    link.href = href;
+  })();
   document.getElementById("cond-name").textContent = spot.name;
   const btnCam = document.getElementById("btn-cam");
   if(btnCam) btnCam.href = `cameras.html?spot=${encodeURIComponent(spot.name)}`;
@@ -899,9 +912,10 @@ const initConditionsPage = () => {
             const d = new Date(arr[0].time);
             const dateLabel = d.toLocaleDateString("fr-FR", { weekday: 'short', day: 'numeric' });
             const q = calculateQuality(mid.waveHeight, mid.windSpeed, mid.wavePeriod, mid.windDirection, safeTideStage, spotNameActual);
+            const dayIcon = getWeatherIcon(mid.cloudCover ?? null, mid.precipitation ?? null, mid.windSpeed ?? null);
             return `
               <div class="calendar-day ${q.class}" data-key="${key}">
-                <div class="cal-date">${dateLabel}</div>
+                <div class="cal-date"><span class="cal-icon">${dayIcon}</span>${dateLabel}</div>
                 <div class="cal-badge" style="color:${q.color}">${q.label}</div>
                 <div class="cal-primary">${mid.waveHeight?.toFixed(1)}m • ${Math.round(mid.wavePeriod)}s</div>
                 <div class="cal-source">${
@@ -929,10 +943,13 @@ const initConditionsPage = () => {
                 const x = o.x;
                 const q = calculateQuality(x.waveHeight, x.windSpeed, x.wavePeriod, x.windDirection, safeTideStage, spotNameActual);
                 const labelH = String(o.h).padStart(2,'0') + 'h';
+                const icon = getWeatherIcon(x.cloudCover ?? null, x.precipitation ?? null, x.windSpeed ?? null);
+                const rainLike = (icon === "🌧️" || icon === "⛈️");
                 return `
                   <div class="hourly-chip ${q.class}" data-time="${x.time}" data-day="${key}" style="animation-delay:${i*60}ms">
-                    <div class="h-time">${labelH}</div>
+                    <div class="h-time"><span class="h-icon">${icon}</span>${labelH}</div>
                     <div class="h-primary">${x.waveHeight?.toFixed(1)}m • ${Math.round(x.wavePeriod)}s</div>
+                    ${rainLike ? `<div class="h-meta">Pluie</div>` : ``}
                   </div>
                 `;
             }).join('');
@@ -1092,6 +1109,189 @@ const initFavoritesPage = async () => {
         </div>
         `;
     }).join('');
+};
+
+const attachLocateFeature = () => {
+  const btn = document.getElementById("locate-me");
+  const status = document.getElementById("locate-status");
+  if (!btn) return;
+  const toRad = (v) => v * Math.PI / 180;
+  const haversine = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+  const nearestSpot = (lat, lon) => {
+    let best = null;
+    spots.forEach(s => {
+      const d = haversine(lat, lon, s.coords[0], s.coords[1]);
+      if (!best || d < best.d) best = { spot: s, d };
+    });
+    return best;
+  };
+  const openResultModal = (res, coords) => {
+    const modal = document.getElementById("forecast-modal");
+    const body = document.getElementById("forecast-modal-body");
+    if (!modal || !body) return;
+    const km = Math.round(res.d);
+    body.innerHTML = `
+      <div class="fm-header is-good">
+        <div class="fm-date">Spot le plus proche</div>
+        <div class="fm-badge" style="color:#4ade80">${km} km</div>
+        <div class="fm-primary">${res.spot.name} • ${res.spot.region}</div>
+        <div class="fm-source">LOCALISATION ACTIVÉE</div>
+      </div>
+      <div class="fm-details">
+        <div class="detail-line">
+          <div class="dl-item"><span class="dl-label">Latitude</span><span class="dl-val">${coords.lat.toFixed(4)}</span></div>
+          <div class="dl-item"><span class="dl-label">Longitude</span><span class="dl-val">${coords.lon.toFixed(4)}</span></div>
+          <div class="dl-item"><span class="dl-label">Distance</span><span class="dl-val">${km} km</span></div>
+          <div class="dl-item"><span class="dl-label">Accès</span><span class="dl-val"><a href="conditions.html?spot=${encodeURIComponent(res.spot.name)}" style="color:#4ade80">Ouvrir les conditions</a></span></div>
+        </div>
+      </div>
+    `;
+    modal.classList.add("is-open");
+    modal.querySelectorAll("[data-modal-close]").forEach(b => b.onclick = () => modal.classList.remove("is-open"));
+  };
+  btn.onclick = () => {
+    if (status) status.textContent = "Demande de localisation…";
+    if (!navigator.geolocation) {
+      if (status) status.textContent = "Géolocalisation non supportée";
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+        const res = nearestSpot(lat, lon);
+        if (status) status.textContent = `Plus proche: ${res.spot.name} • ${Math.round(res.d)} km`;
+        openResultModal(res, { lat, lon });
+      },
+      () => {
+        if (status) status.textContent = "Permission refusée";
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+};
+
+const attachStatsInfo = () => {
+  const modal = document.getElementById("stats-info-modal");
+  const body = document.getElementById("stats-info-body");
+  if (!modal || !body) return;
+  const refSpot = spots[0];
+  const open = (title, content) => {
+    body.innerHTML = `
+      <div class="detail-line">
+        <div class="dl-item"><span class="dl-label">Intitulé</span><span class="dl-val">${title}</span></div>
+        <div class="dl-item"><span class="dl-label">Endpoint</span><span class="dl-val">${content.endpoint}</span></div>
+        <div class="dl-item"><span class="dl-label">Spot Réf.</span><span class="dl-val">${refSpot.name}</span></div>
+      </div>
+      <div class="detail-line">
+        <div class="dl-item"><span class="dl-label">Signification</span><span class="dl-val">${content.meaning}</span></div>
+        <div class="dl-item"><span class="dl-label">Champs</span><span class="dl-val">${content.fields}</span></div>
+        <div class="dl-item"><span class="dl-label">Méthode</span><span class="dl-val">${content.method}</span></div>
+      </div>
+    `;
+    modal.classList.add("is-open");
+    modal.querySelectorAll("[data-modal-close]").forEach(b => b.onclick = () => modal.classList.remove("is-open"));
+  };
+  const elWater = document.getElementById("stat-water");
+  const elSwell = document.getElementById("stat-swell");
+  const elActive = document.getElementById("stat-active");
+  const elTide = document.getElementById("stat-tide");
+  if (elWater) elWater.onclick = () => open("Température de l’eau", {
+    endpoint: `/api/marine?lat=${refSpot.coords[0]}&lng=${refSpot.coords[1]}`,
+    meaning: "Température de surface à proximité du spot de référence.",
+    fields: "waterTemperature (°C)",
+    method: "Lecture directe de la valeur horaire fournie par Stormglass."
+  });
+  if (elSwell) elSwell.onclick = () => open("Analyse Houle", {
+    endpoint: `/api/marine?lat=${refSpot.coords[0]}&lng=${refSpot.coords[1]}`,
+    meaning: "Énergie des vagues: hauteur (m) et période (s).",
+    fields: "waveHeight (m), wavePeriod (s), swellDirection",
+    method: "Sélection du créneau récent et affichage des champs normalisés."
+  });
+  if (elActive) elActive.onclick = () => open("Spots en LIVE", {
+    endpoint: `/api/all-status`,
+    meaning: "Nombre de spots dont le flux est actif.",
+    fields: "status par spot (LIVE/WAITING/ERROR)",
+    method: "Comptage des statuts 'LIVE' retournés par le service."
+  });
+  if (elTide) elTide.onclick = () => open("Marée (Global)", {
+    endpoint: `/api/tide?spot=${encodeURIComponent(refSpot.name)}`,
+    meaning: "Tendance de marée globale sur la zone.",
+    fields: "stage (Montante/Descendante/Haute/Basse), nextTime",
+    method: "Agrégation des cycles de marée et calcul de la tendance actuelle."
+  });
+};
+const attachHomeGeoBubble = () => {
+  const bubble = document.getElementById("geo-bubble");
+  const modal = document.getElementById("geo-modal");
+  const body = document.getElementById("geo-modal-body");
+  if (!bubble || !modal || !body) return;
+  const toRad = (v) => v * Math.PI / 180;
+  const haversine = (lat1, lon1, lat2, lon2) => {
+    const R = 6371;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+  const nearestSpot = (lat, lon) => {
+    let best = null;
+    spots.forEach(s => {
+      const d = haversine(lat, lon, s.coords[0], s.coords[1]);
+      if (!best || d < best.d) best = { spot: s, d };
+    });
+    return best;
+  };
+  const renderResult = (res, coords) => {
+    const km = Math.round(res.d);
+    body.innerHTML = `
+      <div class="detail-line">
+        <div class="dl-item"><span class="dl-label">Spot</span><span class="dl-val">${res.spot.name}</span></div>
+        <div class="dl-item"><span class="dl-label">Région</span><span class="dl-val">${res.spot.region}</span></div>
+        <div class="dl-item"><span class="dl-label">Distance</span><span class="dl-val">${km} km</span></div>
+        <div class="dl-item"><span class="dl-label">Accès</span><span class="dl-val"><a href="conditions.html?spot=${encodeURIComponent(res.spot.name)}" style="color:#4ade80">Ouvrir les conditions</a></span></div>
+      </div>
+      <div class="detail-line">
+        <div class="dl-item"><span class="dl-label">Latitude</span><span class="dl-val">${coords.lat.toFixed(4)}</span></div>
+        <div class="dl-item"><span class="dl-label">Longitude</span><span class="dl-val">${coords.lon.toFixed(4)}</span></div>
+      </div>
+    `;
+  };
+  bubble.onclick = () => {
+    modal.classList.add("is-open");
+    const startBtn = document.getElementById("geo-start");
+    const statusEl = document.getElementById("geo-status");
+    if (statusEl) statusEl.textContent = "Demande de localisation…";
+    if (!navigator.geolocation) {
+      if (statusEl) statusEl.textContent = "Géolocalisation non supportée";
+      return;
+    }
+    if (startBtn) {
+      startBtn.onclick = () => {
+        statusEl.textContent = "Recherche du spot le plus proche…";
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+            const res = nearestSpot(lat, lon);
+            renderResult(res, { lat, lon });
+            statusEl.textContent = "";
+          },
+          () => { statusEl.textContent = "Permission refusée"; },
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+      };
+    }
+    modal.querySelectorAll("[data-modal-close]").forEach(b => b.onclick = () => modal.classList.remove("is-open"));
+  };
 };
 
 const checkGlobalAlerts = async () => { /* Code Alerte Inchangé */ };
@@ -1434,13 +1634,23 @@ window.addEventListener("load", () => {
         document.getElementById("spot-search")?.addEventListener("input", () => setTimeout(renderSpotList, 200)); 
       }
       if (document.body.classList.contains("conditions-page")) initConditionsPage();
+      attachLocateFeature();
+      attachHomeGeoBubble();
+      attachStatsInfo();
       if (document.body.classList.contains("cameras-page")) initCamerasPage(); 
       if (document.body.classList.contains("favorites-page")) initFavoritesPage(); 
       if (document.body.classList.contains("versus-page")) initVersusPage(); 
       if (document.body.classList.contains("actus-page")) renderFullNews(); 
+      if (document.body.classList.contains("contact-page")) initContactPage(); 
   } catch (e) { console.error("Erreur critique init:", e); }
 
   document.body.addEventListener("click", e => {
+    const mailAnchor = e.target.closest("a[href^='mailto:']");
+    if (mailAnchor) {
+      e.preventDefault();
+      window.location.href = "contact.html";
+      return;
+    }
     if (e.target.matches("[data-modal-close]") || e.target.closest(".modal-close")) {
       const openModal = document.querySelector(".modal.is-open");
       if (openModal) openModal.classList.remove("is-open");
@@ -1473,6 +1683,52 @@ window.addEventListener("load", () => {
   });
 });
 
+const initContactPage = () => {
+  const form = document.getElementById("contact-form");
+  const statusEl = document.getElementById("contact-status");
+  if (!form) return;
+  const copyBtn = document.getElementById("copy-email");
+  const emailText = document.getElementById("support-email-text");
+  if (copyBtn && emailText) {
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(emailText.textContent.trim());
+        if (statusEl) statusEl.textContent = "Adresse copiée dans le presse‑papier.";
+      } catch {
+        if (statusEl) statusEl.textContent = "Copie impossible. Adresse: swellsync@gmail.com";
+      }
+    });
+  }
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("ct-name").value.trim();
+    const email = document.getElementById("ct-email").value.trim();
+    const category = document.getElementById("ct-category").value;
+    const subject = document.getElementById("ct-subject").value.trim();
+    const message = document.getElementById("ct-message").value.trim();
+    if (!name || !email || !message) {
+      if (statusEl) statusEl.textContent = "Veuillez remplir les champs requis.";
+      return;
+    }
+    if (statusEl) statusEl.textContent = "Envoi en cours…";
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, category, subject, message })
+      });
+      const data = await res.json();
+      if (data && data.success) {
+        if (statusEl) statusEl.textContent = "Message envoyé. Merci !";
+        form.reset();
+      } else {
+        if (statusEl) statusEl.textContent = "Échec de l’envoi. Réessayez.";
+      }
+    } catch {
+      if (statusEl) statusEl.textContent = "Erreur réseau. Réessayez.";
+    }
+  });
+};
 // AFFICHER BANNIÈRE COOKIES
 window.addEventListener("load", () => {
     if (!localStorage.getItem("surfSenseCookies")) {

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contact — SwellSync</title>
+  <link rel="canonical" href="https://swellsync.fr/contact.html" />
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="logo.svg" type="image/svg+xml" />
+  <script src="data.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body class="contact-page">
+
+  <header class="hero hero--photo" style="min-height: auto; padding-bottom: 20px;">
+    <nav class="nav">
+      <div class="logo">
+        <img src="logo.svg" alt="Logo" class="logo-mark" />
+        SwellSync
+      </div>
+      <div class="nav-links">
+        <a href="index.html">Carte</a>
+        <a href="cameras.html">Caméras</a>
+        <a href="favorites.html">Favoris</a>
+        <a href="versus.html">Versus</a>
+        <a href="actus.html">News</a>
+        <a href="contact.html" class="active">Contact</a>
+      </div>
+      <div class="nav-actions">
+        <button class="cta" data-modal="auth">Se connecter</button>
+      </div>
+    </nav>
+  </header>
+
+  <main class="section">
+    <div class="section-title animate-1">
+      <h2>Contact</h2>
+      <p style="color:#94a3b8; font-weight:600;">Questions, problèmes ou infos supplémentaires — on vous répond rapidement.</p>
+    </div>
+
+    <div class="map-header-card animate-2">
+      <h2>Équipe support • SwellSync</h2>
+      <p>Remplissez le formulaire ci-dessous. Votre demande sera transmise au support.</p>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 1.1fr 0.9fr; gap: 30px; align-items:start;">
+      <form id="contact-form" class="modal-form animate-3" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius:12px; padding:20px;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label style="display:block; font-size:0.75rem; color:#94a3b8; margin-bottom:6px;">Nom complet</label>
+            <input type="text" id="ct-name" placeholder="Ex: Jean Dupont" required />
+          </div>
+          <div>
+            <label style="display:block; font-size:0.75rem; color:#94a3b8; margin-bottom:6px;">Email</label>
+            <input type="email" id="ct-email" placeholder="Ex: jean@exemple.com" required />
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <label style="display:block; font-size:0.75rem; color:#94a3b8; margin-bottom:6px;">Catégorie</label>
+            <select id="ct-category" style="width:100%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; color: #fff; font-size: 1rem;">
+              <option value="Question">Question</option>
+              <option value="Problème">Problème</option>
+              <option value="Information">Information supplémentaire</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block; font-size:0.75rem; color:#94a3b8; margin-bottom:6px;">Sujet (optionnel)</label>
+            <input type="text" id="ct-subject" placeholder="Ex: Erreur sur la page Conditions" />
+          </div>
+        </div>
+        <div>
+          <label style="display:block; font-size:0.75rem; color:#94a3b8; margin-bottom:6px;">Message</label>
+          <textarea id="ct-message" rows="6" placeholder="Décrivez votre demande..." required style="width:100%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 12px; color: #fff; font-size: 1rem;"></textarea>
+        </div>
+        <button type="submit" class="primary" style="margin-top: 10px;">Envoyer</button>
+        <p id="contact-status" class="modal-footer-text" style="margin-top:10px;"></p>
+      </form>
+
+      <div class="animate-4" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius:12px; padding:20px;">
+        <h3 style="text-align:left; margin-bottom:8px;">Infos utiles</h3>
+        <p class="modal-subtitle" style="text-align:left; margin-bottom:8px;">Avant d’envoyer —</p>
+        <ul style="color:#94a3b8; font-size:0.9rem; line-height:1.7; margin:0; padding-left:18px;">
+          <li>Précisez le spot, l’heure et la page concernée si c’est un problème.</li>
+          <li>Pour les demandes de fonctionnalités, dites-nous l’usage concret souhaité.</li>
+          <li>Vous pouvez joindre des liens externes (cam, article, etc.).</li>
+        </ul>
+        <div style="margin-top:18px; font-size:0.85rem; color:#94a3b8; display:flex; align-items:center; gap:10px;">
+          <span id="support-email-text" style="color:#fff;">swellsync@gmail.com</span>
+          <button id="copy-email" class="ghost-pill" style="padding:6px 10px;">Copier l’adresse</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner" style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; padding: 0 20px;">
+      <div>
+        <p>© 2026 SurfSense — IA Marine Premium</p>
+        <p style="color: var(--muted); font-size: 0.75rem;">Robots: 11 • Source: Stormglass v2 • Quota: 500 req/j</p>
+      </div>
+      <div class="footer-legal-links" style="display: flex; gap: 25px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+        <a href="#" data-modal="legal-mentions" style="color: var(--muted);">Mentions Légales</a>
+        <a href="#" data-modal="legal-cgu" style="color: var(--muted);">CGU</a>
+        <a href="#" data-modal="legal-rgpd" style="color: var(--muted);">Confidentialité</a>
+        <a href="contact.html" style="color: var(--muted);">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+  <div class="modal" id="legal-modal">
+    <div class="modal-backdrop" data-modal-close></div>
+    <div class="modal-content tech-modal" style="max-width: 800px;">
+      <div class="tech-header">
+          <span class="tech-label">LEGAL DOCUMENTATION</span>
+          <h2 id="legal-title">TITRE DU DOCUMENT</h2>
+      </div>
+      <div id="legal-body" style="overflow-y: auto; max-height: 60vh; padding: 20px 0; color: #94a3b8; font-size: 0.9rem; line-height: 1.7;">
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

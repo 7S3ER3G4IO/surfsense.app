@@ -487,6 +487,53 @@ a { color: inherit; text-decoration: none; }
   100% { background-position: 200% 50%; } 
 }
 
+.locate-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.btn-locate { 
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #fff;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 8px 14px;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.35), inset 0 0 12px rgba(255,255,255,0.06);
+  transition: transform .15s ease, box-shadow .2s ease;
+}
+.btn-locate:hover { transform: translateY(-1px); box-shadow: 0 16px 34px rgba(0,0,0,0.45), inset 0 0 14px rgba(255,255,255,0.08); }
+.locate-status { font-size: .8rem; color: #94a3b8; }
+
+.geo-bubble {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: linear-gradient(145deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.12);
+  box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+  cursor: pointer;
+  z-index: 9999;
+}
+.geo-text { font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: #fff; font-size: .8rem; }
+.geo-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 0 0 rgba(74,222,128,0.7);
+  animation: pulseDot 1.8s infinite;
+}
+@keyframes pulseDot {
+  0% { box-shadow: 0 0 0 0 rgba(74,222,128,0.7); }
+  70% { box-shadow: 0 0 0 12px rgba(74,222,128,0); }
+  100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
+}
+.geo-modal-card { max-width: 640px; }
+
 .hourly-strip {
   display: grid;
   grid-auto-flow: row;
@@ -528,6 +575,9 @@ a { color: inherit; text-decoration: none; }
 }
 .hourly-chip:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
 .hourly-chip .h-time { 
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: .75rem; 
   font-weight: 900; 
   text-transform: uppercase; 
@@ -535,11 +585,20 @@ a { color: inherit; text-decoration: none; }
   color: #e5e7eb;
   text-shadow: 0 0 8px rgba(255,255,255,0.08);
 }
+.hourly-chip .h-icon { font-size: .9rem; }
 .hourly-chip .h-primary { 
   font-size: .92rem; 
   font-weight: 900; 
   color: #ffffff; 
   text-shadow: 0 0 10px rgba(255,255,255,0.08);
+}
+.hourly-chip .h-meta { 
+  font-size: .72rem; 
+  font-weight: 800; 
+  color: #60a5fa; 
+  letter-spacing: .4px; 
+  margin-top: 2px; 
+  text-transform: uppercase;
 }
 .hourly-chip.is-epic .h-primary { text-shadow: 0 0 10px rgba(217,70,239,0.35), 0 0 4px rgba(217,70,239,0.2); }
 .hourly-chip.is-good .h-primary { text-shadow: 0 0 10px rgba(74,222,128,0.35), 0 0 4px rgba(74,222,128,0.2); }
@@ -882,6 +941,9 @@ a { color: inherit; text-decoration: none; }
   box-shadow: 0 0 0 2px rgba(148,163,184,0.25) inset, 0 22px 46px rgba(0,0,0,0.5);
 }
 .cal-date { 
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 900; 
   font-size: 0.85rem; 
   text-transform: uppercase; 
@@ -889,6 +951,7 @@ a { color: inherit; text-decoration: none; }
   color: #cbd5e1;
   text-shadow: 0 0 8px rgba(255,255,255,0.06);
 }
+.cal-icon { font-size: 1rem; }
 .cal-badge { 
   font-weight: 900; 
   font-size: 0.85rem; 
@@ -1337,6 +1400,7 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   flex-direction: column;
   align-items: center;
+  cursor: pointer;
 }
 
 .bubble-label {
@@ -1351,6 +1415,8 @@ a { color: inherit; text-decoration: none; }
   font-weight: 800;
   color: var(--accent);
 }
+.stat-bubble:hover .bubble-value { filter: brightness(1.2); }
+.stats-info-card { max-width: 640px; }
 
 /* --- PAGE ACTUS (HERO & FEED) --- */
 

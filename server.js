@@ -86,7 +86,7 @@ const smtpHost = process.env.SMTP_HOST;
 const smtpPort = parseInt(process.env.SMTP_PORT || "587");
 const smtpUser = process.env.SMTP_USER;
 const smtpPass = process.env.SMTP_PASS;
-const smtpFrom = process.env.SMTP_FROM || "no-reply@surfsense.io";
+const smtpFrom = process.env.SMTP_FROM || "swellsync@gmail.com";
 let mailer = null;
 if (smtpHost && smtpUser && smtpPass) {
   mailer = nodemailer.createTransport({
@@ -121,6 +121,33 @@ const send2faMail = async (email, code) => {
   if (preview) robotLog(ROBOTS.AUTH, "MAIL", `Preview ${preview}`);
 };
 
+const sendContactMail = async ({ name, email, category, subject, message }) => {
+  if (!mailer) {
+    const testAccount = await nodemailer.createTestAccount();
+    mailer = nodemailer.createTransport({
+      host: "smtp.ethereal.email",
+      port: 587,
+      secure: false,
+      auth: { user: testAccount.user, pass: testAccount.pass }
+    });
+    robotLog(ROBOTS.API, "MAIL", "Transport test Ethereal prêt");
+  }
+  const to = process.env.SUPPORT_EMAIL || "swellsync@gmail.com";
+  const info = await mailer.sendMail({
+    from: smtpFrom,
+    to,
+    subject: `Contact — ${category || "Demande"}${subject ? ` : ${subject}` : ""}`,
+    text: `Nom: ${name}\nEmail: ${email}\nCatégorie: ${category}\nSujet: ${subject || "-"}\n\nMessage:\n${message}`,
+    html: `<p><b>Nom:</b> ${name}</p>
+           <p><b>Email:</b> ${email}</p>
+           <p><b>Catégorie:</b> ${category}</p>
+           <p><b>Sujet:</b> ${subject || "-"}</p>
+           <p><b>Message:</b><br/>${(message || "").replace(/\n/g,"<br/>")}</p>`
+  });
+  const preview = nodemailer.getTestMessageUrl(info);
+  if (preview) robotLog(ROBOTS.API, "MAIL", `Preview ${preview}`);
+  return preview;
+};
 // --- CONFIGURATION SÉCURISÉE ---
 let STORMGLASS_API_KEY = process.env.STORMGLASS_API_KEY;
 if (!STORMGLASS_API_KEY) {
@@ -412,6 +439,18 @@ app.post("/api/auth/send-2fa", async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Envoi impossible" }); }
 });
 
+// --- CONTACT ---
+app.post("/api/contact", async (req, res) => {
+  const { name, email, category, subject, message } = req.body || {};
+  if (!name || !email || !message) return res.status(400).json({ success: false, error: "Champs requis manquants" });
+  try {
+    const previewUrl = await sendContactMail({ name, email, category, subject, message });
+    res.json({ success: true, previewUrl });
+  } catch (e) {
+    robotLog(ROBOTS.API, "ERROR", `CONTACT: ${e.message}`);
+    res.status(500).json({ success: false, error: "Erreur serveur contact" });
+  }
+});
 app.get("/api/healthz", async (req, res) => {
     try {
         const r = await pool.query("SELECT NOW()");
@@ -456,6 +495,30 @@ app.post("/api/favorites", async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Erreur serveur" }); }
 });
 
+app.get("/sitemap.xml", (req, res) => {
+  try {
+    const base = process.env.BASE_URL || "https://swellsync.fr";
+    const pages = [
+      "/index.html",
+      "/cameras.html",
+      "/favorites.html",
+      "/versus.html",
+      "/actus.html",
+      "/contact.html"
+    ];
+    const spotUrls = spots.map(s => `/conditions.html?spot=${encodeURIComponent(s.name)}`);
+    const urls = [...pages, ...spotUrls];
+    const lastmod = new Date().toISOString();
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map(u => `<url><loc>${base}${u}</loc><lastmod>${lastmod}</lastmod><changefreq>hourly</changefreq><priority>${u.includes("conditions.html") ? "0.9" : "0.7"}</priority></url>`).join("")}
+</urlset>`;
+    res.setHeader("Content-Type", "application/xml");
+    res.send(xml);
+  } catch {
+    res.status(500).send("");
+  }
+});
 
 // --- MIDDLEWARE DE MONITORING API ---
 app.use((req, res, next) => {
