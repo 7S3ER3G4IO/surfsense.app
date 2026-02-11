@@ -13,10 +13,11 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "express-rate-limit": "^7.2.0",
     "fast-xml-parser": "^4.4.0",
+    "helmet": "^7.1.0",
+    "nodemailer": "^8.0.1",
     "pg": "^8.11.3",
-    "rss-parser": "^3.13.0",
-    "helmet": "^7.1.0",             
-    "express-rate-limit": "^7.2.0"  
+    "rss-parser": "^3.13.0"
   }
 }

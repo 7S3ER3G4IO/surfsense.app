@@ -5,6 +5,7 @@ import fs from "fs";
 import pg from "pg"; 
 import bcrypt from "bcrypt"; 
 import Parser from "rss-parser";
+import nodemailer from "nodemailer";
 import helmet from "helmet"; // SÉCURITÉ
  
 import { fileURLToPath } from "url";
@@ -63,6 +64,45 @@ const robotLog = (robot, status = "OK", details = "") => {
     const timestamp = new Date().toLocaleTimeString();
     const detailStr = details ? ` | \x1b[90m${details}\x1b[0m` : "";
     console.log(`[\x1b[90m${timestamp}\x1b[0m] ${robot.icon} \x1b[36mRobot ${robot.name}\x1b[0m : ${robot.msg} [\x1b[32m${status}\x1b[0m]${detailStr}`);
+};
+
+const smtpHost = process.env.SMTP_HOST;
+const smtpPort = parseInt(process.env.SMTP_PORT || "587");
+const smtpUser = process.env.SMTP_USER;
+const smtpPass = process.env.SMTP_PASS;
+const smtpFrom = process.env.SMTP_FROM || "no-reply@surfsense.io";
+let mailer = null;
+if (smtpHost && smtpUser && smtpPass) {
+  mailer = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: { user: smtpUser, pass: smtpPass }
+  });
+}
+
+const send2faMail = async (email, code) => {
+  if (!mailer) {
+    try {
+      const testAccount = await nodemailer.createTestAccount();
+      mailer = nodemailer.createTransport({
+        host: "smtp.ethereal.email",
+        port: 587,
+        secure: false,
+        auth: { user: testAccount.user, pass: testAccount.pass }
+      });
+      robotLog(ROBOTS.AUTH, "MAIL", "Transport test Ethereal prêt");
+    } catch (e) { throw new Error("SMTP not configured"); }
+  }
+  const info = await mailer.sendMail({
+    from: smtpFrom,
+    to: email,
+    subject: "SurfSense — Code de vérification",
+    text: `Votre code: ${code}`,
+    html: `<p>Votre code de vérification est <strong>${code}</strong>.</p>`
+  });
+  const preview = nodemailer.getTestMessageUrl(info);
+  if (preview) robotLog(ROBOTS.AUTH, "MAIL", `Preview ${preview}`);
 };
 
 // --- CONFIGURATION SÉCURISÉE ---
@@ -142,6 +182,14 @@ const initDB = async () => {
                 ts TIMESTAMP DEFAULT NOW()
             );
         `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS twofa_codes (
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                code TEXT NOT NULL,
+                expires BIGINT NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            );
+        `);
         robotLog(ROBOTS.DB, "READY", "Base connectée (Tables Cache & Users)");
 
         // 3. Vérifier si migration cache nécessaire
@@ -180,13 +228,7 @@ app.get('/api/marine', async (req, res) => {
     console.log(`[ ${new Date().toLocaleTimeString()} ] 💧 Robot Marine-Sync : Données météo synchronisées.`);
 });
 
-app.post('/api/auth/login', async (req, res) => {
-    const { email } = req.body;
-    console.log(`[ ${new Date().toLocaleTimeString()} ] 🔐 Auth-Gate : Tentative de connexion de l'utilisateur : ${email}`);
-    
-    // ...
-    console.log(`[ ${new Date().toLocaleTimeString()} ] 🔓 Auth-Gate : Accès accordé pour ${email}`);
-});
+ 
 
 // ============================================================================
 // 🛡️ OPÉRATION BOUCLIER : ROUTE DE DOUBLE AUTHENTIFICATION (2FA)
@@ -194,48 +236,22 @@ app.post('/api/auth/login', async (req, res) => {
 app.post("/api/auth/verify-2fa", async (req, res) => {
     try {
         const { email, code } = req.body;
-
-        // 1. Vérification des données entrantes
-        if (!email || !code) {
-            robotLog(ROBOTS.AUTH, "WARN", "2FA avorté (données manquantes)");
-            return res.status(400).json({ success: false, error: "Protocole incomplet. Email ou code manquant." });
-        }
-
-        robotLog(ROBOTS.AUTH, "SCAN", `Analyse 2FA pour ${email}`);
-
-        // 2. Vérification dans la base de données (PostgreSQL)
-        // Note: Ici, nous interrogeons votre pool DB pour vérifier l'utilisateur.
-        const userQuery = await pool.query("SELECT id, is_active FROM users WHERE email = $1", [email]);
-        
-        if (userQuery.rows.length === 0) {
-            return res.status(404).json({ success: false, error: "Agent introuvable dans la matrice." });
-        }
-
-        // 3. Logique de validation du code
-        // Dans une version finale, vous compareriez 'code' avec un token TOTP (via 'speakeasy') 
-        // ou un code temporaire stocké en base. 
-        // Pour l'instant, nous établissons un "Master Code" (ex: "000000") pour tester le flux, 
-        // ou une validation basique à remplacer par votre logique métier.
-
-        const isValid2FA = (code === "000000"); // 🔒 À MODIFIER : Remplacer par la vraie vérification cryptographique
-
-        if (isValid2FA) {
-            robotLog(ROBOTS.AUTH, "SUCCESS", `2FA validé pour ${email}`);
-            
-            // 4. Renvoi du feu vert au Frontend (app.js)
-            return res.status(200).json({ 
-                success: true, 
-                message: "Authentification biométrique et 2FA confirmées. Bienvenue sur le réseau.",
-                token: "JWT_ACCESS_TOKEN_SIMULE" // Si vous utilisez des JSON Web Tokens plus tard
-            });
-        } else {
-            robotLog(ROBOTS.AUTH, "ERROR", `Échec 2FA pour ${email} (Code invalide)`);
-            return res.status(401).json({ success: false, error: "Code d'accès refusé. Veuillez réessayer." });
-        }
-
+        if (!email || !code) return res.status(400).json({ success: false, error: "Email ou code manquant." });
+        const u = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+        if (u.rows.length === 0) return res.status(404).json({ success: false, error: "Utilisateur introuvable." });
+        const userId = u.rows[0].id;
+        const r = await pool.query("SELECT code, expires FROM twofa_codes WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1", [userId]);
+        if (r.rows.length === 0) return res.status(400).json({ success: false, error: "Aucun code en attente." });
+        const row = r.rows[0];
+        const now = Date.now();
+        if (row.code !== code) return res.status(401).json({ success: false, error: "Code invalide." });
+        if (now > parseInt(row.expires)) return res.status(401).json({ success: false, error: "Code expiré." });
+        await pool.query("DELETE FROM twofa_codes WHERE user_id = $1", [userId]);
+        robotLog(ROBOTS.AUTH, "SUCCESS", `2FA validé`);
+        return res.status(200).json({ success: true });
     } catch (error) {
         robotLog(ROBOTS.AUTH, "CRITICAL", `Erreur 2FA: ${error.message}`);
-        res.status(500).json({ success: false, error: "Erreur interne du terminal sécurisé." });
+        res.status(500).json({ success: false, error: "Erreur interne." });
     }
 });
 
@@ -327,7 +343,12 @@ app.post("/api/auth/register", async (req, res) => {
             [name, email, hash, true]
         );
 
-        res.json({ success: true, user: newUser.rows[0] });
+        const u = newUser.rows[0];
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        const expires = Date.now() + 10 * 60 * 1000;
+        await pool.query("INSERT INTO twofa_codes (user_id, code, expires) VALUES ($1, $2, $3)", [u.id, code, expires]);
+        try { await send2faMail(email, code); } catch (e) {}
+        res.json({ success: true, user: u });
         robotLog(ROBOTS.AUTH, "REGISTER", `${name} (${email})`);
 
     } catch (err) {
@@ -358,6 +379,21 @@ app.post("/api/auth/login", async (req, res) => {
         robotLog(ROBOTS.AUTH, "ERROR", `Connexion: ${err.message}`);
         res.status(500).json({ error: "Erreur serveur connexion" });
     }
+});
+
+app.post("/api/auth/send-2fa", async (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: "Email manquant" });
+    try {
+        const r = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+        if (r.rows.length === 0) return res.status(404).json({ error: "Utilisateur introuvable" });
+        const userId = r.rows[0].id;
+        const code = String(Math.floor(100000 + Math.random() * 900000));
+        const expires = Date.now() + 10 * 60 * 1000;
+        await pool.query("INSERT INTO twofa_codes (user_id, code, expires) VALUES ($1, $2, $3)", [userId, code, expires]);
+        await send2faMail(email, code);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: "Envoi impossible" }); }
 });
 
 app.get("/api/healthz", async (req, res) => {

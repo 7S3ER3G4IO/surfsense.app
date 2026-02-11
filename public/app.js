@@ -106,6 +106,12 @@ const initAuthLogic = () => {
                     if (authRegisterView) authRegisterView.style.display = "none";
                     if (auth2faView) auth2faView.style.display = "block";
                     if (twofaEmailInput) twofaEmailInput.value = email; // On mémorise l'email
+                    try {
+                        await fetch("/api/auth/send-2fa", {
+                          method: "POST", headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ email })
+                        });
+                    } catch {}
                 } else {
                     alert("Erreur : " + data.error);
                 }
