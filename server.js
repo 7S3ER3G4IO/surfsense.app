@@ -27,6 +27,8 @@ app.use(helmet({
 const dbUrl = process.env.INTERNAL_DATABASE_URL || process.env.DATABASE_URL;
 const pool = new pg.Pool({
     connectionString: dbUrl,
+    max: 5,
+    idleTimeoutMillis: 30000,
     ssl: process.env.RENDER ? { rejectUnauthorized: false } : false
 });
 
@@ -123,6 +125,21 @@ const initDB = async () => {
                 password TEXT NOT NULL,
                 premium BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMP DEFAULT NOW()
+            );
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS favorites (
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                spot_name TEXT NOT NULL,
+                PRIMARY KEY (user_id, spot_name)
+            );
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS click_logs (
+                id SERIAL PRIMARY KEY,
+                spot_name TEXT NOT NULL,
+                ip TEXT,
+                ts TIMESTAMP DEFAULT NOW()
             );
         `);
         robotLog(ROBOTS.DB, "READY", "Base connectée (Tables Cache & Users)");
@@ -222,9 +239,15 @@ app.post("/api/auth/verify-2fa", async (req, res) => {
     }
 });
 
-app.get('/api/log-click', (req, res) => {
-    console.log(`[ ${new Date().toLocaleTimeString()} ] 👤 USER-TRACK : Analyse demandée pour | ${req.query.spot}`);
-    res.sendStatus(200);
+app.get('/api/log-click', async (req, res) => {
+    const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString();
+    const spotName = req.query.spot || '';
+    try {
+        await pool.query("INSERT INTO click_logs (spot_name, ip) VALUES ($1, $2)", [spotName, ip]);
+        res.sendStatus(200);
+    } catch {
+        res.sendStatus(200);
+    }
 });
 
 };
@@ -269,6 +292,15 @@ const saveToDB = async (key, data, expires) => {
         `;
         await pool.query(query, [key, JSON.stringify(data), expires]);
     } catch (e) { robotLog(ROBOTS.DB, "ERROR", `Sauvegarde DB: ${e.message}`); }
+};
+
+const cleanupExpiredCache = async () => {
+    if (!process.env.INTERNAL_DATABASE_URL && !process.env.DATABASE_URL) return;
+    try {
+        const now = Date.now();
+        await pool.query('DELETE FROM cache WHERE expires < $1', [now]);
+        robotLog(ROBOTS.DB, "CLEAN", "Cache expiré purgé");
+    } catch (e) { robotLog(ROBOTS.DB, "ERROR", `Purge cache: ${e.message}`); }
 };
 
 app.use(cors());
@@ -326,6 +358,50 @@ app.post("/api/auth/login", async (req, res) => {
         robotLog(ROBOTS.AUTH, "ERROR", `Connexion: ${err.message}`);
         res.status(500).json({ error: "Erreur serveur connexion" });
     }
+});
+
+app.get("/api/healthz", async (req, res) => {
+    try {
+        const r = await pool.query("SELECT NOW()");
+        res.json({ ok: true, db: true, cacheCount: cache.size, time: r.rows[0].now });
+    } catch {
+        res.status(500).json({ ok: false, db: false, cacheCount: cache.size });
+    }
+});
+
+app.get("/api/auth/user", async (req, res) => {
+    const email = req.query.email;
+    if (!email) return res.status(400).json({ error: "Email manquant" });
+    try {
+        const r = await pool.query("SELECT id, name, email, premium FROM users WHERE email = $1", [email]);
+        if (r.rows.length === 0) return res.status(404).json({ error: "Utilisateur introuvable" });
+        res.json(r.rows[0]);
+    } catch (e) { res.status(500).json({ error: "Erreur serveur" }); }
+});
+
+app.get("/api/favorites", async (req, res) => {
+    const userId = parseInt(req.query.userId);
+    if (!userId) return res.status(400).json({ error: "userId manquant" });
+    try {
+        const r = await pool.query("SELECT spot_name FROM favorites WHERE user_id = $1", [userId]);
+        res.json(r.rows.map(x => x.spot_name));
+    } catch (e) { res.status(500).json({ error: "Erreur serveur" }); }
+});
+
+app.post("/api/favorites", async (req, res) => {
+    const { userId, spotName, action } = req.body;
+    if (!userId || !spotName || !action) return res.status(400).json({ error: "Données manquantes" });
+    try {
+        if (action === "add") {
+            await pool.query("INSERT INTO favorites (user_id, spot_name) VALUES ($1, $2) ON CONFLICT DO NOTHING", [userId, spotName]);
+            return res.json({ success: true });
+        } else if (action === "remove") {
+            await pool.query("DELETE FROM favorites WHERE user_id = $1 AND spot_name = $2", [userId, spotName]);
+            return res.json({ success: true });
+        } else {
+            return res.status(400).json({ error: "Action invalide" });
+        }
+    } catch (e) { res.status(500).json({ error: "Erreur serveur" }); }
 });
 
 
@@ -531,6 +607,9 @@ const startBackgroundWorkers = () => {
 
   setInterval(runTideMaster, 12 * 60 * 60 * 1000);
   runTideMaster();
+  
+  setInterval(cleanupExpiredCache, 60 * 60 * 1000);
+  setTimeout(cleanupExpiredCache, 15000);
 };
 
 app.get("/api/marine", async (req, res) => {

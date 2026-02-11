@@ -1,3 +1,4 @@
+let favoritesSet = new Set();
 // --- 3. GATEKEEPER & AUTHENTIFICATION ---
 const initGatekeeper = () => {
     const modal = document.getElementById("gatekeeper-modal");
@@ -121,20 +122,21 @@ const initAuthLogic = () => {
             const btn = loginForm.querySelector("button");
             const originalText = btn.innerText;
             btn.innerText = "SÉCURISATION...";
-
             try {
                 const res = await fetch("/api/auth/login", {
                     method: "POST", headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ email, password })
                 });
                 const data = await res.json();
-
-                // On simule que la connexion demande toujours le 2FA pour la démo
-                console.log(`[ SYSTÈME ] Login OK pour ${email}. Attente 2FA...`);
-                if (authLoginView) authLoginView.style.display = "none";
-                if (auth2faView) auth2faView.style.display = "block";
-                if (twofaEmailInput) twofaEmailInput.value = email;
-
+                if (data && data.success) {
+                    localStorage.setItem("surfUser", JSON.stringify(data.user));
+                    sessionStorage.setItem("accessGranted", "true");
+                    document.getElementById("auth-modal")?.classList.remove("is-open");
+                    window.location.reload();
+                } else {
+                    alert("Erreur : " + (data.error || "Connexion échouée"));
+                    btn.innerText = originalText;
+                }
             } catch (err) { alert("Erreur serveur."); btn.innerText = originalText; }
         };
     }
@@ -155,11 +157,13 @@ const initAuthLogic = () => {
 
                 if (data.success) {
                     console.log("[ SECURITY-BOT ] Accès 2FA autorisé.");
-                    
-                    // On valide les accès finaux
+                    const email = twofaEmailInput.value;
+                    try {
+                        const uRes = await fetch(`/api/auth/user?email=${encodeURIComponent(email)}`);
+                        const u = await uRes.json();
+                        localStorage.setItem("surfUser", JSON.stringify(u));
+                    } catch {}
                     sessionStorage.setItem("accessGranted", "true");
-                    
-                    // ON RECHARGE LA PAGE SEULEMENT MAINTENANT !
                     alert("Authentification validée. Bienvenue Agent.");
                     window.location.reload(); 
                 } else {
@@ -169,6 +173,16 @@ const initAuthLogic = () => {
             } catch (error) { console.error("Erreur 2FA", error); }
         };
     }
+};
+
+const loadFavorites = async () => {
+    const u = JSON.parse(localStorage.getItem("surfUser") || "null");
+    if (!u) { favoritesSet = new Set(); return; }
+    try {
+        const r = await fetch(`/api/favorites?userId=${u.id}`);
+        const arr = await r.json();
+        favoritesSet = new Set(arr);
+    } catch {}
 };
 
 const updateProfileModal = async () => {
@@ -384,7 +398,7 @@ const updatePopupStatus = async (spot) => {
 };
 
 const renderSpotPopup = (spot) => {
-  const isFav = (JSON.parse(localStorage.getItem("surfFavorites") || "[]")).includes(spot.name);
+  const isFav = favoritesSet.has(spot.name);
   const badgeId = `badge-${spot.name.replace(/[^a-zA-Z0-9]/g, '')}`;
   const safeId = spot.name.replace(/[^a-zA-Z0-9]/g, '');
   const isLive = document.getElementById(badgeId)?.classList.contains('is-live');
@@ -411,7 +425,7 @@ const renderSpotPopup = (spot) => {
 
 window.toggleFav = (name, btn) => {
     toggleFavorite(name);
-    const isFav = (JSON.parse(localStorage.getItem("surfFavorites") || "[]")).includes(name);
+    const isFav = favoritesSet.has(name);
     if(btn && btn.classList) {
         btn.classList.toggle('active');
         btn.innerHTML = isFav ? '♥ Favori' : '♡ Ajouter Favori';
@@ -468,11 +482,26 @@ const updateListStatus = async () => {
   } catch (e) {}
 };
 
-const toggleFavorite = (name) => {
-  const favs = JSON.parse(localStorage.getItem("surfFavorites") || "[]");
-  const idx = favs.indexOf(name);
-  if (idx >= 0) favs.splice(idx, 1); else favs.push(name);
-  localStorage.setItem("surfFavorites", JSON.stringify(favs));
+const toggleFavorite = async (name) => {
+  const u = JSON.parse(localStorage.getItem("surfUser") || "null");
+  if (!u) { 
+    const modal = document.getElementById("auth-modal");
+    const loginView = document.getElementById("auth-login-view");
+    const registerView = document.getElementById("auth-register-view");
+    if (modal) modal.classList.add("is-open");
+    if (loginView) loginView.style.display = "none";
+    if (registerView) registerView.style.display = "block";
+    return; 
+  }
+  const add = !favoritesSet.has(name);
+  try {
+    await fetch("/api/favorites", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: u.id, spotName: name, action: add ? "add" : "remove" })
+    });
+    if (add) favoritesSet.add(name); else favoritesSet.delete(name);
+  } catch {}
 };
 
 // --- 7. NEWS ET AUTRES PAGES ---
@@ -540,7 +569,7 @@ const initConditionsPage = () => {
   if(btnCam) btnCam.href = `cameras.html?spot=${encodeURIComponent(spot.name)}`;
   
   const updateFavBtn = () => {
-    const isFav = (JSON.parse(localStorage.getItem("surfFavorites") || "[]")).includes(spot.name);
+    const isFav = favoritesSet.has(spot.name);
     const btnFav = document.getElementById("btn-fav");
     if(btnFav) {
       btnFav.textContent = isFav ? "♥ Favori" : "♡ Ajouter";
@@ -673,8 +702,14 @@ const initFavoritesPage = async () => {
     const emptyState = document.getElementById("empty-favs");
     if (!container || !emptyState) return;
 
-    const favs = JSON.parse(localStorage.getItem("surfFavorites") || "[]");
-    
+    const u = JSON.parse(localStorage.getItem("surfUser") || "null");
+    if (!u) {
+        container.style.display = "none";
+        emptyState.style.display = "block";
+        return;
+    }
+    await loadFavorites();
+    const favs = Array.from(favoritesSet);
     if (favs.length === 0) {
         container.style.display = "none";
         emptyState.style.display = "block";
@@ -785,12 +820,16 @@ const updateHomeStats = async () => {
   } catch (e) { console.error("Erreur stats accueil", e); }
 };
 
-const initRadar = () => {
+const initRadar = async () => {
     const container = document.getElementById("radar-container");
     if (!container) return; 
-
-    const trendingSpots = [spots[0], spots[7], spots[18], spots[9]]; 
-
+    let trendingSpots = [];
+    try {
+        const res = await fetch("/api/alerts");
+        const alerts = await res.json();
+        trendingSpots = alerts.slice(0, 4).map(a => spots.find(s => s.name === a.name)).filter(Boolean);
+    } catch {}
+    if (trendingSpots.length === 0) trendingSpots = [spots[0], spots[7], spots[18], spots[9]];
     container.innerHTML = trendingSpots.map((spot, idx) => `
         <div class="radar-card ${idx === 0 ? 'is-featured' : ''}" onclick="window.location.href='conditions.html?spot=${encodeURIComponent(spot.name)}'">
             <div class="radar-header">
@@ -849,7 +888,7 @@ const initMobileInstall = () => {
     }
 };
 
-const initCamerasPage = () => {
+const initCamerasPage = async () => {
     const listContainer = document.getElementById("cam-list-container");
     const mainScreen = document.getElementById("main-cam-screen");
     const liveName = document.getElementById("cam-live-name");
@@ -908,6 +947,15 @@ const initCamerasPage = () => {
     window.selectCam = (spot, img) => loadCam(spot, img);
 
     if (spots.length > 0) loadCam(spots[0], camImages[0]);
+    try {
+        const res = await fetch("/api/all-status");
+        const statusMap = await res.json();
+        spots.forEach(s => {
+            const safeId = s.name.replace(/[^a-zA-Z0-9]/g, '');
+            const el = document.querySelector(`#cam-item-${safeId} .cam-status`);
+            if (el && statusMap[s.name]) el.textContent = statusMap[s.name] === "LIVE" ? "● LIVE" : "○ WAITING";
+        });
+    } catch {}
     
     const fetchCamStats = async () => {
         try {
@@ -999,6 +1047,7 @@ window.addEventListener("load", () => {
   initGatekeeper();
   handleAuthSwitch(); 
   initAuthLogic(); 
+  loadFavorites();
 
   const loader = document.getElementById("app-loader");
   if(loader) { setTimeout(() => loader.classList.add("loader-hidden"), 800); }

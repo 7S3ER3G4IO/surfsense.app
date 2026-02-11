@@ -137,7 +137,7 @@
           <a href="actus.html">News</a>
         </div>
         <div class="nav-actions">
-          <button class="cta" data-modal="auth">Mon Profil</button>
+          <button class="cta" data-modal="auth">Se connecter</button>
         </div>
       </nav>
       
@@ -191,8 +191,8 @@
                 <h2>Carte interactive</h2>
                 <p>Analyse précise via Stormglass Premium.</p>
             </div>
-            <div class="storage-indicator" title="Données optimisées pour économiser la clé">
-                <span class="storage-icon">📦</span> Storage-First
+            <div class="storage-indicator" title="Données centralisées (Postgres Render)">
+                <span class="storage-icon">🗄️</span> DB-Backed
             </div>
           </div>
         </div>
@@ -374,9 +374,10 @@
             <input type="password" id="login-pass" placeholder="Mot de passe" required />
             <button type="submit" class="primary">Entrer</button>
           </form>
-          <p class="modal-footer-text">Pas encore membre ? <a href="#" id="link-to-register">S'inscrire</a></p>
+          <p class="modal-footer-text">Pas encore inscrit ? <a href="#" id="link-to-register">S'inscrire (2FA)</a></p>
         </div>
 
+        <div id="auth-register-view" style="display:none;">
           <h3>Créer un compte</h3>
           <form class="modal-form" id="register-form">
             <input type="text" id="reg-name" placeholder="Nom complet" required />
@@ -385,6 +386,17 @@
             <button type="submit" class="primary">Rejoindre le Line-up</button>
           </form>
           <p class="modal-footer-text">Déjà membre ? <a href="#" id="link-to-login">Se connecter</a></p>
+        </div>
+
+        <div id="auth-2fa-view" style="display:none;">
+          <h3 style="color: var(--live-red);">Alerte Sécurité : 2FA</h3>
+          <p class="modal-footer-text">Veuillez entrer votre code d'habilitation d'agent.</p>
+          <form class="modal-form" id="twofa-form">
+            <input type="hidden" id="twofa-email" />
+            <input type="text" id="twofa-code" placeholder="Code à 6 chiffres (ex: 000000)" required maxlength="6" style="text-align: center; letter-spacing: 5px; font-weight: bold;" />
+            <button type="submit" class="primary" style="background: var(--live-red);">Vérifier l'Identité</button>
+          </form>
+        </div>
         </div>
       </div>
     </div>
