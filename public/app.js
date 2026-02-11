@@ -314,15 +314,23 @@ const initMap = () => {
 
 const selectSpot = (spot, marker, { openPopup = true } = {}) => {
   if (!spot) return;
+
+  // 📡 SIGNAL RADAR : Envoie l'info au serveur pour affichage dans Render
+  fetch(`/api/log-click?spot=${encodeURIComponent(spot.name)}`).catch(() => {});
+
   const resolvedMarker = marker || markersByName.get(spot.name);
   if (activeMarker && activeMarker.getElement()) activeMarker.getElement().querySelector('.spot-marker')?.classList.remove("spot-marker--active");
+  
   if (resolvedMarker) {
       markersCluster.zoomToShowLayer(resolvedMarker, () => {
           if (resolvedMarker.getElement()) { resolvedMarker.getElement().querySelector('.spot-marker')?.classList.add("spot-marker--active"); }
           if (openPopup) resolvedMarker.openPopup();
           activeMarker = resolvedMarker;
       });
-  } else { map.setView(spot.coords, 9, { animate: true }); }
+  } else { 
+      map.setView(spot.coords, 9, { animate: true }); 
+  }
+  
   updateSpotListSelection(spot.name);
   localStorage.setItem("selectedSpot", spot.name);
 };

@@ -161,6 +161,12 @@ app.post('/api/auth/login', async (req, res) => {
     // ...
     console.log(`[ ${new Date().toLocaleTimeString()} ] 🔓 Auth-Gate : Accès accordé pour ${email}`);
 });
+
+app.get('/api/log-click', (req, res) => {
+    console.log(`[ ${new Date().toLocaleTimeString()} ] 👤 USER-TRACK : Analyse demandée pour | ${req.query.spot}`);
+    res.sendStatus(200);
+});
+
 };
 
 const migrateLocalCacheToDB = async () => {
