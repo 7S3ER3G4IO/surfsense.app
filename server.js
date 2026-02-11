@@ -130,6 +130,37 @@ const initDB = async () => {
     } catch (err) {
         console.error("❌ [DB CRITICAL] Erreur connexion:", err.message);
     }
+
+  async function fetchTideData(spotName) {
+    console.log(`[ ${new Date().toLocaleTimeString()} ] 🤖 Robot Tide-Master : Initialisation de l'analyse pour | ${spotName}`);
+    
+    try {
+        // ... ton code d'appel API ...
+        console.log(`[ ${new Date().toLocaleTimeString()} ] ✅ Robot Tide-Master : Données reçues avec succès pour | ${spotName}`);
+    } catch (error) {
+        console.error(`[ ${new Date().toLocaleTimeString()} ] ❌ Robot Tide-Master : ERREUR CRITIQUE sur | ${spotName} -> ${error.message}`);
+    }
+}
+app.get('/api/marine', async (req, res) => {
+    const { lat, lng } = req.query;
+    console.log(`[ ${new Date().toLocaleTimeString()} ] 📡 Robot Marine-Sync : Requête entrante (Lat: ${lat}, Lng: ${lng})`);
+
+    // Vérification de la clé API
+    if (!process.env.STORMGLASS_API_KEY) {
+        console.error(`[ ${new Date().toLocaleTimeString()} ] ⚠️ Robot Marine-Sync : Clé API manquante dans l'environnement !`);
+    }
+
+    // ... après l'appel réussi ...
+    console.log(`[ ${new Date().toLocaleTimeString()} ] 💧 Robot Marine-Sync : Données météo synchronisées.`);
+});
+
+app.post('/api/auth/login', async (req, res) => {
+    const { email } = req.body;
+    console.log(`[ ${new Date().toLocaleTimeString()} ] 🔐 Auth-Gate : Tentative de connexion de l'utilisateur : ${email}`);
+    
+    // ...
+    console.log(`[ ${new Date().toLocaleTimeString()} ] 🔓 Auth-Gate : Accès accordé pour ${email}`);
+});
 };
 
 const migrateLocalCacheToDB = async () => {
