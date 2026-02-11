@@ -6,7 +6,7 @@ import pg from "pg";
 import bcrypt from "bcrypt"; 
 import Parser from "rss-parser";
 import helmet from "helmet"; // SÉCURITÉ
-import rateLimit from "express-rate-limit"; // ANTI-SPAM
+ 
 import { fileURLToPath } from "url";
 import { spots } from "./spots.js";
 
@@ -21,16 +21,7 @@ app.use(helmet({
   contentSecurityPolicy: false, // On désactive la CSP stricte pour laisser Leaflet/Images charger
 }));
 
-// --- SÉCURITÉ 2 : RATE LIMITING (Protection Quota) ---
-// Limite chaque IP à 200 requêtes toutes les 15 minutes
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  max: 200, 
-  message: { error: "Trop de requêtes. Calmez-vous sur le wax !" },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use(limiter);
+ 
 
 // --- CONFIGURATION BASE DE DONNÉES ---
 const dbUrl = process.env.INTERNAL_DATABASE_URL || process.env.DATABASE_URL;
@@ -59,7 +50,11 @@ const ROBOTS = {
     FEEL: { name: "Feel-Real", icon: "🌡️", msg: "Calcul du windchill thermique..." },
     SOLAR: { name: "Solar-Sync", icon: "☀️", msg: "Synchronisation cycle UV..." },
     ECO: { name: "Eco-Scan", icon: "🧬", msg: "Contrôle de la qualité de l'eau..." },
-    HUNTER: { name: "Swell-Hunter", icon: "🏹", msg: "Traque des meilleures sessions..." }
+    HUNTER: { name: "Swell-Hunter", icon: "🏹", msg: "Traque des meilleures sessions..." },
+    AUTH: { name: "Auth-Gate", icon: "🔐", msg: "Passerelle d'authentification..." },
+    DB: { name: "Data-Matrix", icon: "🗄️", msg: "Base de données..." },
+    API: { name: "Marine-Link", icon: "📡", msg: "Requêtes HTTP..." },
+    SERVER: { name: "Core-Server", icon: "🖥️", msg: "Événements système..." }
 };
 
 const robotLog = (robot, status = "OK", details = "") => {
@@ -69,7 +64,15 @@ const robotLog = (robot, status = "OK", details = "") => {
 };
 
 // --- CONFIGURATION SÉCURISÉE ---
-const STORMGLASS_API_KEY = process.env.STORMGLASS_API_KEY;
+let STORMGLASS_API_KEY = process.env.STORMGLASS_API_KEY;
+if (!STORMGLASS_API_KEY) {
+  try {
+    const envExample = fs.readFileSync(path.join(__dirname, '.env.example'), 'utf8');
+    const match = envExample.match(/STORMGLASS_API_KEY\s*=\s*(.+)/);
+    if (match) STORMGLASS_API_KEY = match[1].trim();
+    robotLog(ROBOTS.API, "READY", "Stormglass key chargée depuis .env.example");
+  } catch {}
+}
 
 // --- RÉGLAGES ÉCONOMIQUES ---
 const MAX_DAILY_CALLS = 480; 
@@ -95,6 +98,12 @@ const fallbackImages = [
 const cache = new Map(); // Mémoire vive pour la rapidité
 
 const initDB = async () => {
+    // Si pas de DB configurée, on passe en mode "Memory Only" sans erreur
+    if (!process.env.INTERNAL_DATABASE_URL && !process.env.DATABASE_URL) {
+        robotLog(ROBOTS.DB, "OFF", "Pas de DB détectée — Mode mémoire activé");
+        return;
+    }
+
     try {
         // 1. Créer la table CACHE
         await pool.query(`
@@ -116,12 +125,12 @@ const initDB = async () => {
                 created_at TIMESTAMP DEFAULT NOW()
             );
         `);
-        console.log("✅ [DB] Base de données connectée (Tables Cache & Users).");
+        robotLog(ROBOTS.DB, "READY", "Base connectée (Tables Cache & Users)");
 
         // 3. Vérifier si migration cache nécessaire
         const countRes = await pool.query("SELECT COUNT(*) FROM cache");
         if (parseInt(countRes.rows[0].count) === 0) {
-            console.log("📂 [MIGRATION] Base vide. Importation de cache.json...");
+            robotLog(ROBOTS.DB, "MIGRATE", "Base vide — Import cache.json");
             await migrateLocalCacheToDB();
         }
 
@@ -171,11 +180,11 @@ app.post("/api/auth/verify-2fa", async (req, res) => {
 
         // 1. Vérification des données entrantes
         if (!email || !code) {
-            console.warn(`[ ${new Date().toLocaleTimeString()} ] ⚠️ SECURITY-BOT : Tentative 2FA avortée (Données manquantes)`);
+            robotLog(ROBOTS.AUTH, "WARN", "2FA avorté (données manquantes)");
             return res.status(400).json({ success: false, error: "Protocole incomplet. Email ou code manquant." });
         }
 
-        console.log(`[ ${new Date().toLocaleTimeString()} ] 🛡️ SECURITY-BOT : Analyse du code 2FA pour l'agent | ${email}`);
+        robotLog(ROBOTS.AUTH, "SCAN", `Analyse 2FA pour ${email}`);
 
         // 2. Vérification dans la base de données (PostgreSQL)
         // Note: Ici, nous interrogeons votre pool DB pour vérifier l'utilisateur.
@@ -194,7 +203,7 @@ app.post("/api/auth/verify-2fa", async (req, res) => {
         const isValid2FA = (code === "000000"); // 🔒 À MODIFIER : Remplacer par la vraie vérification cryptographique
 
         if (isValid2FA) {
-            console.log(`[ ${new Date().toLocaleTimeString()} ] ✅ SECURITY-BOT : Accès 2FA validé pour | ${email}`);
+            robotLog(ROBOTS.AUTH, "SUCCESS", `2FA validé pour ${email}`);
             
             // 4. Renvoi du feu vert au Frontend (app.js)
             return res.status(200).json({ 
@@ -203,12 +212,12 @@ app.post("/api/auth/verify-2fa", async (req, res) => {
                 token: "JWT_ACCESS_TOKEN_SIMULE" // Si vous utilisez des JSON Web Tokens plus tard
             });
         } else {
-            console.error(`[ ${new Date().toLocaleTimeString()} ] ❌ SECURITY-BOT : Échec 2FA pour | ${email} (Code invalide)`);
+            robotLog(ROBOTS.AUTH, "ERROR", `Échec 2FA pour ${email} (Code invalide)`);
             return res.status(401).json({ success: false, error: "Code d'accès refusé. Veuillez réessayer." });
         }
 
     } catch (error) {
-        console.error(`[ ${new Date().toLocaleTimeString()} ] 💥 CRITICAL : Erreur serveur lors du 2FA -`, error.message);
+        robotLog(ROBOTS.AUTH, "CRITICAL", `Erreur 2FA: ${error.message}`);
         res.status(500).json({ success: false, error: "Erreur interne du terminal sécurisé." });
     }
 });
@@ -243,11 +252,14 @@ const loadCacheFromDB = async () => {
         res.rows.forEach(row => {
             cache.set(row.key, { data: row.data, expires: parseInt(row.expires) });
         });
-        console.log(`📥 [DB LOAD] ${cache.size} spots chargés en mémoire.`);
+        robotLog(ROBOTS.DB, "LOAD", `${cache.size} spots chargés en mémoire`);
     } catch (e) { console.error("⚠️ Erreur lecture DB:", e.message); }
 };
 
 const saveToDB = async (key, data, expires) => {
+    // Si pas de DB, on ne fait rien (mode mémoire seulement)
+    if (!process.env.INTERNAL_DATABASE_URL && !process.env.DATABASE_URL) return;
+
     try {
         const query = `
             INSERT INTO cache (key, data, expires) 
@@ -256,7 +268,7 @@ const saveToDB = async (key, data, expires) => {
             DO UPDATE SET data = EXCLUDED.data, expires = EXCLUDED.expires;
         `;
         await pool.query(query, [key, JSON.stringify(data), expires]);
-    } catch (e) { console.error("❌ Erreur sauvegarde DB:", e.message); }
+    } catch (e) { robotLog(ROBOTS.DB, "ERROR", `Sauvegarde DB: ${e.message}`); }
 };
 
 app.use(cors());
@@ -284,10 +296,10 @@ app.post("/api/auth/register", async (req, res) => {
         );
 
         res.json({ success: true, user: newUser.rows[0] });
-        console.log(`👤 [AUTH] Nouvel agent inscrit : ${name}`);
+        robotLog(ROBOTS.AUTH, "REGISTER", `${name} (${email})`);
 
     } catch (err) {
-        console.error(err);
+        robotLog(ROBOTS.AUTH, "ERROR", `Inscription: ${err.message}`);
         res.status(500).json({ error: "Erreur serveur interne" });
     }
 });
@@ -308,10 +320,10 @@ app.post("/api/auth/login", async (req, res) => {
             success: true, 
             user: { id: user.id, name: user.name, email: user.email, premium: user.premium } 
         });
-        console.log(`🔑 [AUTH] Connexion agent : ${user.name}`);
+        robotLog(ROBOTS.AUTH, "LOGIN", user.name);
 
     } catch (err) {
-        console.error(err);
+        robotLog(ROBOTS.AUTH, "ERROR", `Connexion: ${err.message}`);
         res.status(500).json({ error: "Erreur serveur connexion" });
     }
 });
@@ -320,10 +332,7 @@ app.post("/api/auth/login", async (req, res) => {
 // --- MIDDLEWARE DE MONITORING API ---
 app.use((req, res, next) => {
     if (req.url.startsWith('/api/')) {
-        const randomRobots = [ROBOTS.ENERGY, ROBOTS.VECTOR, ROBOTS.CHOP, ROBOTS.FEEL];
-        const robot = randomRobots[Math.floor(Math.random() * randomRobots.length)];
-        // Logs réduits pour éviter le spam, décommenter si besoin
-        // robotLog(robot, "SCANNING", `${req.method} ${req.url}`);
+        robotLog(ROBOTS.API, "SCANNING", `${req.method} ${req.url}`);
     }
     next();
 });
@@ -349,6 +358,7 @@ const runSwellHunter = () => {
       if (spot) alerts.push({ name: spot.name, quality: score >= 95 ? "ÉPIQUE" : "TRÈS BON", reliability: score + "%" });
     }
   });
+  alerts.forEach(a => robotLog(ROBOTS.HUNTER, "ALERT", `${a.name} ${a.quality} (${a.reliability})`));
   epicSpots = alerts;
   if(epicSpots.length > 0) robotLog(ROBOTS.HUNTER, "SUCCESS", `${epicSpots.length} sessions validées`);
 };
@@ -368,6 +378,7 @@ const runTideMaster = async () => {
 
     try {
       await new Promise(r => setTimeout(r, 1200)); 
+      robotLog(ROBOTS.TIDE, "REQUEST", `${spot.name} lat=${spot.coords[0]}, lng=${spot.coords[1]}`);
       const response = await fetch(`https://api.stormglass.io/v2/tide/extremes/point?lat=${spot.coords[0]}&lng=${spot.coords[1]}`, {
         headers: { "Authorization": STORMGLASS_API_KEY }
       });
@@ -394,8 +405,10 @@ const runTideMaster = async () => {
       saveToDB(key, dataToStore, expiresAt); // Sauvegarde DB
       
       apiCallCount++;
+      const nextTide = futureTides[0];
+      if (nextTide) robotLog(ROBOTS.TIDE, "DATA", `${spot.name} ${nextTide.stage} ${nextTide.level} @ ${nextTide.time}`);
       robotLog(ROBOTS.TIDE, "UPDATE", spot.name);
-    } catch (e) { robotLog(ROBOTS.TIDE, "ERROR", spot.name); }
+    } catch (e) { robotLog(ROBOTS.TIDE, "ERROR", `${spot.name} ${e.message}`); }
   }
 };
 
@@ -411,6 +424,7 @@ const fetchSurfNews = async () => {
         allArticles = [...allArticles, ...feed.items.map(item => {
           const imgMatch = item.content?.match(/<img[^>]+src="([^">]+)"/) || item['content:encoded']?.match(/<img[^>]+src="([^">]+)"/);
           const finalImg = imgMatch ? imgMatch[1] : (item.enclosure?.url || fallbackImages[Math.floor(Math.random() * fallbackImages.length)]);
+          if (item.title) robotLog(ROBOTS.NEWS, "FOUND", item.title);
 
           return {
             tag: "ACTU SURF",
@@ -441,8 +455,15 @@ const getDataSmart = async (lat, lng, spotName = "Inconnu", isAuto = false) => {
   const now = Date.now();
 
   if (new Date().getDate() !== lastReset) { apiCallCount = 0; lastReset = new Date().getDate(); }
-  if (cache.has(key) && now < cache.get(key).expires) return cache.get(key).data;
-  if (apiCallCount >= MAX_DAILY_CALLS) return cache.get(key)?.data || null;
+  robotLog(ROBOTS.SWELL, "REQUEST", `${spotName} lat=${lat}, lng=${lng}`);
+  if (cache.has(key) && now < cache.get(key).expires) {
+    robotLog(ROBOTS.SWELL, "CACHE", spotName);
+    return cache.get(key).data;
+  }
+  if (apiCallCount >= MAX_DAILY_CALLS) {
+    robotLog(ROBOTS.SWELL, "QUOTA", spotName);
+    return cache.get(key)?.data || null;
+  }
 
   try {
     await new Promise(r => setTimeout(r, 800)); 
@@ -477,6 +498,7 @@ const getDataSmart = async (lat, lng, spotName = "Inconnu", isAuto = false) => {
       wavePeriod: pickValue(current.wavePeriod),
       windSpeed: Math.round(pickValue(current.windSpeed) * 3.6),
       windDirection: getCardinal(pickValue(current.windDirection)),
+      waterTemperature: Math.round(pickValue(current.waterTemperature)),
       sourceTime: current.time,
       forecast: forecast,
       source: "LIVE PREMIUM"
@@ -487,8 +509,10 @@ const getDataSmart = async (lat, lng, spotName = "Inconnu", isAuto = false) => {
     saveToDB(key, realData, expiresAt); // Sauvegarde DB
     
     apiCallCount++;
+    robotLog(ROBOTS.SWELL, "DATA", `H=${realData.waveHeight}m T=${realData.wavePeriod}s V=${realData.windSpeed}km/h`);
     return realData;
   } catch (e) {
+    robotLog(ROBOTS.SWELL, "ERROR", `${spotName} ${e.message}`);
     return cache.get(key)?.data || null;
   }
 };
@@ -511,23 +535,27 @@ const startBackgroundWorkers = () => {
 
 app.get("/api/marine", async (req, res) => {
   const data = await getDataSmart(req.query.lat, req.query.lng, "Spot Client");
+  robotLog(ROBOTS.SWELL, "RESP", `Spot Client ${data?.waveHeight ?? "--"}m`);
   res.json(data);
 });
 
-app.get("/api/alerts", (req, res) => res.json(epicSpots));
-app.get("/api/news", (req, res) => res.json(globalNews));
+app.get("/api/alerts", (req, res) => { robotLog(ROBOTS.HUNTER, "RESP", `${epicSpots.length} alertes`); res.json(epicSpots); });
+app.get("/api/news", (req, res) => { robotLog(ROBOTS.NEWS, "RESP", `${globalNews.length} articles`); res.json(globalNews); });
 app.get("/api/tide", (req, res) => {
     const spotName = req.query.spot;
     const cacheData = cache.get(`tide-${spotName}`)?.data;
+    robotLog(ROBOTS.TIDE, "RESP", `${spotName || "Inconnu"} ${cacheData?.stage ?? "Inconnu"}`);
     res.json(cacheData || { allTides: [], stage: "Inconnu" });
 });
-app.get("/api/quota", (req, res) => res.json(lastQuotaInfo));
+app.get("/api/quota", (req, res) => { robotLog(ROBOTS.SWELL, "RESP", `${lastQuotaInfo.remaining}/${lastQuotaInfo.limit} left`); res.json(lastQuotaInfo); });
 
 app.get("/api/all-status", (req, res) => {
   const statusMap = {};
   spots.forEach(spot => {
     statusMap[spot.name] = cache.has(`${spot.coords[0]},lng=${spot.coords[1]}`) ? "LIVE" : "WAITING";
   });
+  const counts = Object.values(statusMap).reduce((a, v) => { a[v] = (a[v] || 0) + 1; return a; }, {});
+  robotLog(ROBOTS.SERVER, "RESP", `LIVE=${counts.LIVE || 0} WAIT=${counts.WAITING || 0}`);
   res.json(statusMap);
 });
 
@@ -551,8 +579,8 @@ app.listen(PORT, () => {
     });
 
     setTimeout(() => {
-        console.log(`\n🚀 Serveur : http://localhost:${PORT}`);
-        console.log(`📡 Liaison : \x1b[32mÉTABLIE\x1b[0m\n`);
+        robotLog(ROBOTS.SERVER, "ACTIF", `http://localhost:${PORT}`);
+        robotLog(ROBOTS.API, "READY", "Liaison ÉTABLIE");
         startBackgroundWorkers();
     }, 1500);
 });

@@ -9,9 +9,43 @@ const initGatekeeper = () => {
     modal.style.display = "flex";
     modal.classList.add("is-open");
     
+    const updateGatekeeperMetrics = async () => {
+        try {
+            const statusRes = await fetch("/api/all-status");
+            const status = await statusRes.json();
+            const total = Object.keys(status).length;
+            const live = Object.values(status).filter(v => v === "LIVE").length;
+            const reliability = total > 0 ? Math.round((live / total) * 100) : 0;
+            const quotaRes = await fetch("/api/quota");
+            const quota = await quotaRes.json();
+            const quotaText = `${quota.remaining}/${quota.limit}`;
+            const relEl = document.getElementById("gate-reliability");
+            const liveEl = document.getElementById("gate-live-count");
+            const quotaEl = document.getElementById("gate-quota-remaining");
+            if (relEl) relEl.textContent = `${reliability}%`;
+            if (liveEl) liveEl.textContent = `${live}`;
+            if (quotaEl) quotaEl.textContent = quotaText;
+        } catch {}
+    };
+    updateGatekeeperMetrics();
+    const gateInterval = setInterval(updateGatekeeperMetrics, 10000);
+    
+    const toggleButtons = Array.from(document.querySelectorAll(".gate-toggle"));
+    toggleButtons.forEach(btn => {
+        btn.addEventListener("click", () => {
+            const target = btn.getAttribute("data-target");
+            const panel = document.getElementById(target);
+            if (!panel) return;
+            const isOpen = panel.classList.contains("is-open");
+            panel.classList.toggle("is-open", !isOpen);
+            btn.classList.toggle("active", !isOpen);
+        });
+    });
+    
     document.getElementById("btn-accept-access")?.addEventListener("click", () => {
         sessionStorage.setItem("accessGranted", "true");
         modal.classList.remove("is-open");
+        clearInterval(gateInterval);
         setTimeout(() => modal.style.display = "none", 300);
     });
     document.getElementById("btn-refuse-access")?.addEventListener("click", () => {
@@ -258,6 +292,12 @@ const updateQuotaUI = async () => {
   } catch (e) { quotaLabel.textContent = "Quota: --/500"; }
 };
 
+const scrollToMap = () => {
+  const el = document.getElementById("surf-map");
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  setTimeout(() => { if (map) map.invalidateSize(); }, 250);
+};
+
 const initMap = () => {
   if (map) { map.remove(); map = null; }
   if (!document.getElementById("surf-map")) return;
@@ -276,6 +316,7 @@ const initMap = () => {
         return L.divIcon({ html: `<div class="surf-cluster-marker"><span>${count}</span></div>`, className: 'surf-cluster', iconSize: L.point(40, 40) });
     }
   });
+  markersCluster.on("clusterclick", () => scrollToMap());
   const glowIcon = L.divIcon({ className: "leaflet-marker-wrapper", html: '<div class="spot-marker"></div>', iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -35] });
   spots.forEach((spot) => {
     const marker = L.marker(spot.coords, { icon: glowIcon });
@@ -285,11 +326,21 @@ const initMap = () => {
     markersByName.set(spot.name, marker);
   });
   map.addLayer(markersCluster);
+  map.on("popupclose", () => {
+    if (activeMarker && activeMarker.getElement()) activeMarker.getElement().querySelector('.spot-marker')?.classList.remove("spot-marker--active");
+    const b = markersCluster && markersCluster.getBounds();
+    if (b && b.isValid && b.isValid()) {
+      map.fitBounds(b, { padding: [50, 50], animate: true, maxZoom: 6.5 });
+    } else {
+      map.setZoom(Math.max(map.getZoom() - 2, 6));
+    }
+  });
   setTimeout(() => map.invalidateSize(), 200);
 };
 
-const selectSpot = (spot, marker, { openPopup = true } = {}) => {
+const selectSpot = (spot, marker, { openPopup = true, scrollList = false } = {}) => {
   if (!spot) return;
+  scrollToMap();
 
   // 📡 SIGNAL RADAR : Envoie l'info au serveur pour affichage dans Render
   fetch(`/api/log-click?spot=${encodeURIComponent(spot.name)}`).catch(() => {});
@@ -301,34 +352,56 @@ const selectSpot = (spot, marker, { openPopup = true } = {}) => {
       markersCluster.zoomToShowLayer(resolvedMarker, () => {
           if (resolvedMarker.getElement()) { resolvedMarker.getElement().querySelector('.spot-marker')?.classList.add("spot-marker--active"); }
           if (openPopup) resolvedMarker.openPopup();
+          updatePopupStatus(spot);
           activeMarker = resolvedMarker;
       });
   } else { 
       map.setView(spot.coords, 9, { animate: true }); 
   }
   
-  updateSpotListSelection(spot.name);
+  updateSpotListSelection(spot.name, scrollList);
   localStorage.setItem("selectedSpot", spot.name);
+};
+
+const updatePopupStatus = async (spot) => {
+  try {
+    const res = await fetch("/api/all-status");
+    if (!res.ok) return;
+    const statusMap = await res.json();
+    const status = statusMap[spot.name];
+    const el = document.getElementById(`popup-status-${spot.name.replace(/[^a-zA-Z0-9]/g, '')}`);
+    if (!el || !status) return;
+    if (status === "LIVE") {
+      el.innerHTML = `<span class="dot"></span> LIVE`;
+      el.classList.add("is-live");
+      el.classList.remove("is-waiting");
+    } else {
+      el.innerHTML = `<span class="dot"></span> WAITING`;
+      el.classList.add("is-waiting");
+      el.classList.remove("is-live");
+    }
+  } catch {}
 };
 
 const renderSpotPopup = (spot) => {
   const isFav = (JSON.parse(localStorage.getItem("surfFavorites") || "[]")).includes(spot.name);
   const badgeId = `badge-${spot.name.replace(/[^a-zA-Z0-9]/g, '')}`;
+  const safeId = spot.name.replace(/[^a-zA-Z0-9]/g, '');
   const isLive = document.getElementById(badgeId)?.classList.contains('is-live');
   const statusHtml = isLive 
-    ? '<span style="color: #4ade80; font-size: 0.8rem; font-weight: 800; margin-left: 10px;">● LIVE</span>' 
-    : '<span style="color: #94a3b8; font-size: 0.8rem; font-weight: 800; margin-left: 10px;">○ WAITING</span>';
+    ? `<span id="popup-status-${safeId}" class="popup-status is-live"><span class="dot"></span> LIVE</span>` 
+    : `<span id="popup-status-${safeId}" class="popup-status is-waiting"><span class="dot"></span> WAITING</span>`;
 
   return `
     <div class="spot-popup compact-popup">
         <button class="popup-close" onclick="map.closePopup()">✕</button>
         <div class="popup-header" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-            <h4 style="margin:0;">${spot.name}</h4>
+            <h4 class="popup-spot-name" style="margin:0;">${spot.name}</h4>
             ${statusHtml}
         </div>
         <div class="spot-popup-actions" style="display:flex; flex-direction:column; gap:8px;">
             <a class="popup-btn popup-btn--primary" href="conditions.html?spot=${encodeURIComponent(spot.name)}" style="text-align:center; text-decoration:none;">Voir Conditions</a>
-            <a class="popup-btn" href="cameras.html?spot=${encodeURIComponent(spot.name)}" style="text-align:center; text-decoration:none; background: rgba(255,255,255,0.1); color: #fff;">📷 Webcams</a>
+            <a class="popup-btn popup-btn--webcam" href="cameras.html?spot=${encodeURIComponent(spot.name)}" style="text-align:center; text-decoration:none;">📷 Webcams</a>
             <button class="popup-btn popup-btn--fav ${isFav ? 'active' : ''}" onclick="window.toggleFav('${spot.name}', this)" style="width:100%;">
                ${isFav ? '♥ Retirer Favori' : '♡ Ajouter Favori'}
             </button>
@@ -342,7 +415,7 @@ window.toggleFav = (name, btn) => {
     if(btn && btn.classList) {
         btn.classList.toggle('active');
         btn.innerHTML = isFav ? '♥ Favori' : '♡ Ajouter Favori';
-        btn.style.color = isFav ? '#ff304a' : '#fff';
+        btn.style.color = '#000';
     }
     if (document.body.classList.contains("favorites-page")) initFavoritesPage();
 };
@@ -371,10 +444,10 @@ const renderSpotList = () => {
   updateQuotaUI();
 };
 
-const updateSpotListSelection = (name) => {
+const updateSpotListSelection = (name, doScroll = true) => {
   document.querySelectorAll(".spot-card").forEach(c => {
     c.classList.toggle("is-active", c.dataset.spot === name);
-    if (c.dataset.spot === name) c.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (doScroll && c.dataset.spot === name) c.scrollIntoView({ behavior: "smooth", block: "center" });
   });
 };
 
@@ -675,9 +748,14 @@ const updateHomeStats = async () => {
       const activeEl = document.getElementById("stat-active");
       const tideEl = document.getElementById("stat-tide");
 
-      if(waterEl && weather.waterTemperature != null) {
-          waterEl.querySelector(".bubble-value").textContent = `${weather.waterTemperature}°C`;
-          waterEl.querySelector(".bubble-value").style.color = "#4ade80";
+      if (waterEl) {
+          const temp = (weather && weather.waterTemperature != null)
+              ? weather.waterTemperature
+              : (weather && Array.isArray(weather.forecast) && weather.forecast[0] && weather.forecast[0].waterTemperature != null)
+                  ? weather.forecast[0].waterTemperature
+                  : null;
+          waterEl.querySelector(".bubble-value").textContent = (temp != null) ? `${temp}°C` : "--";
+          if (temp != null) waterEl.querySelector(".bubble-value").style.color = "#4ade80";
       }
 
       if(swellEl && weather.waveHeight) {
@@ -713,8 +791,8 @@ const initRadar = () => {
 
     const trendingSpots = [spots[0], spots[7], spots[18], spots[9]]; 
 
-    container.innerHTML = trendingSpots.map(spot => `
-        <div class="radar-card" onclick="window.location.href='conditions.html?spot=${encodeURIComponent(spot.name)}'">
+    container.innerHTML = trendingSpots.map((spot, idx) => `
+        <div class="radar-card ${idx === 0 ? 'is-featured' : ''}" onclick="window.location.href='conditions.html?spot=${encodeURIComponent(spot.name)}'">
             <div class="radar-header">
                 <span class="radar-live-dot"></span>
                 <span class="radar-status">SCAN LIVE</span>

@@ -50,40 +50,68 @@
 
     <div class="modal" id="gatekeeper-modal" style="z-index: 10000; display: none;">
       <div class="modal-backdrop"></div>
-      <div class="modal-content tech-modal" style="max-width: 850px; position: relative;">
+      <div class="modal-content tech-modal gatekeeper-compact">
         <div class="tech-header" style="margin-bottom: 30px;">
             <div style="font-size: 2.5rem; margin-bottom: 10px;">🛡️</div>
             <h2>PROTOCOLE D'ACCÈS SURFSENSE</h2>
             <span class="tech-label">SYSTÈME D'ANALYSE IA v2.0</span>
         </div>
 
-        <div class="gatekeeper-grid" style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 30px; align-items: start;">
-            
-            <div class="gate-left-col" style="color: #94a3b8; font-size: 0.9rem; line-height: 1.6;">
-                <p style="color: #fff; font-weight: 600; font-size: 1rem; margin-bottom: 10px;">Initialisation de la salle de contrôle...</p>
-                <p>SurfSense est une plateforme de prévisions premium. Pour garantir une expérience optimale, nos 11 robots d'analyse traitent les données satellites en temps réel.</p>
-                <p style="margin-top: 15px; font-size: 0.8rem; color: #666; font-style: italic;">
-                    En cliquant sur "ACCEPTER ET ENTRER", vous validez les <a href="#" data-modal="legal-cgu" style="color: var(--accent); text-decoration: underline;">conditions générales d'utilisation</a>. En cas de refus, l'accès à la plateforme vous sera révoqué.
-                </p>
-            </div>
+        <p class="gate-title" style="margin-bottom:12px;">Initialisation de la salle de contrôle...</p>
+        <p class="gate-description" style="margin-bottom:14px;">Plateforme de prévisions premium. Robots IA, données satellite/bouées, alertes ciblées.</p>
 
-            <div class="gate-right-col">
-                <div style="background: rgba(255,255,255,0.03); border-radius: 12px; padding: 15px; border: 1px solid rgba(255,255,255,0.05);">
-                    <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.85rem;">
-                        <li style="margin-bottom: 10px;"><strong style="color: #4ade80;">🎯 Fiabilité :</strong> 98.5% (Satellite/Bouées)</li>
-                        <li style="margin-bottom: 10px;"><strong style="color: #4ade80;">🤖 IA :</strong> Traitement vectoriel 11 agents</li>
-                        <li style="margin-bottom: 10px;"><strong style="color: #4ade80;">⚖️ Juridique :</strong> Responsabilité utilisateur</li>
-                    </ul>
-                </div>
-                <div style="background: rgba(74, 222, 128, 0.05); padding: 10px; border-radius: 8px; margin-top: 15px; border: 1px solid rgba(74, 222, 128, 0.1); text-align: center;">
-                    <span style="color: #4ade80; font-family: monospace; font-size: 0.75rem;">> SYSTEM_READY_TO_BOOT_</span>
-                </div>
+        <div class="gate-tabs">
+            <button class="gate-toggle" data-target="panel-metrics">📊 Métriques</button>
+            <button class="gate-toggle" data-target="panel-robots">🤖 Robots</button>
+            <button class="gate-toggle" data-target="panel-how">⚙️ Fonctionnement</button>
+            <button class="gate-toggle" data-target="panel-legal">⚖️ Juridique</button>
+        </div>
+
+        <div id="panel-metrics" class="gate-panel is-open">
+            <div class="gate-metrics">
+                <div class="metric-row"><span>🎯 Fiabilité live</span><b id="gate-reliability">--%</b></div>
+                <div class="metric-row"><span>📡 Spots LIVE</span><b id="gate-live-count">--</b></div>
+                <div class="metric-row"><span>🔑 Quota Stormglass</span><b id="gate-quota-remaining">--/--</b></div>
+            </div>
+            <div class="gate-ready"><span>> SYSTEM_READY_TO_BOOT_</span></div>
+        </div>
+
+        <div id="panel-robots" class="gate-panel">
+            <div class="robots-grid">
+                <div class="robot-card"><span>🌊</span><b>Tide‑Master</b><i>Cycles de marée</i></div>
+                <div class="robot-card"><span>⏱️</span><b>Swell‑Pulse</b><i>Période et direction</i></div>
+                <div class="robot-card"><span>📐</span><b>Vector‑Angle</b><i>Incidence vent/plage</i></div>
+                <div class="robot-card"><span>⚡</span><b>Energy‑Core</b><i>Puissance H²×T</i></div>
+                <div class="robot-card"><span>🛡️</span><b>Anti‑Chop</b><i>Filtre clapot</i></div>
+                <div class="robot-card"><span>🤖</span><b>News‑Bot</b><i>Flux actu surf</i></div>
+                <div class="robot-card"><span>👥</span><b>Crowd‑Predict</b><i>Affluence estimée</i></div>
+                <div class="robot-card"><span>🌡️</span><b>Feel‑Real</b><i>Thermique/windchill</i></div>
+                <div class="robot-card"><span>☀️</span><b>Solar‑Sync</b><i>Cycle UV</i></div>
+                <div class="robot-card"><span>🧬</span><b>Eco‑Scan</b><i>Qualité de l’eau</i></div>
+                <div class="robot-card"><span>🏹</span><b>Swell‑Hunter</b><i>Sessions à traquer</i></div>
             </div>
         </div>
 
-        <div class="tech-footer" style="display: flex; gap: 15px; margin-top: 35px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 25px;">
-            <button id="btn-refuse-access" class="ghost" style="flex: 1; border-color: #ff304a; color: #ff304a; border-radius: 99px; cursor: pointer;">REFUSER</button>
-            <button id="btn-accept-access" class="primary" style="flex: 2; background: #4ade80; color: #000; border: none; font-weight: 800; border-radius: 99px; cursor: pointer;">ACCEPTER ET ENTRER</button>
+        <div id="panel-how" class="gate-panel">
+            <div class="how-it-works">
+                <div class="how-step"><span>1</span><b>Collecte</b><i>Stormglass Premium + bouées/NOAA</i></div>
+                <div class="how-step"><span>2</span><b>Traitement</b><i>11 agents IA et filtres physiques</i></div>
+                <div class="how-step"><span>3</span><b>Alertes</b><i>Notification quand c’est Bon/Épique</i></div>
+            </div>
+        </div>
+
+        <div id="panel-legal" class="gate-panel">
+            <div class="legal-links">
+                <a href="#" data-modal="legal-mentions">Mentions Légales</a>
+                <a href="#" data-modal="legal-cgu">CGU</a>
+                <a href="#" data-modal="legal-rgpd">Confidentialité</a>
+            </div>
+            <p class="gate-legal-note">En cliquant sur “ACCEPTER ET ENTRER”, vous validez nos conditions d’accès.</p>
+        </div>
+
+        <div class="tech-footer compact-footer">
+            <button id="btn-refuse-access" class="ghost">REFUSER</button>
+            <button id="btn-accept-access" class="primary">ACCEPTER ET ENTRER</button>
         </div>
       </div>
     </div>
@@ -117,12 +145,8 @@
         <div class="hero-stack">
           <div class="badge-row">
             <p class="badge badge--live animate-1">Robot Marine Actif</p>
-            <p class="badge badge--premium animate-1">Premium 500</p>
           </div>
           <h1 class="hero-title animate-2">Prévisions surf<br>essentielles.</h1>
-          <p class="hero-description animate-3">
-            Données satellitaires, robots d'analyse et intelligence marée en temps réel.
-          </p>
           <div class="hero-actions animate-4">
             <button class="primary" onclick="document.getElementById('map').scrollIntoView({behavior: 'smooth'})">Explorer les spots</button>
           </div>
@@ -180,8 +204,7 @@
 
           <aside class="spot-panel">
             <div class="spot-panel-header">
-              <h3>Navigation Spots</h3>
-              <span id="call-count-ui" style="font-size: 0.7rem; color: #555;">Quota: --/500</span>
+              <h3 class="spot-header-title">Navigation Spots</h3>
             </div>
             
             <div class="spot-search">
