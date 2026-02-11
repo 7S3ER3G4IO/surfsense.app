@@ -95,17 +95,14 @@
   </form>
 </div>
 
-    <div id="auth-register-view" style="display: none;">
-      <h3>Créer un compte</h3>
-      <form class="modal-form" id="register-form">
-        <input type="text" id="reg-name" placeholder="Nom complet" required />
-        <input type="email" id="reg-email" placeholder="Email" required />
-        <input type="password" id="reg-pass" placeholder="Mot de passe" required />
-        <button type="submit" class="primary">C'est parti !</button>
-      </form>
-      <p class="modal-footer-text">
-        Déjà membre ? <a href="#" id="link-to-login">Se connecter</a>
-      </p>
-    </div>
-  </div>
-</div>
+<div id="auth-register-view" style="display: none;">
+          </div>
+
+        <div id="auth-2fa-view" style="display: none;">
+          <h3 style="color: var(--live-red);">Alerte Sécurité : 2FA</h3>
+          <form class="modal-form" id="twofa-form">
+            <input type="hidden" id="twofa-email" /> 
+            <input type="text" id="twofa-code" placeholder="Code (ex: 000000)" required maxlength="6" style="text-align: center; letter-spacing: 5px; font-weight: bold;" />
+            <button type="submit" class="primary" style="background: var(--live-red);">Vérifier l'Identité</button>
+          </form>
+        </div>
