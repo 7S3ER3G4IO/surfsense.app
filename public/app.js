@@ -210,17 +210,34 @@ const calculateQuality = (waveHeight, windSpeed, wavePeriod, windDir, tideStage,
   const stage = (tideStage || "").toLowerCase();
   if (spot.type === "beachbreak" && (stage === "haute" || stage === "high") && waveHeight > 1.8) tideWarning = true;
 
-  let label = "Moyen", color = "#facc15", cls = "is-medium", msg = "Analyse : Plan d'eau moyen.";
+  let label = "MOYEN", color = "#facc15", cls = "is-medium", msg = "Analyse : Plan d'eau moyen.";
 
-  if (windSpeed > 35) return { label: "TEMPÊTE", color: "#ef4444", class: "is-bad", botMsg: "Robot Alert : Vent violent.", energy: Math.round(energyScore) };
-  if (isOffshorePure && wavePeriod >= 10 && waveHeight >= 0.7 && !tideWarning) {
-    label = "ÉPIQUE"; color = "#d946ef"; cls = "is-epic"; msg = `Verdict : Houle longue (${wavePeriod}s) + Offshore pur.`;
-  } else if (isOnshore || wavePeriod < 6 || tideWarning) {
-    label = "MAUVAIS"; color = "#ef4444", cls = "is-bad"; 
-    msg = isOnshore ? "Vent de mer dégradé." : "Conditions défavorables.";
-  } else if (waveHeight > 0.5 && wavePeriod > 8) {
-    label = "BON"; color = "#4ade80", cls = "is-good", msg = "Verdict : Conditions propres.";
+  // 1. DANGER : Tempête de vent absolue
+  if (windSpeed > 35) {
+      return { label: "TEMPÊTE", color: "#ef4444", class: "is-bad", botMsg: "Robot Alert : Vent violent.", energy: Math.round(energyScore) };
   }
+  
+  // 2. DANGER : Houle XXL impraticable pour un beachbreak normal
+  if (waveHeight > 2.5) {
+      return { label: "MAUVAIS", color: "#ef4444", class: "is-bad", botMsg: `Robot Alert : Houle massive (${waveHeight.toFixed(1)}m).`, energy: Math.round(energyScore) };
+  }
+
+  // 3. MAUVAIS : Trop de vent, vent onshore, ou houle trop courte
+  if (windSpeed > 25 || isOnshore || wavePeriod < 6 || tideWarning) {
+      label = "MAUVAIS"; color = "#ef4444"; cls = "is-bad"; 
+      msg = windSpeed > 25 ? "Trop de vent pour surfer." : (isOnshore ? "Vent de mer dégradé." : "Conditions défavorables.");
+  } 
+  // 4. ÉPIQUE : Les conditions parfaites (Offshore pur, houle longue)
+  else if (isOffshorePure && wavePeriod >= 10 && waveHeight >= 0.7 && !tideWarning) {
+      label = "ÉPIQUE"; color = "#d946ef"; cls = "is-epic"; 
+      msg = `Verdict : Houle longue (${Math.round(wavePeriod)}s) + Offshore pur.`;
+  } 
+  // 5. BON : Conditions de base propres (Houle correcte, peu de vent)
+  else if (waveHeight >= 0.8 && wavePeriod >= 8 && windSpeed <= 15) {
+      label = "BON"; color = "#4ade80"; cls = "is-good"; 
+      msg = "Verdict : Conditions propres et surfables.";
+  }
+
   return { label, color, class: cls, botMsg: msg, energy: Math.round(energyScore) };
 };
 
