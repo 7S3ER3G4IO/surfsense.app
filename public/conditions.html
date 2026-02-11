@@ -18,14 +18,20 @@
 </head>
 <body class="conditions-page">
 
-    <nav class="nav" style="margin: 20px;">
+    <nav class="nav">
         <div class="logo">
           <img src="logo.svg" alt="Logo" class="logo-mark" />
-          SurfSense
+          SwellSync
         </div>
         <div class="nav-links">
-          <a href="index.html">Retour Carte</a>
+          <a href="index.html">Carte</a>
+          <a href="cameras.html">Caméras</a>
+          <a href="favorites.html">Favoris</a>
+          <a href="versus.html">Versus</a>
           <a href="actus.html">News</a>
+        </div>
+        <div class="nav-actions">
+          <button class="cta" data-modal="auth">Se connecter</button>
         </div>
     </nav>
 
@@ -36,7 +42,7 @@
                 <h1 id="cond-name">Chargement du spot...</h1>
                 <div class="premium-tags">
                     <span class="tag">📡 Satellite Direct</span>
-                    <button class="tag tag--btn" data-modal="tech" style="cursor:pointer; border:1px solid #4ade80; color:#4ade80; background:rgba(74,222,128,0.1);">🤖 IA Active (11)</button>
+                    <button class="tag tag--btn" data-modal="tech" style="cursor:pointer;">🤖 IA Active (11)</button>
                 </div>
             </div>
             <div class="cond-actions">
@@ -85,7 +91,8 @@
                     </div>
                 </div>
 
-                <h3 style="margin: 30px 0 15px; color:#fff;">Prévisions 24h</h3>
+                <div id="hourly-strip" class="hourly-strip"></div>
+                <h3 class="forecast-title">Conditions 7 jours</h3>
                 <div id="forecast-list" class="forecast-scroller"></div>
             </div>
 
@@ -106,6 +113,13 @@
                     </p>
                 </div>
             </aside>
+        </div>
+    </div>
+
+    <div class="modal" id="forecast-modal">
+        <div class="modal-backdrop" data-modal-close></div>
+        <div class="modal-content forecast-modal">
+            <div id="forecast-modal-body"></div>
         </div>
     </div>
 

@@ -660,6 +660,7 @@ const getDataSmart = async (lat, lng, spotName = "Inconnu", isAuto = false) => {
         wavePeriod: pickValue(hour.wavePeriod),
         windSpeed: Math.round(pickValue(hour.windSpeed) * 3.6),
         windDirection: getCardinal(pickValue(hour.windDirection)),
+        swellDirection: getCardinal(pickValue(hour.swellDirection)),
         airTemperature: Math.round(pickValue(hour.airTemperature)),
         waterTemperature: Math.round(pickValue(hour.waterTemperature))
     }));
@@ -669,6 +670,7 @@ const getDataSmart = async (lat, lng, spotName = "Inconnu", isAuto = false) => {
       wavePeriod: pickValue(current.wavePeriod),
       windSpeed: Math.round(pickValue(current.windSpeed) * 3.6),
       windDirection: getCardinal(pickValue(current.windDirection)),
+      swellDirection: getCardinal(pickValue(current.swellDirection)),
       waterTemperature: Math.round(pickValue(current.waterTemperature)),
       sourceTime: current.time,
       forecast: forecast,

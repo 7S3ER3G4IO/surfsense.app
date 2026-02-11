@@ -278,6 +278,52 @@ const getWeatherIcon = (cloudCover, precipitation) => {
   return "🌫️"; 
 };
 
+const degToCardinal = (deg) => {
+  const d = ((deg % 360) + 360) % 360;
+  const dirs = ["N","NE","E","SE","S","SO","O","NO"];
+  return dirs[Math.round(d / 45) % 8];
+};
+
+const cardinalLabelFr = (dir) => {
+  if (!dir) return "-";
+  if (dir === "N" || dir === "NE" || dir === "NO") return "Nord";
+  if (dir === "S" || dir === "SE" || dir === "SO") return "Sud";
+  if (dir === "E") return "Est";
+  if (dir === "O") return "Ouest";
+  return dir;
+};
+
+const dirToAngle = (dir) => {
+  const map = { "N":0, "NE":45, "E":90, "SE":135, "S":180, "SO":225, "O":270, "NO":315 };
+  return map[dir] ?? null;
+};
+
+const classifyWindRelative = (facing, dir) => {
+  const wa = dirToAngle(dir);
+  if (wa == null || facing == null) return "-";
+  const off = (facing + 180) % 360;
+  const d = Math.min(Math.abs(wa - off), 360 - Math.abs(wa - off));
+  if (d <= 30) return "Offshore";
+  if (d >= 150) return "Onshore";
+  return "Side-shore";
+};
+
+const getSwellDir = (weather) => {
+  if (weather && weather.swellDirection) return weather.swellDirection;
+  if (weather && weather.swellDirectionDegrees != null) return degToCardinal(weather.swellDirectionDegrees);
+  if (weather && Array.isArray(weather.forecast)) {
+    for (const it of weather.forecast) {
+      if (it.swellDirection) return it.swellDirection;
+      if (it.swellDirectionDegrees != null) return degToCardinal(it.swellDirectionDegrees);
+      if (it.waveDirection) return it.waveDirection;
+      if (it.waveDirectionDegrees != null) return degToCardinal(it.waveDirectionDegrees);
+    }
+  }
+  if (weather && weather.waveDirection) return weather.waveDirection;
+  if (weather && weather.waveDirectionDegrees != null) return degToCardinal(weather.waveDirectionDegrees);
+  return null;
+};
+
 const runAiRobots = (weather) => {
     const hub = document.getElementById("ai-robot-hub");
     if(!hub) return;
@@ -292,11 +338,46 @@ const runAiRobots = (weather) => {
     const pollution = (weather.cloudCover > 95) ? "Risque ⚠️" : "Eau Claire 💧";
 
     hub.innerHTML = `
-        <div class="ai-robot-card"><div class="robot-icon">🏄‍♂️</div><div class="robot-info"><span class="robot-name">Quiver-AI</span><span class="robot-value">${board}</span></div></div>
-        <div class="ai-robot-card"><div class="robot-icon">👥</div><div class="robot-info"><span class="robot-name">Crowd-Predict</span><span class="robot-value">${crowd}</span></div></div>
-        <div class="ai-robot-card"><div class="robot-icon">🌡️</div><div class="robot-info"><span class="robot-name">Feel-Real</span><span class="robot-value">${feel}°C</span></div></div>
-        <div class="ai-robot-card"><div class="robot-icon">☀️</div><div class="robot-info"><span class="robot-name">Solar-Sync</span><span class="robot-value">${solar}</span></div></div>
-        <div class="ai-robot-card"><div class="robot-icon">🧬</div><div class="robot-info"><span class="robot-name">Eco-Scan</span><span class="robot-value">${pollution}</span></div></div>
+        <div class="ai-robot-card" title="Planche conseillée selon hauteur de vague">
+          <div class="robot-icon">🏄‍♂️</div>
+          <div class="robot-info">
+            <span class="robot-name">Quiver-AI</span>
+            <span class="robot-value">${board}</span>
+            <span class="robot-desc">Planche conseillée</span>
+          </div>
+        </div>
+        <div class="ai-robot-card" title="Affluence estimée selon créneau et conditions">
+          <div class="robot-icon">👥</div>
+          <div class="robot-info">
+            <span class="robot-name">Crowd-Predict</span>
+            <span class="robot-value">${crowd}</span>
+            <span class="robot-desc">Affluence estimée</span>
+          </div>
+        </div>
+        <div class="ai-robot-card" title="Température ressentie (air - effet du vent)">
+          <div class="robot-icon">🌡️</div>
+          <div class="robot-info">
+            <span class="robot-name">Feel-Real</span>
+            <span class="robot-value">${feel}°C</span>
+            <span class="robot-desc">Temp. ressentie</span>
+          </div>
+        </div>
+        <div class="ai-robot-card" title="État du ciel • UV • Golden Hour">
+          <div class="robot-icon">☀️</div>
+          <div class="robot-info">
+            <span class="robot-name">Solar-Sync</span>
+            <span class="robot-value">${solar}</span>
+            <span class="robot-desc">Ciel & UV</span>
+          </div>
+        </div>
+        <div class="ai-robot-card" title="Qualité de l’eau : risque pollution après pluie">
+          <div class="robot-icon">🧬</div>
+          <div class="robot-info">
+            <span class="robot-name">Eco-Scan</span>
+            <span class="robot-value">${pollution}</span>
+            <span class="robot-desc">Qualité de l’eau</span>
+          </div>
+        </div>
     `;
 };
 
@@ -758,8 +839,14 @@ const initConditionsPage = () => {
     document.getElementById("val-wave").textContent = weather.waveHeight?.toFixed(1) || "-";
     document.getElementById("val-period").textContent = weather.wavePeriod?.toFixed(0) || "-";
     document.getElementById("val-wind-speed").textContent = weather.windSpeed || "-";
-    document.getElementById("val-wind-dir").textContent = weather.windDirection || "-";
-    document.getElementById("val-swell-dir").textContent = weather.swellDirection || "-";
+    (function() {
+      const spotNameActual = document.getElementById("cond-name").textContent;
+      const spotObj = spots.find(s => s.name === spotNameActual);
+      const label = classifyWindRelative(spotObj?.facing, weather.windDirection);
+      const orient = cardinalLabelFr(weather.windDirection);
+      document.getElementById("val-wind-dir").textContent = weather.windDirection ? `${label} • ${orient}` : "-";
+    })();
+    document.getElementById("val-swell-dir").textContent = getSwellDir(weather) || "-";
 
     const tideDisplay = document.getElementById("tide-display");
     if (tideInterval) clearInterval(tideInterval); 
@@ -788,38 +875,156 @@ const initConditionsPage = () => {
     tideInterval = setInterval(updateTideTimer, 30000);
 
     const list = document.getElementById("forecast-list");
+    const dash = document.querySelector(".dashboard-layout");
+    if (list && dash && list.parentElement !== dash) {
+        const h3 = list.previousElementSibling;
+        dash.insertBefore(list, dash.lastElementChild?.nextSibling || null);
+        if (h3 && h3.tagName === "H3") {
+            dash.insertBefore(h3, list);
+        }
+    }
     if (list && weather.forecast) {
-        list.innerHTML = weather.forecast.map(item => {
-            const d = new Date(item.time);
-            const isToday = d.getDate() === now.getDate();
-            const timeLabel = isToday ? d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : d.toLocaleDateString("fr-FR", { weekday: 'short', day: 'numeric' });
-            const dayQual = calculateQuality(item.waveHeight, item.windSpeed, item.wavePeriod, item.windDirection, safeTideStage, spotNameActual);
-            const icon = getWeatherIcon(item.cloudCover);
+        const groups = {};
+        weather.forecast.forEach(item => {
+            const dt = new Date(item.time);
+            const key = dt.toISOString().slice(0,10);
+            if (!groups[key]) groups[key] = [];
+            groups[key].push(item);
+        });
+        const keys = Object.keys(groups).sort();
+        list.classList.add("calendar-grid");
+        list.innerHTML = keys.map(key => {
+            const arr = groups[key];
+            const mid = arr.find(h => new Date(h.time).getHours() === 12) || arr[Math.floor(arr.length/2)];
+            const d = new Date(arr[0].time);
+            const dateLabel = d.toLocaleDateString("fr-FR", { weekday: 'short', day: 'numeric' });
+            const q = calculateQuality(mid.waveHeight, mid.windSpeed, mid.wavePeriod, mid.windDirection, safeTideStage, spotNameActual);
             return `
-              <div class="day-card ${dayQual.class} ${isToday ? 'is-hourly' : ''}">
-                <div class="day-header">
-                  <div style="display:flex; flex-direction:column; min-width:70px;">
-                    <span class="day-date">${timeLabel}</span>
-                    ${isToday ? '<span style="font-size:0.6rem; color:var(--accent); font-weight:700;">PRO-BOT</span>' : ''}
-                  </div>
-                  <span class="quality-badge" style="color:${dayQual.color}">${dayQual.label}</span>
-                  <div class="surf-stats-group" style="flex:1; margin-left:20px;">
-                    <span class="surf-primary" style="font-weight:700;">${item.waveHeight?.toFixed(1)}m | ${item.windSpeed} km/h</span><br>
-                    <span class="surf-secondary" style="font-size:0.75rem; color:#888;">Energie ${dayQual.energy} | Période ${Math.round(item.wavePeriod)}s</span>
-                  </div>
-                  <div class="weather-stats-group">
-                    <div class="weather-pill"><span>${icon}</span><span>${item.airTemperature}°</span></div>
-                  </div>
-                  <span class="day-arrow">▼</span>
-                </div>
-                <div class="day-details">
-                  <div class="detail-box"><span class="detail-label">BOT-INFO</span><span class="detail-value">${dayQual.botMsg}</span></div>
-                  <div class="detail-box"><span class="detail-label">VENT</span><span class="detail-value">${item.windDirection}</span></div>
-                  <div class="detail-box"><span class="detail-label">HOULE</span><span class="detail-value">${item.swellDirection || 'N/A'}</span></div>
-                </div>
+              <div class="calendar-day ${q.class}" data-key="${key}">
+                <div class="cal-date">${dateLabel}</div>
+                <div class="cal-badge" style="color:${q.color}">${q.label}</div>
+                <div class="cal-primary">${mid.waveHeight?.toFixed(1)}m • ${Math.round(mid.wavePeriod)}s</div>
+                <div class="cal-source">${
+                  (() => {
+                    const src = weather.source || 'API';
+                    const t = weather.sourceTime ? new Date(weather.sourceTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : null;
+                    return t ? `${src} • MAJ ${t}` : src;
+                  })()
+                }</div>
+                <div class="cal-details"></div>
               </div>`;
         }).join('');
-        document.querySelectorAll('.day-card').forEach(c => c.onclick = () => c.classList.toggle("is-open"));
+        const modal = document.getElementById("forecast-modal");
+        const modalBody = document.getElementById("forecast-modal-body");
+        const closeElems = () => modal.querySelectorAll("[data-modal-close]").forEach(b => b.onclick = () => modal.classList.remove("is-open"));
+        const hourlyStrip = document.getElementById("hourly-strip");
+        const renderHourlyFor = (key) => {
+            if (!hourlyStrip) return;
+            const arr = groups[key] || [];
+            const prepared = arr
+              .map(x => ({ h: new Date(x.time).getHours(), x }))
+              .filter(o => o.h >= 5 || o.h === 0)
+              .sort((a,b) => ((a.h >= 5 ? a.h : 24) - (b.h >= 5 ? b.h : 24)));
+            hourlyStrip.innerHTML = prepared.map((o,i) => {
+                const x = o.x;
+                const q = calculateQuality(x.waveHeight, x.windSpeed, x.wavePeriod, x.windDirection, safeTideStage, spotNameActual);
+                const labelH = String(o.h).padStart(2,'0') + 'h';
+                return `
+                  <div class="hourly-chip ${q.class}" data-time="${x.time}" data-day="${key}" style="animation-delay:${i*60}ms">
+                    <div class="h-time">${labelH}</div>
+                    <div class="h-primary">${x.waveHeight?.toFixed(1)}m • ${Math.round(x.wavePeriod)}s</div>
+                  </div>
+                `;
+            }).join('');
+            Array.from(hourlyStrip.querySelectorAll(".hourly-chip")).forEach(chip => {
+                chip.onclick = () => {
+                    const time = chip.getAttribute("data-time");
+                    const day = chip.getAttribute("data-day");
+                    const item = (groups[day] || []).find(z => new Date(z.time).toISOString() === new Date(time).toISOString());
+                    if (!item) return;
+                    openHourModal(item);
+                };
+            });
+        };
+        const openHourModal = (item) => {
+            const d = new Date(item.time);
+            const dateFull = d.toLocaleDateString("fr-FR", { weekday: 'long', day: 'numeric', month: 'short' }) + " • " + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const q = calculateQuality(item.waveHeight, item.windSpeed, item.wavePeriod, item.windDirection, safeTideStage, spotNameActual);
+            const spotObjX = spots.find(s => s.name === spotNameActual);
+            const rel = classifyWindRelative(spotObjX?.facing, item.windDirection);
+            const orient = cardinalLabelFr(item.windDirection);
+            const swell = item.swellDirection || getSwellDir({ forecast: [item] });
+            const src = weather.source || "API";
+            const t = weather.sourceTime ? new Date(weather.sourceTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : null;
+            modalBody.innerHTML = `
+              <div class="fm-header ${q.class}">
+                <div class="fm-date">${dateFull}</div>
+                <div class="fm-badge" style="color:${q.color}">${q.label}</div>
+                <div class="fm-primary">${item.waveHeight?.toFixed(1)}m • ${Math.round(item.wavePeriod)}s • ${item.windSpeed} km/h</div>
+                <div class="fm-source">${t ? `${src} • MAJ ${t}` : src}</div>
+              </div>
+              <div class="fm-details">
+                <div class="detail-line">
+                  <div class="dl-item"><span class="dl-label">VAGUES</span><span class="dl-val">${item.waveHeight?.toFixed(1)} m</span></div>
+                  <div class="dl-item"><span class="dl-label">PÉRIODE</span><span class="dl-val">${Math.round(item.wavePeriod)} s</span></div>
+                  <div class="dl-item"><span class="dl-label">VENT</span><span class="dl-val">${item.windSpeed} km/h</span></div>
+                  <div class="dl-item"><span class="dl-label">DIR. VENT</span><span class="dl-val">${rel} • ${orient}</span></div>
+                  <div class="dl-item"><span class="dl-label">DIR. HOULE</span><span class="dl-val">${swell || 'N/A'}</span></div>
+                  <div class="dl-item"><span class="dl-label">QUALITÉ</span><span class="dl-val">${q.label}</span></div>
+                </div>
+              </div>
+            `;
+            modal.classList.add("is-open");
+            closeElems();
+        };
+        const openForecastModal = (key) => {
+            const arr = groups[key];
+            if (!arr || arr.length === 0) return;
+            const mid = arr.find(h => new Date(h.time).getHours() === 12) || arr[Math.floor(arr.length/2)];
+            const d = new Date(arr[0].time);
+            const dateFull = d.toLocaleDateString("fr-FR", { weekday: 'long', day: 'numeric', month: 'short' });
+            const q = calculateQuality(mid.waveHeight, mid.windSpeed, mid.wavePeriod, mid.windDirection, safeTideStage, spotNameActual);
+            const spotObjX = spots.find(s => s.name === spotNameActual);
+            const rel = classifyWindRelative(spotObjX?.facing, mid.windDirection);
+            const orient = cardinalLabelFr(mid.windDirection);
+            const swell = mid.swellDirection || getSwellDir({ forecast: arr });
+            const src = weather.source || "API";
+            const t = weather.sourceTime ? new Date(weather.sourceTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : null;
+            modalBody.innerHTML = `
+              <div class="fm-header ${q.class}">
+                <div class="fm-date">${dateFull}</div>
+                <div class="fm-badge" style="color:${q.color}">${q.label}</div>
+                <div class="fm-primary">${mid.waveHeight?.toFixed(1)}m • ${Math.round(mid.wavePeriod)}s • ${mid.windSpeed} km/h</div>
+                <div class="fm-source">${t ? `${src} • MAJ ${t}` : src}</div>
+              </div>
+              <div class="fm-details">
+                <div class="detail-line">
+                  <div class="dl-item"><span class="dl-label">VAGUES</span><span class="dl-val">${mid.waveHeight?.toFixed(1)} m</span></div>
+                  <div class="dl-item"><span class="dl-label">PÉRIODE</span><span class="dl-val">${Math.round(mid.wavePeriod)} s</span></div>
+                  <div class="dl-item"><span class="dl-label">VENT</span><span class="dl-val">${mid.windSpeed} km/h</span></div>
+                  <div class="dl-item"><span class="dl-label">DIR. VENT</span><span class="dl-val">${rel} • ${orient}</span></div>
+                  <div class="dl-item"><span class="dl-label">DIR. HOULE</span><span class="dl-val">${swell || 'N/A'}</span></div>
+                  <div class="dl-item"><span class="dl-label">QUALITÉ</span><span class="dl-val">${q.label}</span></div>
+                </div>
+              </div>
+            `;
+            modal.classList.add("is-open");
+            closeElems();
+        };
+        document.querySelectorAll(".calendar-day").forEach(el => {
+            el.onclick = () => {
+                document.querySelectorAll(".calendar-day").forEach(x => x.classList.remove("is-selected"));
+                el.classList.add("is-selected");
+                renderHourlyFor(el.dataset.key);
+                openForecastModal(el.dataset.key);
+            };
+        });
+        const firstKey = keys[0];
+        const firstEl = list.querySelector(`[data-key="${firstKey}"]`);
+        if (firstEl) {
+            firstEl.classList.add("is-selected");
+            renderHourlyFor(firstKey);
+        }
     }
   };
   fetchConditions();
