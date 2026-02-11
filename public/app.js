@@ -983,3 +983,12 @@ window.acceptCookies = () => {
     localStorage.setItem("surfSenseCookies", "accepted");
     document.getElementById("cookie-banner").style.display = "none";
 };
+
+// --- ACTIVATION PWA (APPLICATION MOBILE) ---
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('Terminal PWA : Connecté', reg))
+      .catch(err => console.error('Terminal PWA : Erreur', err));
+  });
+}
