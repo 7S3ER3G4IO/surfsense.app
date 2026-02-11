@@ -75,6 +75,16 @@ const initGatekeeper = () => {
 const handleAuthSwitch = () => {
     const loginView = document.getElementById("auth-login-view");
     const registerView = document.getElementById("auth-register-view");
+
+    <div id="auth-2fa-view" style="display: none;">
+  <h3 style="color: var(--live-red);">Alerte Sécurité : 2FA</h3>
+  <p class="modal-footer-text">Veuillez entrer votre code d'habilitation d'agent.</p>
+  <form class="modal-form" id="twofa-form">
+    <input type="hidden" id="twofa-email" /> 
+    <input type="text" id="twofa-code" placeholder="Code à 6 chiffres (ex: 000000)" required maxlength="6" style="text-align: center; letter-spacing: 5px; font-weight: bold;" />
+    <button type="submit" class="primary" style="background: var(--live-red);">Vérifier l'Identité</button>
+  </form>
+</div>
     
     document.body.addEventListener('click', (e) => {
         if(e.target.id === 'link-to-register') {
@@ -166,6 +176,66 @@ const initAuthLogic = () => {
         };
     }
 };
+
+// ============================================================================
+// 🔒 GESTIONNAIRE D'AUTHENTIFICATION & 2FA (A intégrer dans app.js)
+// ============================================================================
+
+const authLoginView = document.getElementById("auth-login-view");
+const authRegisterView = document.getElementById("auth-register-view");
+const auth2faView = document.getElementById("auth-2fa-view");
+const twofaEmailInput = document.getElementById("twofa-email");
+
+// 1. Lors de l'inscription (ou connexion) réussie :
+document.getElementById("register-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = document.getElementById("reg-email").value;
+    
+    // ... [Votre code fetch actuel vers /api/auth/register] ...
+
+    // SIMULATION : Si l'inscription réussit, on NE FERME PAS la modale.
+    // On cache l'inscription et on affiche le 2FA.
+    console.log(`[ SYSTÈME ] Compte créé pour ${email}. Attente 2FA...`);
+    
+    authRegisterView.style.display = "none";
+    authLoginView.style.display = "none";
+    auth2faView.style.display = "block"; // Affiche l'écran rouge 2FA
+    twofaEmailInput.value = email; // On mémorise l'email pour l'étape suivante
+});
+
+// 2. Traitement du code 2FA
+document.getElementById("twofa-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const email = twofaEmailInput.value;
+    const code = document.getElementById("twofa-code").value;
+
+    try {
+        // Appel au bouclier que nous avons créé sur le Backend
+        const response = await fetch("/api/auth/verify-2fa", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, code })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            console.log("[ SECURITY-BOT ] Accès autorisé.");
+            // ACCÈS ACCORDÉ : On ferme la modale et on stocke la session
+            document.getElementById("auth-modal").classList.remove("is-open");
+            sessionStorage.setItem("accessGranted", "true");
+            
+            // Recharger la page ou débloquer l'UI
+            alert("Bienvenue sur le réseau, Agent.");
+        } else {
+            // ACCÈS REFUSÉ : Le code "000000" n'a pas été tapé
+            alert("❌ " + data.error);
+            document.getElementById("twofa-code").value = ""; // On vide le champ
+        }
+    } catch (error) {
+        console.error("Erreur de communication avec le serveur", error);
+    }
+});
 
 const updateProfileModal = async () => {
     const user = JSON.parse(localStorage.getItem("surfUser"));
