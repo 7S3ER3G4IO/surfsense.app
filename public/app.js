@@ -241,11 +241,17 @@ const calculateQuality = (waveHeight, windSpeed, wavePeriod, windDir, tideStage,
   return { label, color, class: cls, botMsg: msg, energy: Math.round(energyScore) };
 };
 
-const getWeatherIcon = (cloudCover) => {
-  if (cloudCover == null) return "☀️";
-  if (cloudCover < 30) return "☀️"; 
-  if (cloudCover < 70) return "⛅"; 
-  return "☁️";                      
+const getWeatherIcon = (cloudCover, precipitation) => {
+  // 1. La pluie est prioritaire (si > 0.1mm/h)
+  if (precipitation > 0.1) {
+      if (precipitation > 2) return "⛈️"; // Grosse pluie / Orage
+      return "🌧️"; // Pluie normale
+  }
+  // 2. Si pas de pluie, on regarde les nuages
+  if (cloudCover == null || cloudCover < 20) return "☀️"; 
+  if (cloudCover < 60) return "⛅"; 
+  if (cloudCover < 90) return "☁️"; 
+  return "🌫️"; 
 };
 
 const runAiRobots = (weather) => {

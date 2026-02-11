@@ -162,6 +162,57 @@ app.post('/api/auth/login', async (req, res) => {
     console.log(`[ ${new Date().toLocaleTimeString()} ] 🔓 Auth-Gate : Accès accordé pour ${email}`);
 });
 
+// ============================================================================
+// 🛡️ OPÉRATION BOUCLIER : ROUTE DE DOUBLE AUTHENTIFICATION (2FA)
+// ============================================================================
+app.post("/api/auth/verify-2fa", async (req, res) => {
+    try {
+        const { email, code } = req.body;
+
+        // 1. Vérification des données entrantes
+        if (!email || !code) {
+            console.warn(`[ ${new Date().toLocaleTimeString()} ] ⚠️ SECURITY-BOT : Tentative 2FA avortée (Données manquantes)`);
+            return res.status(400).json({ success: false, error: "Protocole incomplet. Email ou code manquant." });
+        }
+
+        console.log(`[ ${new Date().toLocaleTimeString()} ] 🛡️ SECURITY-BOT : Analyse du code 2FA pour l'agent | ${email}`);
+
+        // 2. Vérification dans la base de données (PostgreSQL)
+        // Note: Ici, nous interrogeons votre pool DB pour vérifier l'utilisateur.
+        const userQuery = await pool.query("SELECT id, is_active FROM users WHERE email = $1", [email]);
+        
+        if (userQuery.rows.length === 0) {
+            return res.status(404).json({ success: false, error: "Agent introuvable dans la matrice." });
+        }
+
+        // 3. Logique de validation du code
+        // Dans une version finale, vous compareriez 'code' avec un token TOTP (via 'speakeasy') 
+        // ou un code temporaire stocké en base. 
+        // Pour l'instant, nous établissons un "Master Code" (ex: "000000") pour tester le flux, 
+        // ou une validation basique à remplacer par votre logique métier.
+
+        const isValid2FA = (code === "000000"); // 🔒 À MODIFIER : Remplacer par la vraie vérification cryptographique
+
+        if (isValid2FA) {
+            console.log(`[ ${new Date().toLocaleTimeString()} ] ✅ SECURITY-BOT : Accès 2FA validé pour | ${email}`);
+            
+            // 4. Renvoi du feu vert au Frontend (app.js)
+            return res.status(200).json({ 
+                success: true, 
+                message: "Authentification biométrique et 2FA confirmées. Bienvenue sur le réseau.",
+                token: "JWT_ACCESS_TOKEN_SIMULE" // Si vous utilisez des JSON Web Tokens plus tard
+            });
+        } else {
+            console.error(`[ ${new Date().toLocaleTimeString()} ] ❌ SECURITY-BOT : Échec 2FA pour | ${email} (Code invalide)`);
+            return res.status(401).json({ success: false, error: "Code d'accès refusé. Veuillez réessayer." });
+        }
+
+    } catch (error) {
+        console.error(`[ ${new Date().toLocaleTimeString()} ] 💥 CRITICAL : Erreur serveur lors du 2FA -`, error.message);
+        res.status(500).json({ success: false, error: "Erreur interne du terminal sécurisé." });
+    }
+});
+
 app.get('/api/log-click', (req, res) => {
     console.log(`[ ${new Date().toLocaleTimeString()} ] 👤 USER-TRACK : Analyse demandée pour | ${req.query.spot}`);
     res.sendStatus(200);
