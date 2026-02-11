@@ -35,6 +35,49 @@ let tideInterval = null;
 let camClockInterval = null; 
 let deferredPrompt;
 
+const spotImages = {
+  "Hossegor - La Gravière": "/api/proxy-img?url=https://source.unsplash.com/800x600/?hossegor,surf,wave,barrel",
+  "Hossegor - La Nord": "/api/proxy-img?url=https://source.unsplash.com/800x600/?hossegor,la%20nord,surf,wave",
+  "Capbreton - Le Santocha": "/api/proxy-img?url=https://source.unsplash.com/800x600/?capbreton,santocha,surf,beach",
+  "Seignosse - Les Estagnots": "/api/proxy-img?url=https://source.unsplash.com/800x600/?seignosse,estagnots,surf,wave",
+  "Seignosse - Le Penon": "/api/proxy-img?url=https://source.unsplash.com/800x600/?seignosse,penon,surf,beach",
+  "Anglet - Les Cavaliers": "/api/proxy-img?url=https://source.unsplash.com/800x600/?anglet,cavaliers,surf,wave",
+  "Biarritz - Côte des Basques": "/api/proxy-img?url=https://source.unsplash.com/800x600/?biarritz,basques,surf,reef",
+  "Guéthary - Parlementia": "/api/proxy-img?url=https://source.unsplash.com/800x600/?guethary,parlementia,surf,reef",
+  "Saint-Jean-de-Luz - Lafitenia": "/api/proxy-img?url=https://source.unsplash.com/800x600/?lafitenia,saint%20jean%20de%20luz,surf,pointbreak",
+  "Hendaye": "/api/proxy-img?url=https://source.unsplash.com/800x600/?hendaye,surf,beach",
+  "Lacanau Central": "/api/proxy-img?url=https://source.unsplash.com/800x600/?lacanau,surf,atlantic",
+  "Carcans Plage": "/api/proxy-img?url=https://source.unsplash.com/800x600/?carcans,surf,beach",
+  "Hourtin": "/api/proxy-img?url=https://source.unsplash.com/800x600/?hourtin,surf,beach",
+  "Biscarrosse": "/api/proxy-img?url=https://source.unsplash.com/800x600/?biscarrosse,surf,beach",
+  "Vieux-Boucau": "/api/proxy-img?url=https://source.unsplash.com/800x600/?vieux%20boucau,surf,beach",
+  "La Torche": "/api/proxy-img?url=https://source.unsplash.com/800x600/?la%20torche,surf,brittany",
+  "Crozon - La Palue": "/api/proxy-img?url=https://source.unsplash.com/800x600/?crozon,la%20palue,surf,beach"
+};
+
+const spotLinks = {
+  "Seignosse - Le Penon": {
+    webcam: null,
+    gosurf: null
+  },
+  "Hossegor - La Gravière": { webcam: null, gosurf: null },
+  "Hossegor - La Nord": { webcam: null, gosurf: null },
+  "Capbreton - Le Santocha": { webcam: null, gosurf: null },
+  "Seignosse - Les Estagnots": { webcam: null, gosurf: null },
+  "Anglet - Les Cavaliers": { webcam: null, gosurf: null },
+  "Biarritz - Côte des Basques": { webcam: null, gosurf: null },
+  "Guéthary - Parlementia": { webcam: null, gosurf: null },
+  "Saint-Jean-de-Luz - Lafitenia": { webcam: null, gosurf: null },
+  "Hendaye": { webcam: null, gosurf: null },
+  "Lacanau Central": { webcam: null, gosurf: null },
+  "Carcans Plage": { webcam: null, gosurf: null },
+  "Hourtin": { webcam: null, gosurf: null },
+  "Biscarrosse": { webcam: null, gosurf: null },
+  "Vieux-Boucau": { webcam: null, gosurf: null },
+  "La Torche": { webcam: null, gosurf: null },
+  "Crozon - La Palue": { webcam: null, gosurf: null }
+};
+
 // --- 2. CONTENU JURIDIQUE (PROTECTION) ---
 const legalTexts = {
     "legal-mentions": {

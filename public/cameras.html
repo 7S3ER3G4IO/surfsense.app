@@ -64,15 +64,18 @@
                             <span class="cam-rec">● REC</span>
                             <span id="cam-live-name">INITIALISATION...</span>
                         </div>
-                        <div class="cam-overlay-center">
-                            <a id="cam-redirect-btn" href="#" target="_blank" class="cam-play-btn">
-                                <span>▶</span>
-                                <div style="display:flex; flex-direction:column; align-items:flex-start;">
-                                    <span style="font-size:1rem; font-weight:800;">LANCER LE FLUX</span>
-                                    <span style="font-size:0.7rem; font-weight:400; opacity:0.8;">Redirection vers source officielle</span>
-                                </div>
-                            </a>
+                <div class="cam-overlay-center">
+                    <a id="cam-redirect-btn" href="#" target="_blank" class="cam-play-btn">
+                        <span>▶</span>
+                        <div style="display:flex; flex-direction:column; align-items:flex-start;">
+                            <span style="font-size:1rem; font-weight:800;">SOURCE OFFICIELLE</span>
+                            <span style="font-size:0.7rem; font-weight:400; opacity:0.8;">Ouvrir le flux sur le site d'origine</span>
                         </div>
+                    </a>
+                    <a id="cam-gosurf-btn" href="#" target="_blank" class="btn-external-cam" style="margin-top: 12px;">
+                        🔗 Voir sur GoSurf
+                    </a>
+                </div>
                         <div class="cam-overlay-bottom">
                             <span id="cam-live-time">--:--:--</span>
                             <span>ISO 800 • 4K • SAT-LINK</span>
@@ -108,7 +111,18 @@
     </main>
 
     <footer class="footer">
-      <p>© 2026 SurfSense — Security Room Interface</p>
+      <div class="footer-inner" style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; padding: 0 20px;">
+        <div>
+          <p>© 2026 SurfSense — IA Marine Premium</p>
+          <p style="color: var(--muted); font-size: 0.75rem;">Robots: 11 • Source: Stormglass v2 • Quota: 500 req/j</p>
+        </div>
+        <div class="footer-legal-links" style="display: flex; gap: 25px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+          <a href="#" data-modal="legal-mentions" style="color: var(--muted);">Mentions Légales</a>
+          <a href="#" data-modal="legal-cgu" style="color: var(--muted);">CGU</a>
+          <a href="#" data-modal="legal-rgpd" style="color: var(--muted);">Confidentialité</a>
+          <a href="mailto:support@surfsense.io" style="color: var(--muted);">Contact</a>
+        </div>
+      </div>
     </footer>
 
     <div class="modal" id="auth-modal">
@@ -167,6 +181,19 @@
 
   </div>
 </div>
+
+    <div class="modal" id="legal-modal">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-content tech-modal" style="max-width: 800px;">
+        <button class="modal-close" data-modal-close>✕</button>
+        <div class="tech-header">
+            <span class="tech-label">LEGAL DOCUMENTATION</span>
+            <h2 id="legal-title">TITRE DU DOCUMENT</h2>
+        </div>
+        <div id="legal-body" style="overflow-y: auto; max-height: 60vh; padding: 20px 0; color: #94a3b8; font-size: 0.9rem; line-height: 1.7;">
+        </div>
+      </div>
+    </div>
 
   </body>
 </html>

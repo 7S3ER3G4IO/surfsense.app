@@ -1033,6 +1033,9 @@ const initCamerasPage = async () => {
     const metaDesc = document.getElementById("meta-desc");
     const btnRedirect = document.getElementById("cam-redirect-btn");
     const timeDisplay = document.getElementById("cam-live-time");
+    let camStatusMap = {};
+    let camStatsInterval = null;
+    let currentSpot = null;
 
     if (!listContainer || !mainScreen) return;
 
@@ -1042,39 +1045,49 @@ const initCamerasPage = async () => {
         if(timeDisplay) timeDisplay.textContent = now.toLocaleTimeString();
     }, 1000);
 
-    const camImages = [
-        "https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=800",
-        "https://images.unsplash.com/photo-1520443240718-fce21901db79?w=800",
-        "https://images.unsplash.com/photo-1496568816309-51d7c20e3b21?w=800",
-        "https://images.unsplash.com/photo-1505142468610-359e7d316be0?w=800",
-        "https://images.unsplash.com/photo-1471922694854-ff1b63b20054?w=800",
-        "https://images.unsplash.com/photo-1506477331477-33d5d8b3dc85?w=800",
-        "https://images.unsplash.com/photo-1531771686035-25f475954919?w=800",
-        "https://images.unsplash.com/photo-1415604934674-561df9abf539?w=800"
-    ];
+    const buildUnsplashSurf = (s) => {
+        const keys = ["surfing", "barrel", "wave", "ocean"].join(",");
+        const u = `https://source.unsplash.com/800x600/?${keys}`;
+        return `/api/proxy-img?url=${encodeURIComponent(u)}`;
+    };
+    const imageForSpot = (s) => spotImages[s.name] || buildUnsplashSurf(s);
+    const camImages = spots.map(s => imageForSpot(s));
 
     const loadCam = (spot, imgUrl) => {
         mainScreen.style.backgroundImage = `url('${imgUrl}')`;
         if(liveName) liveName.textContent = spot.name.toUpperCase();
         if(metaTitle) metaTitle.textContent = spot.name;
-        if(metaDesc) metaDesc.textContent = `Vue directe sur le spot de ${spot.name} (${spot.region}). Flux HD optimisé.`;
+        const status = camStatusMap[spot.name] || "INCONNU";
+        if(metaDesc) metaDesc.textContent = `Vue directe sur ${spot.name} • ${spot.region}. Statut: ${status}`;
         
-        const searchUrl = `https://www.google.com/search?q=webcam+surf+${encodeURIComponent(spot.name)}+live`;
-        if(btnRedirect) btnRedirect.href = searchUrl;
+        const searchUrl = `https://www.google.com/search?q=webcam+${encodeURIComponent(spot.name)}+live`;
+        const gosurfUrl = `https://www.google.com/search?q=site%3Agosurf+webcam+${encodeURIComponent(spot.name)}`;
+        const directWebcam = (typeof spotLinks !== "undefined" && spotLinks[spot.name]?.webcam) || null;
+        const directGoSurf = (typeof spotLinks !== "undefined" && spotLinks[spot.name]?.gosurf) || null;
+        if(btnRedirect) btnRedirect.href = directWebcam || searchUrl;
+        const btnGoSurf = document.getElementById("cam-gosurf-btn");
+        if (btnGoSurf) btnGoSurf.href = directGoSurf || gosurfUrl;
 
         document.querySelectorAll(".cam-item").forEach(c => c.classList.remove("active"));
         const activeItem = document.getElementById(`cam-item-${spot.name.replace(/[^a-zA-Z0-9]/g, '')}`);
         if(activeItem) activeItem.classList.add("active");
+        currentSpot = spot;
+        updateCamStats(spot);
+        if (camStatsInterval) clearInterval(camStatsInterval);
+        camStatsInterval = setInterval(() => {
+            if (currentSpot) updateCamStats(currentSpot);
+        }, 5000);
     };
 
     listContainer.innerHTML = spots.map((spot, index) => {
         const img = camImages[index % camImages.length];
         const safeId = spot.name.replace(/[^a-zA-Z0-9]/g, '');
         return `
-            <div class="cam-item" id="cam-item-${safeId}" onclick='window.selectCam(${JSON.stringify(spot)}, "${img}")'>
+            <div class="cam-item" id="cam-item-${safeId}" data-index="${index}" onclick='window.selectCam(${JSON.stringify(spot)}, "${img}")'>
                 <div class="cam-thumb" style="background-image: url('${img}');"></div>
                 <div class="cam-info">
                     <h4>${spot.name}</h4>
+                    <div class="cam-region">${spot.region} • ${spot.country}</div>
                     <span class="cam-status">● LIVE</span>
                 </div>
             </div>
@@ -1082,29 +1095,50 @@ const initCamerasPage = async () => {
     }).join('');
 
     window.selectCam = (spot, img) => loadCam(spot, img);
+    listContainer.addEventListener("click", (e) => {
+        const item = e.target.closest(".cam-item");
+        if (!item) return;
+        const idx = parseInt(item.getAttribute("data-index"), 10);
+        if (isNaN(idx)) return;
+        const s = spots[idx];
+        const img = camImages[idx];
+        loadCam(s, img);
+    });
 
     if (spots.length > 0) loadCam(spots[0], camImages[0]);
     try {
         const res = await fetch("/api/all-status");
-        const statusMap = await res.json();
+        camStatusMap = await res.json();
         spots.forEach(s => {
             const safeId = s.name.replace(/[^a-zA-Z0-9]/g, '');
             const el = document.querySelector(`#cam-item-${safeId} .cam-status`);
-            if (el && statusMap[s.name]) el.textContent = statusMap[s.name] === "LIVE" ? "● LIVE" : "○ WAITING";
+            if (el && camStatusMap[s.name]) el.textContent = camStatusMap[s.name] === "LIVE" ? "● LIVE" : "○ WAITING";
         });
+        const first = spots[0];
+        if (first) {
+          const img0 = camImages[0];
+          loadCam(first, img0);
+        }
     } catch {}
     
-    const fetchCamStats = async () => {
+    async function updateCamStats(spot) {
         try {
-            const spot = spots[0]; 
-            const res = await fetch(`/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
-            const data = await res.json();
-            if(document.getElementById("cs-wind")) document.getElementById("cs-wind").textContent = `${data.windSpeed} km/h`;
-            if(document.getElementById("cs-swell")) document.getElementById("cs-swell").textContent = `${data.waveHeight.toFixed(1)}m`;
-            if(document.getElementById("cs-tide")) document.getElementById("cs-tide").textContent = "Montante"; 
+            const r = await fetch(`/api/marine?lat=${spot.coords[0]}&lng=${spot.coords[1]}`);
+            const data = await r.json();
+            const t = await fetch(`/api/tide?spot=${encodeURIComponent(spot.name)}`);
+            const tide = await t.json();
+            const w = document.getElementById("cs-wind");
+            const s = document.getElementById("cs-swell");
+            const m = document.getElementById("cs-tide");
+            if (w) w.textContent = `${data.windSpeed} km/h`;
+            if (s) s.textContent = `${data.waveHeight.toFixed(1)}m`;
+            if (m) m.textContent = tide.stage || "Inconnu";
+            const status = camStatusMap[spot.name] || "INCONNU";
+            if (metaDesc) {
+                metaDesc.textContent = `Vent ${data.windSpeed} km/h • Houle ${data.waveHeight.toFixed(1)}m • Marée ${tide.stage || "Inconnue"} — ${spot.name} (${spot.region}) • ${status}`;
+            }
         } catch(e) {}
-    };
-    fetchCamStats();
+    }
 };
 
 const initVersusPage = () => {
