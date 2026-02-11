@@ -546,12 +546,48 @@ const fetchSurfNews = async () => {
   try {
     const sources = ['https://www.surfsession.com/rss/', 'https://full-bloom.fr/feed/'];
     let allArticles = [];
+    const toKeywords = (t = "") => {
+      const base = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const words = base.toLowerCase().match(/[a-z]{3,}/g) || [];
+      const stop = new Set(["les","des","une","un","le","la","de","du","et","pour","avec","sans","loin","dans","sur","au","aux"]);
+      const filtered = words.filter(w => !stop.has(w));
+      const picks = filtered.slice(0, 3);
+      return picks.length ? picks : ["surf","ocean","wave","beach"];
+    };
+    const buildUnsplash = (title) => {
+      const t = (title || "").toLowerCase();
+      const has = (...words) => words.some(w => t.includes(w));
+      let query = "surf,wave,surfing,sea";
+      if (has("pipe","pipeline","hawai","oahu","north shore")) query = "pipeline,hawaii,surfer,wave";
+      else if (has("van","vanlife","camping","quiver","outdoor")) query = "van,surfboard,coast,surf";
+      else if (has("mediter","méditerran")) query = "mediterranean,shore,wave,surf";
+      else if (has("reunion")) query = "reunion,island,reef,wave,surf";
+      else if (has("lacanau","france","pro","contest")) query = "contest,beach,atlantic,france,surf";
+      else if (has("quemao","canaries","lanzarote","makoa")) query = "barrel,lanzarote,canary,reef,surf";
+      const keys = toKeywords(title).join(",");
+      return `https://source.unsplash.com/800x600/?${keys},${query}`;
+    };
+    const resolveOgImage = async (link) => {
+      try {
+        const r = await fetch(link, { headers: { "User-Agent": "Mozilla/5.0", "Accept": "text/html" } });
+        const html = await r.text();
+        const m1 = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+        const m2 = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i);
+        const raw = (m1?.[1] || m2?.[1] || "").trim();
+        if (!raw) return null;
+        const abs = new URL(raw, link).href;
+        return abs;
+      } catch { return null; }
+    };
     for (const url of sources) {
       try {
         const feed = await parser.parseURL(url);
         allArticles = [...allArticles, ...feed.items.map(item => {
-          const imgMatch = item.content?.match(/<img[^>]+src="([^">]+)"/) || item['content:encoded']?.match(/<img[^>]+src="([^">]+)"/);
-          const finalImg = imgMatch ? imgMatch[1] : (item.enclosure?.url || fallbackImages[Math.floor(Math.random() * fallbackImages.length)]);
+          const imgMatch =
+            item.content?.match(/<img[^>]+src="([^">]+)"/) ||
+            item['content:encoded']?.match(/<img[^>]+src="([^">]+)"/);
+          const fromFeed = imgMatch ? imgMatch[1] : (item.enclosure?.url || null);
+          const finalImg = fromFeed;
           if (item.title) robotLog(ROBOTS.NEWS, "FOUND", item.title);
 
           return {
@@ -564,6 +600,13 @@ const fetchSurfNews = async () => {
           };
         })];
       } catch (err) { }
+    }
+    // Résoudre les images manquantes via OG; fallback Unsplash surf
+    for (let i = 0; i < allArticles.length; i++) {
+      if (!allArticles[i].img) {
+        const og = await resolveOgImage(allArticles[i].link);
+        allArticles[i].img = og || buildUnsplash(allArticles[i].title || "");
+      }
     }
     globalNews = allArticles.sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
     robotLog(ROBOTS.NEWS, "READY", `${globalNews.length} articles chargés`);
@@ -714,6 +757,11 @@ app.get("/api/marine", async (req, res) => {
 
 app.get("/api/alerts", (req, res) => { robotLog(ROBOTS.HUNTER, "RESP", `${epicSpots.length} alertes`); res.json(epicSpots); });
 app.get("/api/news", (req, res) => { robotLog(ROBOTS.NEWS, "RESP", `${globalNews.length} articles`); res.json(globalNews); });
+app.post("/api/news/reload", async (req, res) => {
+  await fetchSurfNews();
+  robotLog(ROBOTS.NEWS, "READY", `reload ${globalNews.length}`);
+  res.json({ ok: true, count: globalNews.length });
+});
 app.get("/api/tide", (req, res) => {
     const spotName = req.query.spot;
     const cacheData = cache.get(`tide-${spotName}`)?.data;
@@ -738,22 +786,52 @@ app.get("/api/proxy-img", async (req, res) => {
   const target = req.query.url;
   if (!target) return res.status(400).end();
   try {
-    const host = new URL(target).hostname;
-    const allowed = ["images.unsplash.com", "surfsession.com", "www.surfsession.com", "full-bloom.fr"];
+    let currentUrl = target;
+    const host = new URL(currentUrl).hostname;
+    const allowed = ["images.unsplash.com", "source.unsplash.com", "picsum.photos", "surfsession.com", "www.surfsession.com", "full-bloom.fr"];
     if (!allowed.some(h => host.endsWith(h))) return res.status(403).end();
-    const r = await fetch(target, { headers: { "User-Agent": "Mozilla/5.0", "Accept": "image/*" } });
+    let r = await fetch(currentUrl, { headers: { "User-Agent": "Mozilla/5.0", "Accept": "image/*" } });
+    // Suivre manuellement les redirections (source.unsplash.com -> images.unsplash.com)
+    for (let i = 0; i < 3 && (r.status >= 300 && r.status < 400); i++) {
+      const loc = r.headers.get("location");
+      if (!loc) break;
+      currentUrl = new URL(loc, currentUrl).href;
+      r = await fetch(currentUrl, { headers: { "User-Agent": "Mozilla/5.0", "Accept": "image/*" } });
+    }
     if (!r.ok) {
-      robotLog(ROBOTS.API, "WARN", `IMG ${host} ${r.status}`);
-      return res.redirect("/logo.svg");
+      robotLog(ROBOTS.API, "WARN", `IMG ${new URL(currentUrl).hostname} ${r.status}`);
+      try {
+        const fr = await fetch("https://picsum.photos/800/600", { headers: { "User-Agent": "Mozilla/5.0", "Accept": "image/*" } });
+        if (fr.ok && (fr.headers.get("content-type") || "").startsWith("image/")) {
+          const buf = Buffer.from(await fr.arrayBuffer());
+          res.setHeader("Content-Type", fr.headers.get("content-type") || "image/jpeg");
+          robotLog(ROBOTS.API, "RESP", `IMG picsum.photos`);
+          return res.status(200).send(buf);
+        }
+      } catch {}
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0%" stop-color="#0f172a"/><stop offset="100%" stop-color="#1e293b"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-family="Inter,Arial" font-size="24" font-weight="700">Image indisponible</text></svg>`;
+      res.setHeader("Content-Type", "image/svg+xml");
+      return res.status(200).send(svg);
     }
     const ct = r.headers.get("content-type") || "image/jpeg";
     if (!ct.startsWith("image/")) {
-      robotLog(ROBOTS.API, "WARN", `IMG ${host} CT ${ct}`);
-      return res.redirect("/logo.svg");
+      robotLog(ROBOTS.API, "WARN", `IMG ${new URL(currentUrl).hostname} CT ${ct}`);
+      try {
+        const fr = await fetch("https://picsum.photos/800/600", { headers: { "User-Agent": "Mozilla/5.0", "Accept": "image/*" } });
+        if (fr.ok && (fr.headers.get("content-type") || "").startsWith("image/")) {
+          const buf = Buffer.from(await fr.arrayBuffer());
+          res.setHeader("Content-Type", fr.headers.get("content-type") || "image/jpeg");
+          robotLog(ROBOTS.API, "RESP", `IMG picsum.photos`);
+          return res.status(200).send(buf);
+        }
+      } catch {}
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><defs><linearGradient id="g" x1="0" x2="1"><stop offset="0%" stop-color="#0f172a"/><stop offset="100%" stop-color="#1e293b"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#94a3b8" font-family="Inter,Arial" font-size="24" font-weight="700">Image indisponible</text></svg>`;
+      res.setHeader("Content-Type", "image/svg+xml");
+      return res.status(200).send(svg);
     }
     const buf = Buffer.from(await r.arrayBuffer());
     res.setHeader("Content-Type", ct);
-    robotLog(ROBOTS.API, "RESP", `IMG ${host}`);
+    robotLog(ROBOTS.API, "RESP", `IMG ${new URL(currentUrl).hostname}`);
     res.status(200).send(buf);
   } catch (e) {
     robotLog(ROBOTS.API, "ERROR", `IMG ${e.message}`);

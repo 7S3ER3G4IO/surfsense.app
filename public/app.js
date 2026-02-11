@@ -578,14 +578,39 @@ const fetchJsonWithRetry = async (url, opts = {}, retries = 3, baseDelay = 300) 
   }
 };
 
+const fetchJsonFromHosts = async (hosts, path, opts = {}, retriesPerHost = 2, baseDelay = 300) => {
+  for (const host of hosts) {
+    for (let a = 0; a < retriesPerHost; a++) {
+      try {
+        const res = await fetch(`${host}${path}`, opts);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json();
+      } catch {
+        await new Promise(r => setTimeout(r, baseDelay * (a + 1)));
+      }
+    }
+  }
+  throw new Error("UNAVAILABLE");
+};
+
 let lastRobotsData = null;
 
 const renderHomeRobotsHub = async () => {
   const container = document.getElementById("home-robots-hub");
   if (!container) return;
   try {
-    const base = window.location.origin;
-    const data = await fetchJsonWithRetry(`${base}/api/robots-status`, {}, 3, 300);
+    let data = null;
+    try {
+      data = await fetchJsonWithRetry(`/api/robots-status`, {}, 3, 300);
+    } catch {
+      data = await fetchJsonFromHosts(
+        [window.location.origin, "http://127.0.0.1:3001", "http://localhost:3001"],
+        "/api/robots-status",
+        {},
+        2,
+        300
+      );
+    }
     lastRobotsData = data;
     const list = [
       { key: "Tide-Master", icon: "🌊" },
@@ -658,6 +683,7 @@ const renderHomeRobotsHub = async () => {
         `;
       }).join("");
     }
+    setTimeout(renderHomeRobotsHub, 3000);
   }
 };
 

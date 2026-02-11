@@ -1284,34 +1284,49 @@ a { color: inherit; text-decoration: none; }
 
 #news-preview {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-    padding: 0 20px 40px 20px;
-    max-width: 1200px;
+    grid-template-columns: repeat(3, minmax(240px, 1fr));
+    gap: 16px;
+    padding: 0 4vw 30px 4vw;
+    max-width: 1320px;
     margin: 0 auto;
 }
 
 /* CARTE SIMPLE ET STABLE */
 .news-card {
-    background: #1e293b;
-    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 16px;
     overflow: hidden;
-    border: 1px solid #334155;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     flex-direction: column;
-    /* Suppression des transitions lourdes pour éviter le crash */
+    box-shadow: 0 12px 40px rgba(0,0,0,0.35);
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
 }
 
 /* Effet survol ultra-léger (juste la bordure, pas de mouvement) */
 .news-card:hover {
-    border-color: #4ade80; 
+    background: rgba(74, 222, 128, 0.05);
+    border-color: #4ade80;
+    box-shadow: 0 16px 50px rgba(74, 222, 128, 0.12);
+    transform: translateY(-3px);
 }
 
 .news-img-wrapper {
-    height: 180px;
+    height: 160px;
     position: relative;
     overflow: hidden;
     background: #0f172a;
+}
+
+.news-img-wrapper::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, rgba(4,6,12,0) 50%, rgba(4,6,12,0.6) 100%);
+    pointer-events: none;
 }
 
 .news-img {
@@ -1319,24 +1334,25 @@ a { color: inherit; text-decoration: none; }
     height: 100%;
     object-fit: cover;
     display: block;
-    /* Suppression du zoom au survol pour éviter le crash */
 }
 
 .news-badge {
     position: absolute;
     top: 10px;
     right: 10px;
-    background: #000;
+    background: rgba(74, 222, 128, 0.12);
     color: #4ade80;
     font-size: 0.7rem;
-    font-weight: bold;
-    padding: 4px 8px;
-    border-radius: 4px;
+    font-weight: 800;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(74, 222, 128, 0.4);
+    box-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
     z-index: 2;
 }
 
 .news-content {
-    padding: 15px;
+    padding: 16px;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
@@ -1344,23 +1360,34 @@ a { color: inherit; text-decoration: none; }
 }
 
 .news-content h3 {
-    font-size: 1rem;
-    line-height: 1.4;
-    margin: 0 0 15px 0;
-    color: #f1f5f9;
+    font-size: 1.06rem;
+    line-height: 1.45;
+    margin: 0 0 12px 0;
+    font-weight: 800;
+    background: linear-gradient(90deg, #60a5fa, #d946ef, #f97316, #4ade80, #60a5fa);
+    background-size: 300% 100%;
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .news-btn {
     text-decoration: none;
-    color: #94a3b8;
-    font-weight: 600;
+    color: #fff;
+    font-weight: 700;
     font-size: 0.85rem;
     align-self: flex-start;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.14);
+    transition: transform .2s ease, box-shadow .2s ease, background .2s ease, border-color .2s ease;
 }
 
 .news-btn:hover {
-    color: #4ade80;
-    text-decoration: underline;
+    background: rgba(74, 222, 128, 0.12);
+    border-color: rgba(74, 222, 128, 0.45);
+    box-shadow: 0 8px 24px rgba(74, 222, 128, 0.15);
+    transform: translateY(-2px);
 }
 
 /* --- LE HUB DES 5 ROBOTS INTELLIGENTS --- */
