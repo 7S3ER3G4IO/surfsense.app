@@ -76,16 +76,7 @@ const handleAuthSwitch = () => {
     const loginView = document.getElementById("auth-login-view");
     const registerView = document.getElementById("auth-register-view");
 
-    <div id="auth-2fa-view" style="display: none;">
-  <h3 style="color: var(--live-red);">Alerte Sécurité : 2FA</h3>
-  <p class="modal-footer-text">Veuillez entrer votre code d'habilitation d'agent.</p>
-  <form class="modal-form" id="twofa-form">
-    <input type="hidden" id="twofa-email" /> 
-    <input type="text" id="twofa-code" placeholder="Code à 6 chiffres (ex: 000000)" required maxlength="6" style="text-align: center; letter-spacing: 5px; font-weight: bold;" />
-    <button type="submit" class="primary" style="background: var(--live-red);">Vérifier l'Identité</button>
-  </form>
-</div>
-    
+    // L'écouteur d'événement pour basculer entre Inscription et Connexion
     document.body.addEventListener('click', (e) => {
         if(e.target.id === 'link-to-register') {
             e.preventDefault();
