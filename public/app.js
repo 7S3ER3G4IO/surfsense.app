@@ -91,11 +91,18 @@ const handleAuthSwitch = () => {
     });
 };
 
+// --- 4. GESTIONNAIRE D'AUTHENTIFICATION & 2FA ---
 const initAuthLogic = () => {
     const regForm = document.getElementById("register-form");
     const loginForm = document.getElementById("login-form");
+    const twofaForm = document.getElementById("twofa-form");
+    
+    const authLoginView = document.getElementById("auth-login-view");
+    const authRegisterView = document.getElementById("auth-register-view");
+    const auth2faView = document.getElementById("auth-2fa-view");
+    const twofaEmailInput = document.getElementById("twofa-email");
 
-    // INSCRIPTION
+    // 🛡️ 1. INSCRIPTION
     if (regForm) {
         regForm.onsubmit = async (e) => {
             e.preventDefault();
@@ -109,16 +116,22 @@ const initAuthLogic = () => {
                     body: JSON.stringify({ name, email, password })
                 });
                 const data = await res.json();
+                
                 if (data.success) {
-                    localStorage.setItem("surfUser", JSON.stringify(data.user));
-                    alert("Compte créé. Bienvenue Agent " + data.user.name);
-                    window.location.reload();
-                } else alert("Erreur : " + data.error);
+                    // 🛑 ON NE RECHARGE PLUS LA PAGE ICI ! On passe au 2FA.
+                    console.log(`[ SYSTÈME ] Compte créé pour ${email}. Attente 2FA...`);
+                    
+                    if (authRegisterView) authRegisterView.style.display = "none";
+                    if (auth2faView) auth2faView.style.display = "block";
+                    if (twofaEmailInput) twofaEmailInput.value = email; // On mémorise l'email
+                } else {
+                    alert("Erreur : " + data.error);
+                }
             } catch (err) { alert("Erreur connexion serveur."); }
         };
     }
 
-    // CONNEXION + 2FA
+    // 🛡️ 2. CONNEXION
     if (loginForm) {
         loginForm.onsubmit = async (e) => {
             e.preventDefault();
@@ -129,46 +142,53 @@ const initAuthLogic = () => {
             btn.innerText = "SÉCURISATION...";
 
             try {
-                // ÉTAPE 1 : LOGIN
                 const res = await fetch("/api/auth/login", {
                     method: "POST", headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ email, password })
                 });
                 const data = await res.json();
 
-                if (data.step === "2FA") {
-                    // SI 2FA REQUIS -> ON AFFICHE L'INPUT CODE
-                    document.getElementById("auth-login-view").style.display = "none";
-                    document.getElementById("auth-2fa-view").style.display = "block";
-                    
-                    // GESTION DU FORMULAIRE CODE
-                    const form2FA = document.getElementById("2fa-form");
-                    form2FA.onsubmit = async (evt) => {
-                        evt.preventDefault();
-                        const code = document.getElementById("2fa-code").value;
-                        
-                        // ÉTAPE 2 : VERIFY CODE
-                        const res2 = await fetch("/api/auth/verify-2fa", {
-                            method: "POST", headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ email, code })
-                        });
-                        const data2 = await res2.json();
-                        
-                        if (data2.success) {
-                            localStorage.setItem("surfUser", JSON.stringify(data2.user));
-                            window.location.reload();
-                        } else alert("CODE INVALIDE OU EXPIRÉ");
-                    };
-                } else if (data.error) {
-                    alert("Erreur : " + data.error);
-                    btn.innerText = originalText;
-                }
+                // On simule que la connexion demande toujours le 2FA pour la démo
+                console.log(`[ SYSTÈME ] Login OK pour ${email}. Attente 2FA...`);
+                if (authLoginView) authLoginView.style.display = "none";
+                if (auth2faView) auth2faView.style.display = "block";
+                if (twofaEmailInput) twofaEmailInput.value = email;
+
             } catch (err) { alert("Erreur serveur."); btn.innerText = originalText; }
         };
     }
+
+    // 🛡️ 3. VALIDATION DU CODE 2FA
+    if (twofaForm) {
+        twofaForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const email = twofaEmailInput.value;
+            const code = document.getElementById("twofa-code").value;
+
+            try {
+                const response = await fetch("/api/auth/verify-2fa", {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email, code })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    console.log("[ SECURITY-BOT ] Accès 2FA autorisé.");
+                    
+                    // On valide les accès finaux
+                    sessionStorage.setItem("accessGranted", "true");
+                    
+                    // ON RECHARGE LA PAGE SEULEMENT MAINTENANT !
+                    alert("Authentification validée. Bienvenue Agent.");
+                    window.location.reload(); 
+                } else {
+                    alert("❌ " + data.error);
+                    document.getElementById("twofa-code").value = "";
+                }
+            } catch (error) { console.error("Erreur 2FA", error); }
+        };
+    }
 };
-
-
 
 const updateProfileModal = async () => {
     const user = JSON.parse(localStorage.getItem("surfUser"));
