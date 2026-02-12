@@ -1075,6 +1075,11 @@ app.post("/api/admin/robots/snapshot", async (req, res) => {
 
 app.get("/api/admin/analytics/timeseries", async (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    if (!adminSeries.live.length && !adminSeries.users.length) {
+      await sampleAdminSeries();
+    }
+  } catch {}
   res.json(adminSeries);
 });
 
@@ -1255,6 +1260,6 @@ app.listen(PORT, () => {
         robotLog(ROBOTS.API, "READY", "Liaison ÉTABLIE");
         startBackgroundWorkers();
     }, 1500);
-    setInterval(sampleAdminSeries, 5 * 60 * 1000);
-    setTimeout(sampleAdminSeries, 5000);
+    setInterval(sampleAdminSeries, 60 * 1000);
+    try { sampleAdminSeries(); } catch {}
 });
