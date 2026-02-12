@@ -118,31 +118,27 @@
                 <p style="color:#e5e7eb;">Le fichier Blueprint pose problème ? <strong>Faisons-le à la main, c'est plus simple et ça prend 30 secondes.</strong></p>
                 
                 <div style="background:#1f2937; padding:20px; border-radius:12px; margin-bottom:20px;">
-                    <h3 style="color:#60a5fa; margin-top:0;">Étape 1 : Le module Instagram</h3>
-                    <ol style="color:#e5e7eb; line-height:1.6; padding-left:20px;">
-                        <li>Sur Make, supprimez les bulles grises (s'il y en a).</li>
-                        <li>Cliquez sur le gros <strong>(+)</strong>.</li>
-                        <li>Cherchez <strong>"Instagram for Business"</strong>.</li>
-                        <li>Choisissez <strong>"Create a Photo Post"</strong>.</li>
-                        <li>Cliquez sur <strong>"Add"</strong> pour connecter votre compte Facebook/Insta.</li>
-                    </ol>
+                    <h3 style="color:#4ade80; margin-top:0;">✨ Mode Direct Activé</h3>
+                    <p style="color:#e5e7eb; line-height:1.6;">
+                        Excellente nouvelle ! Nous avons activé le <strong>Mode Direct</strong> pour Instagram.
+                    </p>
+                    <ul style="color:#e5e7eb; line-height:1.6;">
+                        <li>✅ Plus besoin de Make pour Instagram</li>
+                        <li>✅ Plus besoin de Webhook</li>
+                        <li>✅ Publication instantanée et directe</li>
+                    </ul>
+                    <p style="color:#9ca3af; font-size:14px; margin-top:15px;">
+                        Le système utilise maintenant une connexion directe sécurisée via le serveur. Vous n'avez rien à configurer.
+                        Assurez-vous simplement que le champ "Webhook URL" d'Instagram est vide.
+                    </p>
                 </div>
 
-                <div style="background:#1f2937; padding:20px; border-radius:12px; margin-bottom:20px;">
-                    <h3 style="color:#f472b6; margin-top:0;">Étape 2 : Relier les données</h3>
-                    <p style="color:#9ca3af; font-size:14px;">Une fois le module ajouté, cliquez dessus pour le configurer :</p>
-                    <ul style="color:#e5e7eb; line-height:1.6;">
-                        <li><strong>Photo URL</strong> : Cliquez dans la case, puis cliquez sur la bulle rose <code>image</code> qui apparaît.</li>
-                        <li><strong>Caption</strong> : Cliquez dans la case, puis cliquez sur la bulle rose <code>text</code>.</li>
-                    </ul>
-                    <div style="margin-top:10px; padding:10px; background:#374151; border-radius:8px; font-size:13px; color:#d1d5db;">
-                        💡 <strong>Astuce :</strong> Si vous ne voyez pas les bulles roses (image/text), cliquez sur le bouton ci-dessous pour envoyer une fausse alerte au robot, ce qui fera apparaître les données !
-                    </div>
-                    <div style="text-align:center; margin-top:15px;">
-                        <button id="mk-test-fire" class="act-btn" style="background: #f59e0b; border-color: #d97706;">
-                            📡 Envoyer une donnée de test à Make
-                        </button>
-                    </div>
+                <div style="background:rgba(239, 68, 68, 0.1); padding:20px; border-radius:12px; margin-bottom:20px; border:1px solid rgba(239, 68, 68, 0.2);">
+                    <h3 style="color:#f87171; margin-top:0;">Pour les autres réseaux (Optionnel)</h3>
+                    <p style="color:#e5e7eb; font-size:14px;">
+                        Si vous souhaitez activer Facebook, Twitter ou TikTok, vous pouvez toujours utiliser les Webhooks classiques via Make.
+                        Mais pour Instagram, c'est réglé ! 🚀
+                    </p>
                 </div>
 
                 <div style="text-align:right; margin-top:20px;">
@@ -178,7 +174,8 @@
                     <div class="collapsible">
                         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
                             <input id="mk-pf-instagram" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
-                            <input id="mk-wh-instagram" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                            <input id="mk-wh-instagram" class="premium-input" placeholder="Laisser vide pour Mode Direct (Recommandé)" style="font-size:11px;">
+                            <div style="font-size:10px; color:#4ade80; margin-top:4px;">✨ Mode Direct Actif : Connexion serveur utilisée</div>
                         </div>
                     </div>
                 </div>

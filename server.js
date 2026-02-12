@@ -10,6 +10,8 @@ import helmet from "helmet"; // SÉCURITÉ
 import crypto from "crypto";
 import puppeteer from "puppeteer";
  
+import { IgApiClient } from 'instagram-private-api';
+
 // --- GATE ADMIN AVANT STATIQUE ---
 const adminStaticGate = (req, res, next) => {
   if (!req.path.startsWith("/admin")) return next();
@@ -868,6 +870,45 @@ const buildMarketingPayload = (req) => {
   });
   return { text, image, channels, link: base, type: marketing.contentType, email: marketing.email, profiles, spot };
 };
+
+// --- DIRECT INSTAGRAM POSTING ---
+const postToInstagram = async (imageUrl, caption) => {
+  const username = process.env.INSTAGRAM_USERNAME || "swellsyncfr";
+  const password = process.env.INSTAGRAM_PASSWORD || "Hinalol08-";
+  
+  robotLog(ROBOTS.NEWS, "INSTA", `Connexion directe en cours pour ${username}...`);
+  
+  try {
+    const ig = new IgApiClient();
+    ig.state.generateDevice(username);
+    await ig.account.login(username, password);
+    
+    // Download image
+    const response = await fetch(imageUrl);
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    
+    // Publish
+    const publishResult = await ig.publish.photo({
+      file: buffer,
+      caption: caption,
+    });
+    
+    if (publishResult.status === 'ok') {
+      robotLog(ROBOTS.NEWS, "INSTA", `✅ Post publié avec succès ! (PK: ${publishResult.media.pk})`);
+      return true;
+    } else {
+      throw new Error("Statut non-OK: " + JSON.stringify(publishResult));
+    }
+  } catch (e) {
+    robotLog(ROBOTS.NEWS, "ERROR", `Insta Direct: ${e.message}`);
+    if (e.name === 'IgCheckpointError') {
+      robotLog(ROBOTS.NEWS, "WARN", "⚠️ Checkpoint requis !");
+    }
+    return false;
+  }
+};
+
 const fireMarketing = async (req) => {
   try {
     const payload = buildMarketingPayload(req);
@@ -879,34 +920,22 @@ const fireMarketing = async (req) => {
       await fetch(marketing.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       robotLog(ROBOTS.NEWS, "PROMO", `Payload envoyé (${payload.channels.join(", ")})`);
     } else {
-      const enabled = Object.entries(marketing.connectors).filter(([k, v]) => !!v.enabled && !!v.webhook);
+      const enabled = Object.entries(marketing.connectors).filter(([k, v]) => !!v.enabled);
+      
       for (const [name, conf] of enabled) {
         try {
           // Customize payload per channel format
           const channelPayload = { ...payload, channel: name, format: conf.format || "post" };
           
           // Adjust image based on detailed format specs
-          // Vertical (9:16): story, reel, short, tiktok, vertical, photo
-          // Portrait (4:5): post (insta/fb/threads) - we treat as vertical or custom
-          // Square (1:1): square, community, bulle
-          // Landscape (16:9): video, post (twitter)
-          
           let imagePath = "/og/post.png"; // Default landscape/horizontal
           const fmt = channelPayload.format;
 
           if (["story", "reel", "short", "video", "photo", "vertical"].includes(fmt)) {
-            // Strict 9:16 Vertical
             imagePath = "/og/story.png";
           } else if (["square", "community", "bulle"].includes(fmt)) {
-            // Square 1:1
             imagePath = "/og/square.png";
           } else if (["post"].includes(fmt)) {
-            // Context-dependent 'post'
-            // Instagram/Facebook/Threads 'post' is optimized at 4:5, but we can use 1:1 or 4:5.
-            // For now, let's map 'post' on mobile-first platforms to a vertical-ish or square format if possible,
-            // but the user requested specific handling.
-            // Let's create a specific 4:5 endpoint or reuse story (cropped) / square.
-            // Simplified approach:
             if (["instagram", "facebook", "threads"].includes(name)) {
                imagePath = "/og/portrait.png"; // 4:5
             } else {
@@ -915,6 +944,15 @@ const fireMarketing = async (req) => {
           }
 
           channelPayload.image = `${payload.link}${imagePath}?spot=${encodeURIComponent(payload.spot || "spot")}`;
+
+          // --- DIRECT MODE HANDLING ---
+          // If Instagram AND (Webhook is empty OR explicit DIRECT)
+          if (name === "instagram" && (!conf.webhook || conf.webhook === "DIRECT" || conf.webhook.trim() === "")) {
+             await postToInstagram(channelPayload.image, channelPayload.text);
+             continue; // Skip webhook fetch
+          }
+          
+          if (!conf.webhook) continue; // Skip if no webhook and not handled directly
 
           await fetch(conf.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(channelPayload) });
           robotLog(ROBOTS.NEWS, "PROMO", `Payload ${name} (${conf.format})`);
