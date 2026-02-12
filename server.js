@@ -806,7 +806,7 @@ let marketing = {
   running: false,
   timer: null,
   intervalMs: (parseInt(process.env.MARKETING_INTERVAL_MINUTES || "0", 10) || 0) * 60 * 1000,
-  webhookUrl: process.env.MARKETING_WEBHOOK_URL || ":internal",
+  webhookUrl: process.env.MARKETING_WEBHOOK_URL || "https://hook.eu1.make.com/eak8dpssccvf9e1hoibtlzma9k2dbe43",
   channels: (process.env.MARKETING_CHANNELS || "").split(",").map(s => s.trim()).filter(Boolean),
   nextRunAt: 0,
   template: process.env.MARKETING_MESSAGE || "{hook} Conditions live sur {spot} • {desc} {tags}",
