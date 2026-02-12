@@ -1686,6 +1686,22 @@ window.addEventListener("load", () => {
       if (modal) modal.classList.add("is-open");
     }
 
+    const supportLabel = e.target.closest("#support-modal label.ghost-pill");
+    if (supportLabel) {
+      const input = supportLabel.querySelector('input[name="support-amount"]');
+      if (input) {
+        input.checked = true;
+        document.querySelectorAll('#support-modal label.ghost-pill').forEach(el => el.classList.remove('is-selected'));
+        supportLabel.classList.add('is-selected');
+        const custom = document.getElementById('support-amount-custom');
+        if (custom) custom.value = '';
+      }
+    }
+    if (e.target && e.target.id === "support-amount-custom") {
+      document.querySelectorAll('#support-modal input[name="support-amount"]').forEach(r => r.checked = false);
+      document.querySelectorAll('#support-modal label.ghost-pill').forEach(el => el.classList.remove('is-selected'));
+    }
+
     const legalTarget = e.target.closest("[data-modal^='legal-']");
     if (legalTarget) {
         e.preventDefault();
