@@ -47,6 +47,42 @@
           <span class="badge badge--live">LIVE</span>
         </div>
       </div>
+      <div style="margin-top:20px; display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px;">
+        <div style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;">
+          <div style="color:#94a3b8;">Santé Système</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+            <div style="color:#9ca3af">DB</div><div id="health-db" style="color:#e5e7eb">-</div>
+            <div style="color:#9ca3af">Ping DB</div><div id="health-ping" style="color:#e5e7eb">-</div>
+            <div style="color:#9ca3af">Uptime</div><div id="health-uptime" style="color:#e5e7eb">-</div>
+            <div style="color:#9ca3af">Mémoire</div><div id="health-mem" style="color:#e5e7eb">-</div>
+            <div style="color:#9ca3af">Cache</div><div id="health-cache" style="color:#e5e7eb">-</div>
+            <div style="color:#9ca3af">API</div><div id="health-api" style="color:#e5e7eb">-</div>
+            <div style="color:#9ca3af">Spots</div><div id="health-spots" style="color:#e5e7eb">-</div>
+          </div>
+        </div>
+        <div style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;">
+          <div style="color:#94a3b8;">Workers</div>
+          <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+            <button id="btn-worker-pause" class="btn btn--compact">Pause</button>
+            <button id="btn-worker-resume" class="btn btn--compact">Resume</button>
+            <input id="worker-interval" type="number" min="1" max="240" value="45" class="btn" style="width:90px;"/>
+            <button id="btn-worker-apply" class="btn btn--compact">Appliquer</button>
+          </div>
+          <div style="color:#9ca3af; margin-top:6px;">Intervalle actuel: <span id="worker-interval-cur">-</span> min · État: <span id="worker-state">-</span></div>
+        </div>
+        <div style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;">
+          <div style="color:#94a3b8;">Quota API</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+            <div style="color:#9ca3af">Limite</div><div id="health-limit" style="color:#e5e7eb">-</div>
+            <div style="color:#9ca3af">Restant</div><div id="health-rem" style="color:#e5e7eb">-</div>
+            <div style="color:#9ca3af">Utilisé</div><div id="health-used" style="color:#e5e7eb">-</div>
+          </div>
+          <div style="margin-top:10px;">
+            <button id="btn-quota-reel" class="btn btn--compact">Actualiser quota réel (Stormglass)</button>
+            <div id="quota-source" style="color:#94a3b8; margin-top:6px;"></div>
+          </div>
+        </div>
+      </div>
       <div id="admin-grid" class="stats-grid-6">
         <div class="stat-item"><span class="stat-label">Utilisateurs</span><span class="stat-value"><span id="m-users">-</span></span></div>
         <div class="stat-item"><span class="stat-label">Favoris</span><span class="stat-value"><span id="m-favorites">-</span></span></div>
@@ -111,7 +147,11 @@
         <div>
           <h3 class="forecast-title">Logs récents</h3>
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <div></div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input id="logs-start" type="date" class="btn" />
+              <input id="logs-end" type="date" class="btn" />
+              <button id="btn-apply-logs" class="btn btn--compact">Appliquer</button>
+            </div>
             <button id="btn-export-logs" class="btn">Exporter CSV logs</button>
           </div>
           <div id="logs-list" style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px; max-height:320px; overflow:auto;"></div>
@@ -134,6 +174,11 @@
       </div>
       <div id="regions" style="margin-top:30px;">
         <h3 class="forecast-title">Sessions par région (7 jours)</h3>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+          <input id="regions-start" type="date" class="btn" />
+          <input id="regions-end" type="date" class="btn" />
+          <button id="btn-apply-regions" class="btn btn--compact">Appliquer</button>
+        </div>
         <div id="regions-bars" style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;"></div>
       </div>
     </div>
@@ -224,6 +269,49 @@
             window.location.href = "../index.html";
           }
         }
+        async function loadHealth() {
+          try {
+            const r = await fetch("/api/admin/health", { headers });
+            const h = await r.json();
+            document.getElementById("health-db").textContent = h.db ? "OK" : "ERREUR";
+            document.getElementById("health-ping").textContent = (h.pingMs ?? "-")+" ms";
+            document.getElementById("health-uptime").textContent = h.uptime+" s";
+            document.getElementById("health-mem").textContent = h.memoryMB+" MB";
+            document.getElementById("health-cache").textContent = h.cacheCount ?? "-";
+            document.getElementById("health-api").textContent = (h.apiCallCount ?? 0)+" appels";
+            document.getElementById("health-spots").textContent = "LIVE "+(h.live||0)+" · WAIT "+(h.wait||0);
+            document.getElementById("health-limit").textContent = h.quota?.limit ?? "-";
+            document.getElementById("health-rem").textContent = h.quota?.remaining ?? "-";
+            document.getElementById("health-used").textContent = h.quota?.used ?? "-";
+            document.getElementById("worker-interval-cur").textContent = h.worker?.intervalMinutes ?? "-";
+            document.getElementById("worker-state").textContent = h.worker?.paused ? "PAUSED" : "RUNNING";
+            document.getElementById("worker-interval").value = h.worker?.intervalMinutes ?? 45;
+          } catch {}
+        }
+        document.getElementById("btn-worker-pause").onclick = async () => {
+          try { const r = await fetch("/api/admin/workers", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ action: "pause" }) }); if (r.ok) { toast("Worker en pause"); loadHealth(); } else { toast("Erreur pause", "error"); } } catch { toast("Erreur pause", "error"); }
+        };
+        document.getElementById("btn-worker-resume").onclick = async () => {
+          try { const r = await fetch("/api/admin/workers", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ action: "resume" }) }); if (r.ok) { toast("Worker relancé"); loadHealth(); } else { toast("Erreur resume", "error"); } } catch { toast("Erreur resume", "error"); }
+        };
+        document.getElementById("btn-worker-apply").onclick = async () => {
+          const minutes = parseInt(document.getElementById("worker-interval").value || "45");
+          try { const r = await fetch("/api/admin/workers", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ action: "setInterval", minutes }) }); if (r.ok) { toast("Intervalle mis à jour"); loadHealth(); } else { toast("Erreur intervalle", "error"); } } catch { toast("Erreur intervalle", "error"); }
+        };
+        document.getElementById("btn-quota-reel").onclick = async () => {
+          const elSrc = document.getElementById("quota-source");
+          try {
+            elSrc.textContent = "Mise à jour…";
+            const r = await fetch("/api/admin/quota/reel", { headers });
+            const dj = await r.json();
+            if (!r.ok) { toast("Erreur quota réel", "error"); elSrc.textContent = ""; return; }
+            document.getElementById("health-limit").textContent = dj.limit ?? "-";
+            document.getElementById("health-rem").textContent = dj.remaining ?? "-";
+            document.getElementById("health-used").textContent = dj.used ?? "-";
+            elSrc.textContent = "Source: "+(dj.source === "dashboard" ? "Dashboard Stormglass" : "API Stormglass");
+            toast("Quota réel mis à jour");
+          } catch { toast("Erreur quota réel", "error"); }
+        };
         async function loadAnalytics() {
           try {
             const r = await fetch("/api/admin/analytics/timeseries", { headers });
@@ -236,11 +324,16 @@
         }
         async function loadRegions() {
           try {
-            const r = await fetch("/api/admin/regions", { headers });
+            const s = document.getElementById("regions-start").value;
+            const e = document.getElementById("regions-end").value;
+            let url = "/api/admin/regions";
+            if (s && e) url = "/api/admin/regions?start="+encodeURIComponent(s)+"&end="+encodeURIComponent(e);
+            const r = await fetch(url, { headers });
             const data = await r.json();
             drawBars(document.getElementById("regions-bars"), data);
           } catch {}
         }
+        document.getElementById("btn-apply-regions").onclick = loadRegions;
         async function loadSpots() {
           try {
             const r = await fetch("/api/admin/spots", { headers });
@@ -255,6 +348,7 @@
             }
             const filter = sel.value;
             const filtered = filter ? arr.filter(x => x.region === filter) : arr;
+            const pr = await fetch("/api/admin/spots/priority", { headers }).then(r=>r.json()).catch(()=>[]);
             const m = (x) => {
               const dot = x.status === "LIVE" ? "#4ade80" : "#facc15";
               const h = x.waveHeight != null ? x.waveHeight.toFixed(1)+"m" : "-";
@@ -262,7 +356,8 @@
               const v = x.windSpeed != null ? Math.round(x.windSpeed)+"km/h" : "-";
               const d = x.windDirection || "-";
               const time = x.sourceTime ? new Date(x.sourceTime).toLocaleTimeString() : "-";
-              return '<div class="ai-robot-card"><span class="robot-icon">🏄‍♂️</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:'+dot+'"></span>'+x.name+' — '+x.region+'</span><span class="robot-value">H '+h+' • T '+t+' • V '+v+' '+d+'</span><span class="robot-desc">Maj '+time+'</span><div style="margin-top:8px; display:flex; gap:8px;"><button class="btn btn--compact" data-action="refresh" data-name="'+x.name+'">Forcer refresh</button><button class="btn btn--compact" data-action="clear" data-name="'+x.name+'">Effacer cache</button></div></div></div>';
+              const star = Array.isArray(pr) && pr.includes(x.name) ? "★" : "☆";
+              return '<div class="ai-robot-card"><span class="robot-icon">🏄‍♂️</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:'+dot+'"></span>'+x.name+' — '+x.region+'</span><span class="robot-value">H '+h+' • T '+t+' • V '+v+' '+d+'</span><span class="robot-desc">Maj '+time+'</span><div style="margin-top:8px; display:flex; gap:8px;"><button class="btn btn--compact" data-action="refresh" data-name="'+x.name+'">Forcer refresh</button><button class="btn btn--compact" data-action="clear" data-name="'+x.name+'">Effacer cache</button><button class="btn btn--compact" data-action="priority" data-name="'+x.name+'">'+star+' Priorité</button><button class="btn btn--compact" data-action="epic-add" data-name="'+x.name+'">Marquer EPIC</button><button class="btn btn--compact" data-action="epic-rem" data-name="'+x.name+'">Retirer EPIC</button></div></div></div>';
             };
             const container = document.getElementById("spots-list");
             container.innerHTML = filtered.map(m).join("");
@@ -276,6 +371,15 @@
                 } else if (action === "clear") {
                   await fetch("/api/admin/spots/clear", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ name }) });
                   toast("Cache spot effacé");
+                } else if (action === "priority") {
+                  const rr = await fetch("/api/admin/spots/priority/toggle", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ name }) });
+                  if (rr.ok) toast("Priorité mise à jour"); else toast("Erreur priorité", "error");
+                } else if (action === "epic-add") {
+                  const rr = await fetch("/api/admin/alerts/manual", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ name, reason: "admin" }) });
+                  if (rr.ok) toast("EPIC ajouté"); else toast("Erreur EPIC", "error");
+                } else if (action === "epic-rem") {
+                  const rr = await fetch("/api/admin/alerts/manual/remove", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ name }) });
+                  if (rr.ok) toast("EPIC retiré"); else toast("Erreur EPIC", "error");
                 }
                 loadSpots();
               };
@@ -298,15 +402,24 @@
         };
         async function loadLogs() {
           try {
-            const r = await fetch("/api/admin/logs", { headers });
+            const s = document.getElementById("logs-start").value;
+            const e = document.getElementById("logs-end").value;
+            let url = "/api/admin/logs";
+            if (s && e) url = "/api/admin/logs/range?start="+encodeURIComponent(s)+"&end="+encodeURIComponent(e);
+            const r = await fetch(url, { headers });
             const arr = await r.json();
             const el = document.getElementById("logs-list");
             el.innerHTML = arr.map(x => '<div style="display:flex; justify-content:space-between; padding:6px 8px; border-bottom:1px solid #111827;"><span style="color:#9ca3af">'+(x.spot_name||"-")+'</span><span style="color:#6b7280">'+(x.ip||"-")+'</span></div>').join("");
           } catch {}
         }
+        document.getElementById("btn-apply-logs").onclick = loadLogs;
         document.getElementById("btn-export-logs").onclick = async () => {
           try {
-            const rr = await fetch("/api/admin/logs/export", { headers });
+            const s = document.getElementById("logs-start").value;
+            const e = document.getElementById("logs-end").value;
+            let url = "/api/admin/logs/export";
+            if (s && e) url = "/api/admin/logs/export?start="+encodeURIComponent(s)+"&end="+encodeURIComponent(e);
+            const rr = await fetch(url, { headers });
             if (!rr.ok) { toast("Erreur export logs", "error"); return; }
             const blob = await rr.blob();
             const url = URL.createObjectURL(blob);
@@ -403,12 +516,14 @@
         document.getElementById("btn-reload-news").onclick = reloadNews;
         document.getElementById("btn-snapshot-robots").onclick = snapshotRobots;
         load();
+        loadHealth();
         loadAnalytics();
         loadRegions();
         loadSpots();
         loadLogs();
         loadUsers();
         setInterval(load, 5000);
+        setInterval(loadHealth, 8000);
         setInterval(loadAnalytics, 15000);
         setInterval(loadRegions, 15000);
         setInterval(loadSpots, 6000);

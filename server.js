@@ -8,6 +8,7 @@ import Parser from "rss-parser";
 import nodemailer from "nodemailer";
 import helmet from "helmet"; // SÉCURITÉ
 import crypto from "crypto";
+import puppeteer from "puppeteer";
  
 // --- GATE ADMIN AVANT STATIQUE ---
 const adminStaticGate = (req, res, next) => {
@@ -197,6 +198,25 @@ const spotRegionMap = new Map(spots.map(s => [s.name, s.region]));
 const adminSafeCount = async (sql) => { try { const r = await pool.query(sql); return r.rows[0].c || 0; } catch { return 0; } };
 const adminSafeQuery = async (sql) => { try { return await pool.query(sql); } catch { return { rows: [] }; } };
 const pushSeries = (arr, v) => { arr.push({ t: Date.now(), v }); if (arr.length > 288) arr.shift(); };
+let weatherWorkerPaused = false;
+let weatherWorkerIntervalMs = 45 * 60 * 1000;
+let weatherWorkerTimer = null;
+const prioritySpots = new Set();
+const restartWeatherWorker = () => {
+  if (weatherWorkerTimer) clearInterval(weatherWorkerTimer);
+  weatherWorkerTimer = setInterval(async () => {
+    if (weatherWorkerPaused) return;
+    let spot = null;
+    if (prioritySpots.size > 0 && Math.random() < 0.7) {
+      const arr = Array.from(prioritySpots);
+      const name = arr[Math.floor(Math.random() * arr.length)];
+      spot = spots.find(s => s.name === name) || spots[Math.floor(Math.random() * spots.length)];
+    } else {
+      spot = spots[Math.floor(Math.random() * spots.length)];
+    }
+    await getDataSmart(spot.coords[0], spot.coords[1], spot.name, true);
+  }, weatherWorkerIntervalMs);
+};
 const sampleAdminSeries = async () => {
   const usersC = await adminSafeCount("SELECT COUNT(*)::int AS c FROM users");
   const statusMap = {};
@@ -837,10 +857,8 @@ const runEcoScan = () => {
 };
 
 const startBackgroundWorkers = () => {
-  setInterval(async () => {
-    const spot = spots[Math.floor(Math.random() * spots.length)];
-    await getDataSmart(spot.coords[0], spot.coords[1], spot.name, true);
-  }, WEATHER_ROBOT_INTERVAL);
+  weatherWorkerIntervalMs = WEATHER_ROBOT_INTERVAL;
+  restartWeatherWorker();
 
   setInterval(fetchSurfNews, 4 * 60 * 60 * 1000);
   fetchSurfNews();
@@ -1083,9 +1101,136 @@ app.get("/api/admin/analytics/timeseries", async (req, res) => {
   res.json(adminSeries);
 });
 
+const fetchStormglassQuotaFromAPI = async () => {
+  if (!STORMGLASS_API_KEY) throw new Error("API key manquante");
+  const now = new Date();
+  const prev = new Date(now.getTime() - 60 * 60 * 1000);
+  const url = `https://api.stormglass.io/v2/weather/point?lat=0&lng=0&params=waveHeight&start=${encodeURIComponent(prev.toISOString())}&end=${encodeURIComponent(now.toISOString())}`;
+  const resp = await fetch(url, { headers: { "Authorization": STORMGLASS_API_KEY } });
+  if (!resp.ok) throw new Error("Stormglass API error");
+  const data = await resp.json();
+  const meta = data.meta || {};
+  const limit = meta.dailyQuota ?? meta.quota ?? 0;
+  const used = meta.requestCount ?? meta.requestsMade ?? 0;
+  const remaining = (limit && used != null) ? Math.max(0, limit - used) : (meta.remaining ?? 0);
+  return { limit, used, remaining, source: "api", meta };
+};
+
+const fetchStormglassQuotaFromDashboard = async () => {
+  const email = process.env.STORMGLASS_LOGIN_EMAIL || process.env.ADMIN_EMAIL;
+  const password = process.env.STORMGLASS_LOGIN_PASSWORD;
+  if (!email || !password) throw new Error("Identifiants manquants");
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: ["--no-sandbox", "--disable-setuid-sandbox"]
+  });
+  try {
+    const page = await browser.newPage();
+    await page.goto("https://dashboard.stormglass.io/", { waitUntil: "networkidle2" });
+    let emailSel = 'input[type="email"], input[name="email"]';
+    let passSel = 'input[type="password"], input[name="password"]';
+    let submitSel = 'button[type="submit"], button:has-text("Log in"), button:has-text("Sign in")';
+    const hasEmail = await page.$(emailSel);
+    if (!hasEmail) {
+      const loginLink = await page.$('a[href*="login"], a:has-text("Log in"), a:has-text("Sign in")');
+      if (loginLink) { await loginLink.click(); await page.waitForNavigation({ waitUntil: "networkidle2" }); }
+    }
+    await page.waitForSelector(emailSel, { timeout: 10000 });
+    await page.type(emailSel, email, { delay: 20 });
+    await page.type(passSel, password, { delay: 20 });
+    const btn = await page.$(submitSel) || await page.$('button');
+    if (btn) await btn.click();
+    await page.waitForNavigation({ waitUntil: "networkidle2", timeout: 20000 }).catch(()=>{});
+    // Essayer pages compte
+    await page.goto("https://dashboard.stormglass.io/account", { waitUntil: "networkidle2" }).catch(()=>{});
+    const text = await page.evaluate(() => document.body.innerText);
+    const num = (s) => (s ? parseInt((s.match(/\d+/)||["0"])[0]) : 0);
+    // Chercher motifs typiques
+    const mLimit = text.match(/daily\s+quota[:\s]+(\d+)/i) || text.match(/limit[:\s]+(\d+)/i);
+    const mUsed = text.match(/used\s+today[:\s]+(\d+)/i) || text.match(/requests\s+made[:\s]+(\d+)/i);
+    const mRemaining = text.match(/remaining[:\s]+(\d+)/i);
+    const limit = mLimit ? num(mLimit[0]) : null;
+    const used = mUsed ? num(mUsed[0]) : null;
+    const remaining = mRemaining ? num(mRemaining[0]) : (limit != null && used != null ? Math.max(0, limit - used) : null);
+    if (limit == null && used == null && remaining == null) throw new Error("Quotas introuvables");
+    return { limit: limit ?? 0, used: used ?? 0, remaining: remaining ?? 0, source: "dashboard" };
+  } finally {
+    await browser.close().catch(()=>{});
+  }
+};
+
+app.get("/api/admin/quota/reel", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const r = await fetchStormglassQuotaFromAPI();
+    lastQuotaInfo = { limit: r.limit, remaining: r.remaining, used: r.used };
+    res.json(r);
+  } catch (e1) {
+    try {
+      const r2 = await fetchStormglassQuotaFromDashboard();
+      lastQuotaInfo = { limit: r2.limit, remaining: r2.remaining, used: r2.used };
+      res.json(r2);
+    } catch (e2) {
+      res.status(500).json({ error: "Quota indisponible", details: String(e2?.message || e1?.message || "Erreur") });
+    }
+  }
+});
+app.get("/api/admin/health", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const statusMap = {};
+  spots.forEach(spot => { statusMap[spot.name] = cache.has(`${spot.coords[0]},lng=${spot.coords[1]}`) ? "LIVE" : "WAITING"; });
+  const live = Object.values(statusMap).filter(v => v === "LIVE").length;
+  const wait = Object.values(statusMap).filter(v => v === "WAITING").length;
+  let db = false; let pingMs = null;
+  try {
+    const t0 = Date.now();
+    const r = await pool.query("SELECT NOW()");
+    pingMs = Date.now() - t0;
+    db = r.rows.length > 0;
+  } catch {}
+  const mem = process.memoryUsage();
+  res.json({
+    db,
+    pingMs,
+    cacheCount: cache.size,
+    apiCallCount,
+    quota: lastQuotaInfo,
+    live,
+    wait,
+    uptime: Math.round(process.uptime()),
+    memoryMB: Math.round((mem.rss || 0) / (1024 * 1024)),
+    worker: { paused: weatherWorkerPaused, intervalMinutes: Math.round(weatherWorkerIntervalMs / 60000) },
+    newsCount: globalNews.length
+  });
+});
+
+app.get("/api/admin/workers", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  res.json({ paused: weatherWorkerPaused, intervalMinutes: Math.round(weatherWorkerIntervalMs / 60000) });
+});
+
+app.post("/api/admin/workers", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const action = (req.body?.action || "").toString();
+  if (action === "pause") { weatherWorkerPaused = true; return res.json({ ok: true, paused: true }); }
+  if (action === "resume") { weatherWorkerPaused = false; return res.json({ ok: true, paused: false }); }
+  if (action === "setInterval") {
+    const minutes = parseInt(req.body?.minutes);
+    if (!minutes || minutes < 1 || minutes > 240) return res.status(400).json({ error: "minutes invalide" });
+    weatherWorkerIntervalMs = minutes * 60000;
+    restartWeatherWorker();
+    return res.json({ ok: true, intervalMinutes: minutes });
+  }
+  res.status(400).json({ error: "action invalide" });
+});
+
 app.get("/api/admin/regions", async (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
-  const r = await adminSafeQuery("SELECT spot_name, COUNT(*)::int AS c FROM click_logs WHERE ts > NOW() - INTERVAL '7 days' GROUP BY spot_name");
+  const start = req.query.start;
+  const end = req.query.end;
+  let sql = "SELECT spot_name, COUNT(*)::int AS c FROM click_logs WHERE ts > NOW() - INTERVAL '7 days' GROUP BY spot_name";
+  if (start && end) sql = "SELECT spot_name, COUNT(*)::int AS c FROM click_logs WHERE ts BETWEEN $1 AND $2 GROUP BY spot_name";
+  const r = start && end ? await adminSafeQuery({ text: sql, values: [start, end] }) : await adminSafeQuery(sql);
   const out = {};
   r.rows.forEach(row => {
     const reg = spotRegionMap.get(row.spot_name) || "Inconnu";
@@ -1096,8 +1241,18 @@ app.get("/api/admin/regions", async (req, res) => {
 
 app.get("/api/admin/logs/export", async (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const start = req.query.start;
+  const end = req.query.end;
   let rows = [];
-  try { const r = await pool.query("SELECT id, spot_name, ip, ts FROM click_logs ORDER BY id DESC LIMIT 1000"); rows = r.rows; } catch { 
+  try {
+    let r;
+    if (start && end) {
+      r = await pool.query("SELECT id, spot_name, ip, ts FROM click_logs WHERE ts BETWEEN $1 AND $2 ORDER BY id DESC", [start, end]);
+    } else {
+      r = await pool.query("SELECT id, spot_name, ip, ts FROM click_logs ORDER BY id DESC LIMIT 1000");
+    }
+    rows = r.rows;
+  } catch { 
     try { const r2 = await pool.query("SELECT id, spot_name, ip FROM click_logs ORDER BY id DESC LIMIT 1000"); rows = r2.rows; } catch { rows = []; }
   }
   const esc = (v) => { if (v == null) return ""; const s = String(v); if (/[\",\\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"'; return s; };
@@ -1108,6 +1263,49 @@ app.get("/api/admin/logs/export", async (req, res) => {
   res.status(200).send(csv);
 });
 
+app.get("/api/admin/logs/range", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const start = req.query.start;
+  const end = req.query.end;
+  if (!start || !end) return res.status(400).json({ error: "dates manquantes" });
+  try {
+    const r = await pool.query("SELECT id, spot_name, ip, ts FROM click_logs WHERE ts BETWEEN $1 AND $2 ORDER BY id DESC LIMIT 1000", [start, end]);
+    res.json(r.rows);
+  } catch {
+    res.json([]);
+  }
+});
+
+app.get("/api/admin/spots/priority", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  res.json(Array.from(prioritySpots));
+});
+
+app.post("/api/admin/spots/priority/toggle", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const name = (req.body?.name || "").toString();
+  if (!name) return res.status(400).json({ error: "name manquant" });
+  if (prioritySpots.has(name)) prioritySpots.delete(name); else prioritySpots.add(name);
+  res.json({ ok: true, name, active: prioritySpots.has(name) });
+});
+
+app.post("/api/admin/alerts/manual", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const name = (req.body?.name || "").toString();
+  const reason = (req.body?.reason || "").toString();
+  if (!name) return res.status(400).json({ error: "name manquant" });
+  epicSpots.push({ name, time: Date.now(), manual: true, reason });
+  res.json({ ok: true, count: epicSpots.length });
+});
+
+app.post("/api/admin/alerts/manual/remove", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const name = (req.body?.name || "").toString();
+  if (!name) return res.status(400).json({ error: "name manquant" });
+  const before = epicSpots.length;
+  epicSpots = epicSpots.filter(x => !(x.name === name && x.manual));
+  res.json({ ok: true, removed: before - epicSpots.length });
+});
 app.get("/api/admin/spots/export", async (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
   const arr = spots.map(s => {
