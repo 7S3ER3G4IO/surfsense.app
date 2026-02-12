@@ -1562,7 +1562,7 @@ const initVersusPage = () => {
         const nameA = selA.value;
         const nameB = selB.value;
         
-        document.getElementById("verdict-text").textContent = "Calcul IA en cours...";
+        document.getElementById("verdict-text").textContent = t("vs.verdict.calc");
         document.getElementById("versus-verdict").style.display = "none";
 
         const fetchData = async (name) => {
@@ -1606,11 +1606,11 @@ const initVersusPage = () => {
             verdictBox.style.display = "block";
             
             if (scoreA > scoreB) {
-                verdictText.innerHTML = `Vainqueur : <strong style="color:#4ade80">${nameA}</strong>`;
+                verdictText.innerHTML = `${t("vs.verdict.winner")} <strong style="color:#4ade80">${nameA}</strong>`;
             } else if (scoreB > scoreA) {
-                verdictText.innerHTML = `Vainqueur : <strong style="color:#4ade80">${nameB}</strong>`;
+                verdictText.innerHTML = `${t("vs.verdict.winner")} <strong style="color:#4ade80">${nameB}</strong>`;
             } else {
-                verdictText.innerHTML = "Égalité parfaite. Faites votre choix !";
+                verdictText.innerHTML = t("vs.verdict.draw");
             }
         }
     };
@@ -1645,6 +1645,15 @@ window.addEventListener("load", () => {
       if (document.body.classList.contains("actus-page")) renderFullNews(); 
       if (document.body.classList.contains("contact-page")) initContactPage(); 
       attachAdminSecret();
+      attachShareFeature();
+      attachStoryShare();
+      initI18n();
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (document.body.classList.contains("conditions-page") && params.get("share-story") === "1") {
+          setTimeout(() => { if (window.shareStoryNow) window.shareStoryNow(); }, 1200);
+        }
+      } catch {}
   } catch (e) { console.error("Erreur critique init:", e); }
 
   document.body.addEventListener("click", e => {
@@ -1676,7 +1685,7 @@ window.addEventListener("load", () => {
     if (legalTarget) {
         e.preventDefault();
         const type = legalTarget.getAttribute("data-modal");
-        const doc = legalTexts[type];
+        const doc = (window.legalTexts || {})[type];
         if (doc) {
             document.getElementById("legal-title").textContent = doc.title;
             document.getElementById("legal-body").innerHTML = doc.body;
@@ -1685,6 +1694,433 @@ window.addEventListener("load", () => {
     }
   });
 });
+
+if (!window.legalTexts) window.legalTexts = {
+  "legal-mentions": {
+    title: "Mentions Légales",
+    body: `
+      <h3>Éditeur du site</h3>
+      <p>SwellSync — Service de prévisions et d’analyse surf. Contact: <a href="mailto:swellsync@gmail.com">swellsync@gmail.com</a>.</p>
+      <h3>Responsable de la publication</h3>
+      <p>Équipe SwellSync.</p>
+      <h3>Hébergement</h3>
+      <p>Application hébergée sur un fournisseur cloud européen/US compatible RGPD. L’infrastructure peut inclure des CDN et services tiers sécurisés.</p>
+      <h3>Propriété intellectuelle</h3>
+      <p>Les éléments du site (textes, visuels, interfaces, marques) sont protégés. Toute reproduction ou réutilisation non autorisée est interdite.</p>
+      <h3>Sources de données</h3>
+      <p>Données océanographiques issues notamment de Stormglass/NOAA/Bouées locales; certaines images proviennent de sources publiques (ex: Unsplash, flux RSS). Les droits restent la propriété de leurs auteurs.</p>
+      <h3>Liens externes</h3>
+      <p>Les liens vers des sites tiers sont fournis à titre informatif; nous n’en contrôlons pas le contenu.</p>
+      <h3>Contact</h3>
+      <p>Pour toute demande: <a href="mailto:swellsync@gmail.com">swellsync@gmail.com</a>.</p>
+    `
+  },
+  "legal-cgu": {
+    title: "Conditions Générales d’Utilisation (CGU)",
+    body: `
+      <h3>1. Objet</h3>
+      <p>Les présentes CGU régissent l’accès et l’utilisation de SwellSync (site et services associés).</p>
+      <h3>2. Acceptation</h3>
+      <p>L’utilisation du service vaut acceptation pleine et entière des CGU et des politiques s’y rapportant.</p>
+      <h3>3. Accès au service</h3>
+      <p>Service fourni “en l’état”, sous réserve de disponibilité. Des évolutions, interruptions ou maintenances peuvent survenir.</p>
+      <h3>4. Compte et sécurité</h3>
+      <p>Vous êtes responsable des identifiants et de toute activité liée à votre compte. L’authentification peut inclure 2FA par email.</p>
+      <h3>5. Usage autorisé</h3>
+      <p>Usage personnel ou professionnel raisonnable. Interdits: extraction massive, scraping non autorisé, reverse engineering, contournement des quotas, atteinte à la sécurité.</p>
+      <h3>6. Données et exactitude</h3>
+      <p>Les prévisions et analyses sont fournies à titre indicatif. SwellSync ne peut garantir l’exactitude en toutes circonstances (aléas météo/océan, latences, sources externes).</p>
+      <h3>7. Contenus tiers</h3>
+      <p>Les flux, images et webcams peuvent provenir de tiers; leur disponibilité et conformité relèvent de leurs éditeurs.</p>
+      <h3>8. Responsabilité</h3>
+      <p>Dans la limite permise par la loi, SwellSync ne saurait être tenue responsable des dommages indirects, perte de chance, perte de données, ou activités réalisées sur la base des informations publiées.</p>
+      <h3>9. Abonnements et paiements</h3>
+      <p>Si des offres payantes sont proposées, des conditions spécifiques s’appliqueront (prix, durée, renouvellement, rétractation si applicable). À date, aucune transaction en ligne n’est obligatoire pour l’usage courant.</p>
+      <h3>10. Quotas et équité d’usage</h3>
+      <p>Des quotas techniques peuvent limiter les appels API ou fonctionnalités afin d’assurer la stabilité du service.</p>
+      <h3>11. Modifications</h3>
+      <p>Nous pouvons modifier les CGU. La version publiée sur le site fait foi; l’usage postérieur à la modification vaut acceptation.</p>
+      <h3>12. Droit applicable</h3>
+      <p>Droit applicable et juridictions compétentes selon le siège de l’éditeur et les règles de conflit de lois.</p>
+      <h3>13. Contact</h3>
+      <p>Support: <a href="mailto:swellsync@gmail.com">swellsync@gmail.com</a>.</p>
+    `
+  },
+  "legal-rgpd": {
+    title: "Politique de Confidentialité (RGPD)",
+    body: `
+      <h3>1. Responsable du traitement</h3>
+      <p>SwellSync. Contact: <a href="mailto:swellsync@gmail.com">swellsync@gmail.com</a>.</p>
+      <h3>2. Données collectées</h3>
+      <p>Identité (email lors de la création de compte), messages de contact, préférences (ex: favoris), journaux techniques (statuts robots, erreurs), données d’usage agrégées.</p>
+      <h3>3. Finalités</h3>
+      <p>Fourniture du service, sécurité, amélioration produit, support utilisateur, envois d’alertes/communications (opt-in), conformité légale.</p>
+      <h3>4. Bases légales</h3>
+      <p>Exécution du contrat (compte et service), intérêt légitime (sécurité/mesure d’audience raisonnable), consentement pour communications marketing.</p>
+      <h3>5. Cookies et stockage local</h3>
+      <p>Aucun traçage publicitaire. Stockage local utilisé pour la session, préférences et expérience. Bandeau d’information affiché au premier accès.</p>
+      <h3>6. Destinataires et transferts</h3>
+      <p>Accès restreint à l’équipe SwellSync; prestataires techniques (hébergement, envoi email) sous engagements de confidentialité et sécurité.</p>
+      <h3>7. Durées de conservation</h3>
+      <p>Données de compte: durée d’usage et obligations légales; logs techniques: durée proportionnée; contacts: le temps du traitement et suivi.</p>
+      <h3>8. Sécurité</h3>
+      <p>Mesures techniques et organisationnelles; chiffrement en transit; contrôles d’accès; surveillance des quotas et anomalies.</p>
+      <h3>9. Vos droits</h3>
+      <p>Accès, rectification, effacement, limitation, opposition, portabilité; retrait du consentement à tout moment. Exercice: <a href="mailto:swellsync@gmail.com">swellsync@gmail.com</a>.</p>
+      <h3>10. Réclamations</h3>
+      <p>Autorité de contrôle compétente (ex: CNIL en France). Vous pouvez déposer une plainte si vous estimez que vos droits ne sont pas respectés.</p>
+      <h3>11. Modifications</h3>
+      <p>La présente politique peut évoluer; la version en ligne à jour s’applique.</p>
+      <h3>12. Contact</h3>
+      <p>Confidentialité: <a href="mailto:swellsync@gmail.com">swellsync@gmail.com</a>.</p>
+    `
+  }
+};
+
+function initI18n() {
+  const select = document.getElementById("lang-select");
+  window.lang = localStorage.getItem("lang") || "fr";
+  document.documentElement.setAttribute("lang", window.lang);
+  if (select) {
+    select.value = window.lang;
+    select.addEventListener("change", () => {
+      window.lang = select.value;
+      localStorage.setItem("lang", window.lang);
+      document.documentElement.setAttribute("lang", window.lang);
+      applyI18n();
+    });
+  }
+  applyI18n();
+}
+const i18n = {
+  fr: {
+    "nav.map": "Carte",
+    "nav.cameras": "Caméras",
+    "nav.favorites": "Favoris",
+    "nav.versus": "Versus",
+    "nav.news": "News",
+    "nav.contact": "Contact",
+    "nav.login": "Se connecter",
+    "cta.explore": "Explorer les spots",
+    "geo.find": "Trouver mon spot",
+    "quick.water": "TEMP. EAU",
+    "quick.swell": "ANALYSE HOULE",
+    "quick.live": "SPOTS EN LIVE",
+    "quick.tide": "MARÉE (GLOBAL)",
+    "legal.mentions": "Mentions Légales",
+    "legal.cgu": "CGU",
+    "legal.rgpd": "Confidentialité",
+    "hero.title": "Prévisions surf essentielles.",
+    "map.title": "Carte interactive",
+    "map.desc": "Analyse précise via Stormglass Premium.",
+    "spot.header": "Navigation Spots",
+    "spot.search.placeholder": "Filtrer les spots...",
+    "legend.title": "Légende Robots",
+    "radar.title": "Radar des Sessions",
+    "radar.desc": "Les spots les plus surveillés en ce moment.",
+    "flow.title": "Le Flux SurfSense",
+    "flow.desc": "De l'océan à votre écran en 3 étapes millimétrées.",
+    "flow.step1.title": "1. Scan Satellite",
+    "flow.step1.desc": "Récupération des données brutes Stormglass et bouées océaniques.",
+    "flow.step2.title": "2. Traitement IA",
+    "flow.step2.desc": "Nos robots filtrent le clapot et calculent l'énergie réelle du spot.",
+    "flow.step3.title": "3. Alertes Smart",
+    "flow.step3.desc": "Vous recevez l'info uniquement quand c'est \"Bon\" ou \"Épique\".",
+    "cookie.ok": "COMPRIS",
+    "cond.live": "LIVE REPORT •",
+    "cond.status.title": "ANALYSE EN COURS...",
+    "cond.status.desc": "Connexion aux bouées...",
+    "stats.wave": "VAGUES",
+    "stats.period": "PÉRIODE",
+    "stats.wind": "VENT",
+    "stats.winddir": "DIR. VENT",
+    "stats.swelldir": "DIR. HOULE",
+    "stats.quality": "QUALITÉ",
+    "locate.btn": "Trouver mon spot le plus proche",
+    "forecast.title": "Conditions 7 jours",
+    "tide.next": "PROCHAINE MARÉE",
+    "cams.network": "Réseau Live",
+    "cams.signal": "SIGNAL 100%",
+    "cams.meta.title": "Sélectionnez une caméra",
+    "cams.meta.desc": "Accès direct aux webcams partenaires.",
+    "cams.stat.wind": "Vent",
+    "cams.stat.swell": "Houle",
+    "cams.stat.tide": "Marée",
+    "cams.source.title": "SOURCE OFFICIELLE",
+    "cams.source.desc": "Ouvrir le flux sur le site d'origine",
+    "cams.btn.gosurf": "Voir sur GoSurf",
+    "fav.title": "Mon Line-up",
+    "fav.desc": "Vos spots préférés en un coup d'œil. Analyse temps réel.",
+    "fav.empty.title": "Aucun spot favori",
+    "fav.empty.desc": "Connectez-vous pour retrouver vos favoris enregistrés sur votre compte.",
+    "fav.empty.btn": "Se connecter",
+    "vs.title": "FACE-OFF",
+    "vs.sub": "Comparateur d'analyse temps réel",
+    "vs.a": "CHALLENGER A",
+    "vs.b": "CHALLENGER B",
+    "vs.stat.waves": "VAGUES",
+    "vs.stat.period": "PÉRIODE",
+    "vs.stat.wind": "VENT",
+    "vs.verdict.calc": "Calcul IA en cours...",
+    "vs.verdict.analyse": "Analyse...",
+    "vs.verdict.winner": "Vainqueur :",
+    "vs.verdict.draw": "Égalité parfaite. Faites votre choix !",
+    "contact.title": "Contact",
+    "contact.sub": "Questions, problèmes ou infos supplémentaires — on vous répond rapidement.",
+    "contact.card.title": "Équipe support • SwellSync",
+    "contact.card.desc": "Remplissez le formulaire ci-dessous. Votre demande sera transmise au support.",
+    "contact.label.name": "Nom complet",
+    "contact.placeholder.name": "Ex: Jean Dupont",
+    "contact.label.email": "Email",
+    "contact.placeholder.email": "Ex: jean@exemple.com",
+    "contact.label.category": "Catégorie",
+    "contact.label.subject": "Sujet (optionnel)",
+    "contact.placeholder.subject": "Ex: Erreur sur la page Conditions",
+    "contact.label.message": "Message",
+    "contact.placeholder.message": "Décrivez votre demande...",
+    "contact.submit": "Envoyer",
+    "contact.info.title": "Infos utiles",
+    "contact.info.sub": "Avant d’envoyer —",
+    "contact.info.li1": "Précisez le spot, l’heure et la page concernée si c’est un problème.",
+    "contact.info.li2": "Pour les demandes de fonctionnalités, dites-nous l’usage concret souhaité.",
+    "contact.info.li3": "Vous pouvez joindre des liens externes (cam, article, etc.).",
+    "contact.copy": "Copier l’adresse",
+    "news.feed.title": "Le fil de l'eau",
+    "gate.title": "PROTOCOLE D'ACCÈS SURFSENSE",
+    "gate.label": "SYSTÈME D'ANALYSE IA v2.0",
+    "gate.tab.metrics": "Métriques",
+    "gate.tab.robots": "Robots",
+    "gate.tab.how": "Fonctionnement",
+    "gate.tab.legal": "Juridique",
+    "gate.accept": "ACCEPTER ET ENTRER",
+    "gate.refuse": "REFUSER"
+  },
+  en: {
+    "nav.map": "Map",
+    "nav.cameras": "Cameras",
+    "nav.favorites": "Favorites",
+    "nav.versus": "Versus",
+    "nav.news": "News",
+    "nav.contact": "Contact",
+    "nav.login": "Sign in",
+    "cta.explore": "Explore spots",
+    "geo.find": "Find my spot",
+    "quick.water": "WATER TEMP",
+    "quick.swell": "SWELL ANALYSIS",
+    "quick.live": "LIVE SPOTS",
+    "quick.tide": "TIDE (GLOBAL)",
+    "legal.mentions": "Legal",
+    "legal.cgu": "Terms",
+    "legal.rgpd": "Privacy",
+    "hero.title": "Essential surf forecasts.",
+    "map.title": "Interactive Map",
+    "map.desc": "Precise analysis via Stormglass Premium.",
+    "spot.header": "Spots Navigation",
+    "spot.search.placeholder": "Filter spots...",
+    "legend.title": "Robots Legend",
+    "radar.title": "Sessions Radar",
+    "radar.desc": "Most watched spots right now.",
+    "flow.title": "The SurfSense Flow",
+    "flow.desc": "From ocean to your screen in 3 precise steps.",
+    "flow.step1.title": "1. Satellite Scan",
+    "flow.step1.desc": "Fetch raw Stormglass and buoy data.",
+    "flow.step2.title": "2. AI Processing",
+    "flow.step2.desc": "Robots filter chop and compute real spot energy.",
+    "flow.step3.title": "3. Smart Alerts",
+    "flow.step3.desc": "You get info only when it’s Good or Epic.",
+    "cookie.ok": "OK",
+    "cond.live": "LIVE REPORT •",
+    "cond.status.title": "ANALYSIS IN PROGRESS...",
+    "cond.status.desc": "Connecting to buoys...",
+    "stats.wave": "WAVES",
+    "stats.period": "PERIOD",
+    "stats.wind": "WIND",
+    "stats.winddir": "WIND DIR",
+    "stats.swelldir": "SWELL DIR",
+    "stats.quality": "QUALITY",
+    "locate.btn": "Find my nearest spot",
+    "forecast.title": "7‑day conditions",
+    "tide.next": "NEXT TIDE",
+    "cams.network": "Live Network",
+    "cams.signal": "SIGNAL 100%",
+    "cams.meta.title": "Select a camera",
+    "cams.meta.desc": "Direct access to partner webcams.",
+    "cams.stat.wind": "Wind",
+    "cams.stat.swell": "Swell",
+    "cams.stat.tide": "Tide",
+    "cams.source.title": "OFFICIAL SOURCE",
+    "cams.source.desc": "Open the stream on the original site",
+    "cams.btn.gosurf": "View on GoSurf",
+    "fav.title": "My Line-up",
+    "fav.desc": "Your favorite spots at a glance. Live analysis.",
+    "fav.empty.title": "No favorite spot",
+    "fav.empty.desc": "Sign in to retrieve your saved favorites.",
+    "fav.empty.btn": "Sign in",
+    "vs.title": "FACE-OFF",
+    "vs.sub": "Real-time analysis comparator",
+    "vs.a": "CHALLENGER A",
+    "vs.b": "CHALLENGER B",
+    "vs.stat.waves": "WAVES",
+    "vs.stat.period": "PERIOD",
+    "vs.stat.wind": "WIND",
+    "vs.verdict.calc": "AI computation in progress...",
+    "vs.verdict.analyse": "Analysis...",
+    "vs.verdict.winner": "Winner:",
+    "vs.verdict.draw": "Perfect tie. Make your choice!",
+    "contact.title": "Contact",
+    "contact.sub": "Questions, issues or extra info — we reply quickly.",
+    "contact.card.title": "Support team • SwellSync",
+    "contact.card.desc": "Fill the form below. Your request will be sent to support.",
+    "contact.label.name": "Full name",
+    "contact.placeholder.name": "e.g. John Doe",
+    "contact.label.email": "Email",
+    "contact.placeholder.email": "e.g. john@example.com",
+    "contact.label.category": "Category",
+    "contact.label.subject": "Subject (optional)",
+    "contact.placeholder.subject": "e.g. Error on Conditions page",
+    "contact.label.message": "Message",
+    "contact.placeholder.message": "Describe your request...",
+    "contact.submit": "Send",
+    "contact.info.title": "Useful info",
+    "contact.info.sub": "Before sending —",
+    "contact.info.li1": "Specify the spot, time and page if it’s a problem.",
+    "contact.info.li2": "For feature requests, describe the concrete use case.",
+    "contact.info.li3": "You can add external links (cam, article, etc.).",
+    "contact.copy": "Copy address",
+    "news.feed.title": "News feed",
+    "gate.title": "SURFSENSE ACCESS PROTOCOL",
+    "gate.label": "AI ANALYSIS SYSTEM v2.0",
+    "gate.tab.metrics": "Metrics",
+    "gate.tab.robots": "Robots",
+    "gate.tab.how": "How it works",
+    "gate.tab.legal": "Legal",
+    "gate.accept": "ACCEPT AND ENTER",
+    "gate.refuse": "REFUSE"
+  },
+  es: {
+    "nav.map": "Mapa",
+    "nav.cameras": "Cámaras",
+    "nav.favorites": "Favoritos",
+    "nav.versus": "Versus",
+    "nav.news": "Noticias",
+    "nav.contact": "Contacto",
+    "nav.login": "Conectar",
+    "cta.explore": "Explorar spots",
+    "geo.find": "Encontrar mi spot",
+    "quick.water": "TEMP. AGUA",
+    "quick.swell": "ANÁLISIS OLEAJE",
+    "quick.live": "SPOTS EN VIVO",
+    "quick.tide": "MAREA (GLOBAL)",
+    "legal.mentions": "Aviso legal",
+    "legal.cgu": "Términos",
+    "legal.rgpd": "Privacidad",
+    "hero.title": "Previsiones de surf esenciales.",
+    "map.title": "Mapa interactivo",
+    "map.desc": "Análisis preciso con Stormglass Premium.",
+    "spot.header": "Navegación de spots",
+    "spot.search.placeholder": "Filtrar spots...",
+    "legend.title": "Leyenda Robots",
+    "radar.title": "Radar de Sesiones",
+    "radar.desc": "Los spots más vigilados ahora.",
+    "flow.title": "El flujo de SurfSense",
+    "flow.desc": "Del océano a tu pantalla en 3 pasos precisos.",
+    "flow.step1.title": "1. Escaneo satélite",
+    "flow.step1.desc": "Obtención de datos de Stormglass y boyas.",
+    "flow.step2.title": "2. Procesamiento IA",
+    "flow.step2.desc": "Los robots filtran el choppy y calculan energía real.",
+    "flow.step3.title": "3. Alertas inteligentes",
+    "flow.step3.desc": "Recibes info solo cuando está Bueno o Épico.",
+    "cookie.ok": "OK",
+    "cond.live": "LIVE REPORT •",
+    "cond.status.title": "ANÁLISIS EN CURSO...",
+    "cond.status.desc": "Conectando a boyas...",
+    "stats.wave": "OLAS",
+    "stats.period": "PERIODO",
+    "stats.wind": "VIENTO",
+    "stats.winddir": "DIR. VIENTO",
+    "stats.swelldir": "DIR. OLEAJE",
+    "stats.quality": "CALIDAD",
+    "locate.btn": "Encontrar mi spot más cercano",
+    "forecast.title": "Condiciones 7 días",
+    "tide.next": "PRÓXIMA MAREA",
+    "cams.network": "Red en vivo",
+    "cams.signal": "SEÑAL 100%",
+    "cams.meta.title": "Selecciona una cámara",
+    "cams.meta.desc": "Acceso directo a webcams asociadas.",
+    "cams.stat.wind": "Viento",
+    "cams.stat.swell": "Oleaje",
+    "cams.stat.tide": "Marea",
+    "cams.source.title": "FUENTE OFICIAL",
+    "cams.source.desc": "Abrir el flujo en el sitio original",
+    "cams.btn.gosurf": "Ver en GoSurf",
+    "fav.title": "Mi Line-up",
+    "fav.desc": "Tus spots favoritos de un vistazo. Análisis en vivo.",
+    "fav.empty.title": "Sin spot favorito",
+    "fav.empty.desc": "Conéctate para ver tus favoritos guardados.",
+    "fav.empty.btn": "Conectar",
+    "vs.title": "FACE‑OFF",
+    "vs.sub": "Comparador de análisis en tiempo real",
+    "vs.a": "RETADOR A",
+    "vs.b": "RETADOR B",
+    "vs.stat.waves": "OLAS",
+    "vs.stat.period": "PERIODO",
+    "vs.stat.wind": "VIENTO",
+    "vs.verdict.calc": "Cálculo IA en curso...",
+    "vs.verdict.analyse": "Análisis...",
+    "vs.verdict.winner": "Ganador:",
+    "vs.verdict.draw": "Empate perfecto. ¡Elige!",
+    "contact.title": "Contacto",
+    "contact.sub": "Preguntas, problemas o info extra — respondemos rápido.",
+    "contact.card.title": "Equipo de soporte • SwellSync",
+    "contact.card.desc": "Completa el formulario. Tu solicitud se enviará al soporte.",
+    "contact.label.name": "Nombre completo",
+    "contact.placeholder.name": "ej. Juan Pérez",
+    "contact.label.email": "Email",
+    "contact.placeholder.email": "ej. juan@ejemplo.com",
+    "contact.label.category": "Categoría",
+    "contact.label.subject": "Asunto (opcional)",
+    "contact.placeholder.subject": "ej. Error en la página de Condiciones",
+    "contact.label.message": "Mensaje",
+    "contact.placeholder.message": "Describe tu solicitud...",
+    "contact.submit": "Enviar",
+    "contact.info.title": "Información útil",
+    "contact.info.sub": "Antes de enviar —",
+    "contact.info.li1": "Indica el spot, hora y página si es un problema.",
+    "contact.info.li2": "Para pedidos de funciones, describe el uso concreto.",
+    "contact.info.li3": "Puedes añadir enlaces externos (cam, artículo, etc.).",
+    "contact.copy": "Copiar dirección",
+    "news.feed.title": "Feed de noticias",
+    "gate.title": "PROTOCOLO DE ACCESO SURFSENSE",
+    "gate.label": "SISTEMA DE ANÁLISIS IA v2.0",
+    "gate.tab.metrics": "Métricas",
+    "gate.tab.robots": "Robots",
+    "gate.tab.how": "Funcionamiento",
+    "gate.tab.legal": "Legal",
+    "gate.accept": "ACEPTAR Y ENTRAR",
+    "gate.refuse": "RECHAZAR"
+  }
+};
+function t(key) {
+  return (i18n[window.lang] && i18n[window.lang][key]) || (i18n.fr && i18n.fr[key]) || key;
+}
+function applyI18n() {
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const k = el.getAttribute("data-i18n");
+    const v = t(k);
+    if (!v) return;
+    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") {
+      el.setAttribute("placeholder", v);
+    } else {
+      el.textContent = v;
+    }
+  });
+  const shareBtn = document.getElementById("share-story-btn");
+  if (shareBtn) {
+    const label = window.lang === "fr" ? "Partager Story" : window.lang === "en" ? "Share Story" : "Compartir Story";
+    shareBtn.setAttribute("aria-label", label);
+    shareBtn.setAttribute("title", label);
+  }
+}
 
 const initContactPage = () => {
   const form = document.getElementById("contact-form");
@@ -1752,6 +2188,158 @@ const attachAdminSecret = () => {
     const ctrlOrMeta = mac ? e.metaKey : e.ctrlKey;
     if (ctrlOrMeta && e.shiftKey && e.key && e.key.toLowerCase() === "a") { e.preventDefault(); openPrompt(); }
   });
+};
+const attachShareFeature = () => {
+  const btn = document.getElementById("share-btn");
+  if (!btn) return;
+  const isMobile = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const getShareInfo = () => {
+    const url = window.location.href;
+    let title = "SwellSync";
+    let text = "Conditions surf essentielles";
+    if (document.body.classList.contains("conditions-page")) {
+      const p = new URLSearchParams(window.location.search);
+      const s = p.get("spot");
+      if (s) { title = "SwellSync — "+s; text = "Live conditions: "+s; }
+    }
+    return { title, text, url };
+  };
+  const ensureModal = (links) => {
+    let modal = document.getElementById("share-modal");
+    if (!modal) {
+      modal = document.createElement("div");
+      modal.className = "modal";
+      modal.id = "share-modal";
+      modal.innerHTML = '<div class="modal-backdrop" data-modal-close></div><div class="modal-content" style="max-width:520px"><button class="modal-close" data-modal-close>✕</button><h3 style="margin-bottom:12px">Partager</h3><div id="share-links" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px"></div></div>';
+      document.body.appendChild(modal);
+    }
+    const grid = modal.querySelector("#share-links");
+    if (grid) {
+      grid.innerHTML = links.map(l => '<a href="'+l.href+'" target="_blank" rel="noopener" class="primary-pill" style="text-align:center">'+l.label+'</a>').join("");
+    }
+    modal.classList.add("is-open");
+  };
+  const composeLinks = (info) => {
+    const u = encodeURIComponent(info.url);
+    const t = encodeURIComponent(info.text);
+    const links = [
+      { label: "WhatsApp", href: "https://api.whatsapp.com/send?text="+t+"%20"+u },
+      { label: "Facebook", href: "https://www.facebook.com/sharer/sharer.php?u="+u },
+      { label: "Twitter", href: "https://twitter.com/intent/tweet?text="+t+"&url="+u },
+      { label: "Telegram", href: "https://t.me/share/url?url="+u+"&text="+t },
+      { label: "LinkedIn", href: "https://www.linkedin.com/sharing/share-offsite/?url="+u }
+    ];
+    if (isMobile) {
+      links.push({ label: "Instagram", href: "instagram://story-camera" });
+      links.push({ label: "Snapchat", href: "snapchat://create" });
+      links.push({ label: "TikTok", href: "tiktok://camera" });
+      links.push({ label: "Messenger", href: "fb-messenger://share?link="+u });
+    } else {
+      links.push({ label: "Instagram", href: "https://instagram.com/" });
+      links.push({ label: "Snapchat", href: "https://www.snapchat.com/scan?attachmentUrl="+u });
+      links.push({ label: "TikTok", href: "https://www.tiktok.com/upload" });
+      links.push({ label: "Messenger", href: "https://www.messenger.com/t/?link="+u });
+    }
+    return links;
+  };
+  btn.addEventListener("click", async () => {
+    const info = getShareInfo();
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: info.title, text: info.text, url: info.url });
+        return;
+      } catch {}
+    }
+    ensureModal(composeLinks(info));
+  });
+};
+const attachStoryShare = () => {
+  const btns = Array.from(document.querySelectorAll("#share-story-btn, #btn-share-story"));
+  if (!btns.length) return;
+  const makeCanvas = (info) => {
+    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    const w = 1080, h = 1920;
+    const canvas = document.createElement("canvas");
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    const g = ctx.createLinearGradient(0,0,0,h);
+    g.addColorStop(0, "#0b0e16");
+    g.addColorStop(1, "#111827");
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,w,h);
+    ctx.fillStyle = "rgba(124,58,237,.12)"; ctx.beginPath(); ctx.arc(140,140,220,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(34,197,94,.12)"; ctx.beginPath(); ctx.arc(w-140,h-160,240,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.font = "bold 54px Inter, system-ui, -apple-system, Segoe UI";
+    ctx.fillText("SwellSync", 60, 120);
+    ctx.fillStyle = "#94a3b8"; ctx.font = "600 22px Inter, system-ui";
+    ctx.fillText("swellsync.fr", 60, 160);
+    ctx.fillStyle = "#c4b5fd"; ctx.font = "800 42px Inter, system-ui";
+    ctx.fillText(info.title, 60, 240);
+    ctx.fillStyle = "#e5e7eb"; ctx.font = "600 28px Inter, system-ui";
+    ctx.fillText(info.subtitle, 60, 288);
+    const box = (label, value, x, y) => {
+      ctx.fillStyle = "rgba(17,24,39,.85)";
+      ctx.fillRect(x, y, 420, 120);
+      ctx.strokeStyle = "rgba(124,58,237,.25)";
+      ctx.strokeRect(x, y, 420, 120);
+      ctx.fillStyle = "#94a3b8"; ctx.font = "700 24px Inter, system-ui"; ctx.fillText(label, x+20, y+46);
+      ctx.fillStyle = "#fff"; ctx.font = "900 48px Inter, system-ui"; ctx.fillText(value, x+20, y+98);
+    };
+    box("Vagues", info.wave, 60, 380);
+    box("Période", info.period, 60+440, 380);
+    box("Vent", info.wind, 60, 520);
+    box("Direction", info.windDir, 60+440, 520);
+    const pill = (text, x, y, color) => {
+      ctx.fillStyle = color; ctx.fillRect(x, y, 240, 54);
+      ctx.fillStyle = "#0b0e16"; ctx.font = "800 24px Inter, system-ui"; ctx.fillText(text, x+18, y+36);
+    };
+    pill(info.status, 60, 700, "#22c55e");
+    pill(info.quality, 60+260, 700, "#d946ef");
+    ctx.fillStyle = "#94a3b8"; ctx.font = "600 20px Inter, system-ui"; ctx.fillText("Généré • "+new Date().toLocaleString(), 60, h-60);
+    return canvas;
+  };
+  const getInfo = () => {
+    let title = "Conditions Live";
+    let subtitle = "Analyse IA Marine";
+    let wave = "-", period = "-", wind = "-", windDir = "-", status = "WAIT", quality = "FAIR";
+    if (document.body.classList.contains("conditions-page")) {
+      title = document.getElementById("cond-name")?.textContent || title;
+      subtitle = "Spot • "+title;
+      wave = (document.getElementById("val-wave")?.textContent || "-")+" m";
+      period = (document.getElementById("val-period")?.textContent || "-")+" s";
+      wind = (document.getElementById("val-wind-speed")?.textContent || "-")+" km/h";
+      windDir = document.getElementById("val-wind-dir")?.textContent || "-";
+      status = document.getElementById("status-title")?.textContent || status;
+      quality = document.getElementById("val-quality")?.textContent || quality;
+    }
+    return { title, subtitle, wave, period, wind, windDir, status, quality };
+  };
+  const handler = async () => {
+    const info = getInfo();
+    const canvas = makeCanvas(info);
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      const file = new File([blob], "swell-story.png", { type: blob.type });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: info.title, text: info.subtitle }); return; } catch {}
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "swell-story.png"; document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+      const isMobile = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (isMobile) {
+        setTimeout(() => {
+          const tryOpen = (href) => { try { window.location.href = href; } catch {} };
+          tryOpen("instagram://story-camera");
+          tryOpen("snapchat://create");
+          tryOpen("tiktok://camera");
+        }, 500);
+      }
+    }, "image/png", 0.92);
+  };
+  btns.forEach(b => b.addEventListener("click", handler));
+  window.shareStoryNow = handler;
 };
 // AFFICHER BANNIÈRE COOKIES
 window.addEventListener("load", () => {

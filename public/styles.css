@@ -51,6 +51,29 @@ a { color: inherit; text-decoration: none; }
 .primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,255,255,0.2); }
 .ghost { background: transparent; border: 1px solid var(--line); color: #fff; }
 .cta { background: rgba(255, 48, 74, 0.1); color: #ff6b81; border: 1px solid rgba(255, 48, 74, 0.3); }
+/* variation icône compacte */
+.cta--icon { 
+  padding: 6px 10px; 
+  min-width: auto; 
+  font-size: 0.9rem; 
+  line-height: 1; 
+  display: inline-flex; 
+  align-items: center; 
+  justify-content: center;
+}
+
+.lang-select {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  height: 28px;
+}
+.lang-select:focus { outline: none; border-color: rgba(255,255,255,0.2); color: #fff; }
+.nav-actions { display: flex; gap: 10px; align-items: center; }
 
 /* --- HERO ANIMÉ --- */
 .hero-content--center {

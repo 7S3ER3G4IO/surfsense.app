@@ -20,15 +20,20 @@
           SwellSync
         </div>
         <div class="nav-links">
-          <a href="index.html">Carte</a>
-          <a href="cameras.html">Caméras</a>
-          <a href="favorites.html">Favoris</a>
-          <a href="versus.html" class="active">Versus</a>
-          <a href="actus.html">News</a>
-          <a href="contact.html">Contact</a>
+          <a href="index.html" data-i18n="nav.map">Carte</a>
+          <a href="cameras.html" data-i18n="nav.cameras">Caméras</a>
+          <a href="favorites.html" data-i18n="nav.favorites">Favoris</a>
+          <a href="versus.html" class="active" data-i18n="nav.versus">Versus</a>
+          <a href="actus.html" data-i18n="nav.news">News</a>
+          <a href="contact.html" data-i18n="nav.contact">Contact</a>
         </div>
         <div class="nav-actions">
-          <button class="cta" data-modal="auth">Se connecter</button>
+          <select id="lang-select" class="lang-select">
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+          </select>
+          <button class="cta" data-modal="auth" data-i18n="nav.login">Se connecter</button>
         </div>
       </nav>
     </header>
@@ -37,14 +42,14 @@
         <div class="versus-container">
             
             <div class="vs-header">
-                <h1>FACE-OFF</h1>
-                <p>Comparateur d'analyse temps réel</p>
+                <h1 data-i18n="vs.title">FACE-OFF</h1>
+                <p data-i18n="vs.sub">Comparateur d'analyse temps réel</p>
             </div>
 
             <div class="battle-arena">
                 <div class="fighter-card left-corner">
                     <div class="card-top">
-                        <span class="corner-label">CHALLENGER A</span>
+                        <span class="corner-label" data-i18n="vs.a">CHALLENGER A</span>
                         <div class="select-wrapper">
                             <select id="select-spot-a"></select>
                         </div>
@@ -54,15 +59,15 @@
                         <div class="main-score">--</div>
                         <div class="stat-grid">
                             <div class="stat-box">
-                                <span class="label">VAGUES</span>
+                                <span class="label" data-i18n="vs.stat.waves">VAGUES</span>
                                 <span class="value val-wave">-</span>
                             </div>
                             <div class="stat-box">
-                                <span class="label">PÉRIODE</span>
+                                <span class="label" data-i18n="vs.stat.period">PÉRIODE</span>
                                 <span class="value val-period">-</span>
                             </div>
                             <div class="stat-box full-width">
-                                <span class="label">VENT</span>
+                                <span class="label" data-i18n="vs.stat.wind">VENT</span>
                                 <span class="value val-wind">-</span>
                             </div>
                         </div>
@@ -75,7 +80,7 @@
 
                 <div class="fighter-card right-corner">
                     <div class="card-top">
-                        <span class="corner-label">CHALLENGER B</span>
+                        <span class="corner-label" data-i18n="vs.b">CHALLENGER B</span>
                         <div class="select-wrapper">
                             <select id="select-spot-b"></select>
                         </div>
@@ -85,15 +90,15 @@
                         <div class="main-score">--</div>
                         <div class="stat-grid">
                             <div class="stat-box">
-                                <span class="label">VAGUES</span>
+                                <span class="label" data-i18n="vs.stat.waves">VAGUES</span>
                                 <span class="value val-wave">-</span>
                             </div>
                             <div class="stat-box">
-                                <span class="label">PÉRIODE</span>
+                                <span class="label" data-i18n="vs.stat.period">PÉRIODE</span>
                                 <span class="value val-period">-</span>
                             </div>
                             <div class="stat-box full-width">
-                                <span class="label">VENT</span>
+                                <span class="label" data-i18n="vs.stat.wind">VENT</span>
                                 <span class="value val-wind">-</span>
                             </div>
                         </div>
@@ -101,9 +106,9 @@
                 </div>
             </div>
 
-            <div id="versus-verdict" class="winner-box" style="display:none;">
+                <div id="versus-verdict" class="winner-box" style="display:none;">
                 <div class="trophy-icon">🏆</div>
-                <div id="verdict-text">Analyse...</div>
+                <div id="verdict-text" data-i18n="vs.verdict.analyse">Analyse...</div>
             </div>
 
         </div>
@@ -116,10 +121,10 @@
           <p style="color: var(--muted); font-size: 0.75rem;">Robots: 11 • Source: Stormglass v2 • Quota: 500 req/j</p>
         </div>
         <div class="footer-legal-links" style="display: flex; gap: 25px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-          <a href="#" data-modal="legal-mentions" style="color: var(--muted);">Mentions Légales</a>
-          <a href="#" data-modal="legal-cgu" style="color: var(--muted);">CGU</a>
-          <a href="#" data-modal="legal-rgpd" style="color: var(--muted);">Confidentialité</a>
-          <a href="contact.html" style="color: var(--muted);">Contact</a>
+          <a href="#" data-modal="legal-mentions" style="color: var(--muted);" data-i18n="legal.mentions">Mentions Légales</a>
+          <a href="#" data-modal="legal-cgu" style="color: var(--muted);" data-i18n="legal.cgu">CGU</a>
+          <a href="#" data-modal="legal-rgpd" style="color: var(--muted);" data-i18n="legal.rgpd">Confidentialité</a>
+          <a href="contact.html" style="color: var(--muted);" data-i18n="nav.contact">Contact</a>
         </div>
       </div>
     </footer>

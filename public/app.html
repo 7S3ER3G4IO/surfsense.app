@@ -21,10 +21,17 @@
     <nav>
         <div class="logo">DoSurf.</div>
         <ul>
-            <li><a href="index.html">Accueil</a></li>
-            <li><a href="#" class="active">Live Map</a></li>
+            <li><a href="index.html" data-i18n="nav.map">Carte</a></li>
+            <li><a href="#" class="active" data-i18n="nav.map">Carte</a></li>
         </ul>
-        <div class="user-profile" data-modal="auth">Se connecter</div>
+        <div class="nav-actions">
+          <select id="lang-select" class="lang-select">
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+          </select>
+          <div class="user-profile" data-modal="auth" data-i18n="nav.login">Se connecter</div>
+        </div>
     </nav>
 
     <main class="app-layout">

@@ -24,22 +24,28 @@
           SwellSync
         </div>
         <div class="nav-links">
-          <a href="index.html">Carte</a>
-          <a href="cameras.html">Caméras</a>
-          <a href="favorites.html">Favoris</a>
-          <a href="versus.html">Versus</a>
-          <a href="actus.html">News</a>
-          <a href="contact.html">Contact</a>
+          <a href="index.html" data-i18n="nav.map">Carte</a>
+          <a href="cameras.html" data-i18n="nav.cameras">Caméras</a>
+          <a href="favorites.html" data-i18n="nav.favorites">Favoris</a>
+          <a href="versus.html" data-i18n="nav.versus">Versus</a>
+          <a href="actus.html" data-i18n="nav.news">News</a>
+          <a href="contact.html" data-i18n="nav.contact">Contact</a>
         </div>
         <div class="nav-actions">
-          <button class="cta" data-modal="auth">Se connecter</button>
+          <select id="lang-select" class="lang-select">
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+          </select>
+          <button class="cta" data-modal="auth" data-i18n="nav.login">Se connecter</button>
+          <button class="cta cta--icon" id="share-story-btn" aria-label="Partager Story" title="Partager Story">⤴︎</button>
         </div>
     </nav>
 
     <div class="cond-container">
         <div class="cond-header">
             <div class="cond-titles">
-                <p class="sub-text">LIVE REPORT • <span id="cond-updated">Chargement...</span></p>
+                <p class="sub-text"><span data-i18n="cond.live">LIVE REPORT •</span> <span id="cond-updated">Chargement...</span></p>
                 <h1 id="cond-name">Chargement du spot...</h1>
                 <div class="premium-tags">
                     <span class="tag">📡 Satellite Direct</span>
@@ -49,6 +55,7 @@
             <div class="cond-actions">
                 <button id="btn-fav" class="ghost-pill">♡ Favori</button>
                 <a id="btn-cam" href="#" class="primary-pill">Voir Webcams</a>
+                <button id="btn-share-story" class="ghost-pill">Partager Story</button>
             </div>
         </div>
 
@@ -58,8 +65,8 @@
                 <div id="status-box" class="status-banner">
                     <div class="status-icon-circle"><span id="status-icon">🌊</span></div>
                     <div class="status-content">
-                        <h3 id="status-title">ANALYSE EN COURS...</h3>
-                        <p id="status-desc">Connexion aux bouées...</p>
+                        <h3 id="status-title" data-i18n="cond.status.title">ANALYSE EN COURS...</h3>
+                        <p id="status-desc" data-i18n="cond.status.desc">Connexion aux bouées...</p>
                     </div>
                 </div>
 
@@ -67,37 +74,37 @@
 
                 <div class="stats-grid-6">
                     <div class="stat-item">
-                        <span class="stat-label">VAGUES</span>
+                        <span class="stat-label" data-i18n="stats.wave">VAGUES</span>
                         <span class="stat-value"><span id="val-wave">-</span><small>m</small></span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">PÉRIODE</span>
+                        <span class="stat-label" data-i18n="stats.period">PÉRIODE</span>
                         <span class="stat-value"><span id="val-period">-</span><small>s</small></span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">VENT</span>
+                        <span class="stat-label" data-i18n="stats.wind">VENT</span>
                         <span class="stat-value"><span id="val-wind-speed">-</span><small>km/h</small></span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">DIR. VENT</span>
+                        <span class="stat-label" data-i18n="stats.winddir">DIR. VENT</span>
                         <span class="stat-value" id="val-wind-dir">-</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">DIR. HOULE</span>
+                        <span class="stat-label" data-i18n="stats.swelldir">DIR. HOULE</span>
                         <span class="stat-value" id="val-swell-dir">-</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">QUALITÉ</span>
+                        <span class="stat-label" data-i18n="stats.quality">QUALITÉ</span>
                         <span class="stat-value" id="val-quality">-</span>
                     </div>
                 </div>
 
                 <div class="locate-bar">
-                  <button id="locate-me" class="btn-locate">Trouver mon spot le plus proche</button>
+                  <button id="locate-me" class="btn-locate" data-i18n="locate.btn">Trouver mon spot le plus proche</button>
                   <span id="locate-status" class="locate-status"></span>
                 </div>
                 <div id="hourly-strip" class="hourly-strip"></div>
-                <h3 class="forecast-title">Conditions 7 jours</h3>
+                <h3 class="forecast-title" data-i18n="forecast.title">Conditions 7 jours</h3>
                 <div id="forecast-list" class="forecast-scroller"></div>
             </div>
 
@@ -105,7 +112,7 @@
                 <div id="mini-map" class="sidebar-map"></div>
                 
                 <div class="info-bar info-bar--tide">
-                    <span class="info-label">PROCHAINE MARÉE</span>
+                    <span class="info-label" data-i18n="tide.next">PROCHAINE MARÉE</span>
                     <span id="tide-display" class="tide-countdown">Calcul...</span>
                 </div>
 
@@ -135,10 +142,10 @@
           <p style="color: var(--muted); font-size: 0.75rem;">Robots: 11 • Source: Stormglass v2 • Quota: 500 req/j</p>
         </div>
         <div class="footer-legal-links" style="display: flex; gap: 25px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-          <a href="#" data-modal="legal-mentions" style="color: var(--muted);">Mentions Légales</a>
-          <a href="#" data-modal="legal-cgu" style="color: var(--muted);">CGU</a>
-          <a href="#" data-modal="legal-rgpd" style="color: var(--muted);">Confidentialité</a>
-          <a href="contact.html" style="color: var(--muted);">Contact</a>
+          <a href="#" data-modal="legal-mentions" style="color: var(--muted);" data-i18n="legal.mentions">Mentions Légales</a>
+          <a href="#" data-modal="legal-cgu" style="color: var(--muted);" data-i18n="legal.cgu">CGU</a>
+          <a href="#" data-modal="legal-rgpd" style="color: var(--muted);" data-i18n="legal.rgpd">Confidentialité</a>
+          <a href="contact.html" style="color: var(--muted);" data-i18n="nav.contact">Contact</a>
         </div>
       </div>
     </footer>

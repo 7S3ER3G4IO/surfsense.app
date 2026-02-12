@@ -145,7 +145,7 @@
 
     <div id="geo-bubble" class="geo-bubble" title="Trouver le spot le plus proche">
       <span class="geo-dot"></span>
-      <span class="geo-text">Trouver mon spot</span>
+      <span class="geo-text" data-i18n="geo.find">Trouver mon spot</span>
     </div>
 
     <div id="app-loader">
@@ -160,15 +160,21 @@
           SwellSync
         </div>
         <div class="nav-links">
-          <a href="index.html" class="active">Carte</a>
-          <a href="cameras.html">Caméras</a>
-          <a href="favorites.html">Favoris</a>
-          <a href="versus.html">Versus</a>
-          <a href="actus.html">News</a>
-          <a href="contact.html">Contact</a>
+          <a href="index.html" class="active" data-i18n="nav.map">Carte</a>
+          <a href="cameras.html" data-i18n="nav.cameras">Caméras</a>
+          <a href="favorites.html" data-i18n="nav.favorites">Favoris</a>
+          <a href="versus.html" data-i18n="nav.versus">Versus</a>
+          <a href="actus.html" data-i18n="nav.news">News</a>
+          <a href="contact.html" data-i18n="nav.contact">Contact</a>
         </div>
         <div class="nav-actions">
-          <button class="cta" data-modal="auth">Se connecter</button>
+          <select id="lang-select" class="lang-select">
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+          </select>
+          <button class="cta" data-modal="auth" data-i18n="nav.login">Se connecter</button>
+          <button class="cta cta--icon" id="share-story-btn" aria-label="Partager Story" title="Partager Story">⤴︎</button>
         </div>
       </nav>
       
@@ -179,7 +185,7 @@
           </div>
           <h1 class="hero-title animate-2">Prévisions surf<br>essentielles.</h1>
           <div class="hero-actions animate-4">
-            <button class="primary" onclick="document.getElementById('map').scrollIntoView({behavior: 'smooth'})">Explorer les spots</button>
+            <button class="primary" onclick="document.getElementById('map').scrollIntoView({behavior: 'smooth'})" data-i18n="cta.explore">Explorer les spots</button>
           </div>
         </div>
       </div>
@@ -198,19 +204,19 @@
     <main>
       <section class="quick-stats-bar">
         <div class="stat-bubble" id="stat-water">
-            <span class="bubble-label">TEMP. EAU</span>
+            <span class="bubble-label" data-i18n="quick.water">TEMP. EAU</span>
             <span class="bubble-value">--</span>
         </div>
         <div class="stat-bubble" id="stat-swell"> 
-            <span class="bubble-label">ANALYSE HOULE</span>
+            <span class="bubble-label" data-i18n="quick.swell">ANALYSE HOULE</span>
             <span class="bubble-value">--</span>
         </div>
         <div class="stat-bubble" id="stat-active">
-            <span class="bubble-label">SPOTS EN LIVE</span>
+            <span class="bubble-label" data-i18n="quick.live">SPOTS EN LIVE</span>
             <span class="bubble-value">--</span>
         </div>
         <div class="stat-bubble" id="stat-tide">
-            <span class="bubble-label">MARÉE (GLOBAL)</span>
+            <span class="bubble-label" data-i18n="quick.tide">MARÉE (GLOBAL)</span>
             <span class="bubble-value">--</span>
         </div>
       </section>
@@ -237,8 +243,8 @@
         <div class="map-header-card">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <h2>Carte interactive</h2>
-                <p>Analyse précise via Stormglass Premium.</p>
+                <h2 data-i18n="map.title">Carte interactive</h2>
+                <p data-i18n="map.desc">Analyse précise via Stormglass Premium.</p>
             </div>
             <div class="storage-indicator" title="Données centralisées (Postgres Render)">
                 <span class="storage-icon">🗄️</span> DB-Backed
@@ -253,17 +259,17 @@
 
           <aside class="spot-panel">
             <div class="spot-panel-header">
-              <h3 class="spot-header-title">Navigation Spots</h3>
+              <h3 class="spot-header-title" data-i18n="spot.header">Navigation Spots</h3>
             </div>
             
             <div class="spot-search">
-              <input type="search" id="spot-search" placeholder="Filtrer les spots..." />
+              <input type="search" id="spot-search" placeholder="Filtrer les spots..." data-i18n="spot.search.placeholder" />
             </div>
             
             <div class="spot-list" id="spot-list"></div>
 
             <div class="status-legend">
-              <h4>Légende Robots</h4>
+              <h4 data-i18n="legend.title">Légende Robots</h4>
               <div class="legend-item">
                 <span class="dot dot--live"></span>
                 <span><strong>LIVE</strong> : Données Satellite 3h</span>
@@ -279,8 +285,8 @@
 
       <section id="live-radar" class="section">
         <div class="section-title">
-            <h2>Radar des Sessions</h2>
-            <p>Les spots les plus surveillés en ce moment.</p>
+            <h2 data-i18n="radar.title">Radar des Sessions</h2>
+            <p data-i18n="radar.desc">Les spots les plus surveillés en ce moment.</p>
         </div>
         <div class="radar-grid" id="radar-container">
             </div>
@@ -313,26 +319,26 @@
 
       <section id="how-it-works" class="section">
          <div class="section-title" style="text-align: center;">
-            <h2>Le Flux SurfSense</h2>
-            <p>De l'océan à votre écran en 3 étapes millimétrées.</p>
+           <h2 data-i18n="flow.title">Le Flux SurfSense</h2>
+            <p data-i18n="flow.desc">De l'océan à votre écran en 3 étapes millimétrées.</p>
         </div>
         <div class="steps-container">
             <div class="step-card">
                 <div class="step-icon">📡</div>
-                <h3>1. Scan Satellite</h3>
-                <p>Récupération des données brutes Stormglass et bouées océaniques.</p>
+                <h3 data-i18n="flow.step1.title">1. Scan Satellite</h3>
+                <p data-i18n="flow.step1.desc">Récupération des données brutes Stormglass et bouées océaniques.</p>
             </div>
             <div class="step-connector"></div>
             <div class="step-card">
                 <div class="step-icon">🧠</div>
-                <h3>2. Traitement IA</h3>
-                <p>Nos robots filtrent le clapot et calculent l'énergie réelle du spot.</p>
+                <h3 data-i18n="flow.step2.title">2. Traitement IA</h3>
+                <p data-i18n="flow.step2.desc">Nos robots filtrent le clapot et calculent l'énergie réelle du spot.</p>
             </div>
             <div class="step-connector"></div>
             <div class="step-card">
                 <div class="step-icon">🔔</div>
-                <h3>3. Alertes Smart</h3>
-                <p>Vous recevez l'info uniquement quand c'est "Bon" ou "Épique".</p>
+                <h3 data-i18n="flow.step3.title">3. Alertes Smart</h3>
+                <p data-i18n="flow.step3.desc">Vous recevez l'info uniquement quand c'est "Bon" ou "Épique".</p>
             </div>
         </div>
       </section>
@@ -409,10 +415,10 @@
           <p style="color: var(--muted); font-size: 0.75rem;">Robots: 11 • Source: Stormglass v2 • Quota: 500 req/j</p>
         </div>
         <div class="footer-legal-links" style="display: flex; gap: 25px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-          <a href="#" data-modal="legal-mentions" style="color: var(--muted);">Mentions Légales</a>
-          <a href="#" data-modal="legal-cgu" style="color: var(--muted);">CGU</a>
-          <a href="#" data-modal="legal-rgpd" style="color: var(--muted);">Confidentialité</a>
-          <a href="contact.html" style="color: var(--muted);">Contact</a>
+          <a href="#" data-modal="legal-mentions" style="color: var(--muted);" data-i18n="legal.mentions">Mentions Légales</a>
+          <a href="#" data-modal="legal-cgu" style="color: var(--muted);" data-i18n="legal.cgu">CGU</a>
+          <a href="#" data-modal="legal-rgpd" style="color: var(--muted);" data-i18n="legal.rgpd">Confidentialité</a>
+          <a href="contact.html" style="color: var(--muted);" data-i18n="nav.contact">Contact</a>
         </div>
       </div>
     </footer>
@@ -552,7 +558,7 @@
         <p style="margin:0; font-size:0.8rem; color:#94a3b8; line-height:1.4;">
             <strong style="color:#fff;">TERMINAL SURFSENSE :</strong> Nous utilisons le stockage local strictement pour maintenir votre session agent ouverte (Aucun traçage pub).
         </p>
-        <button onclick="acceptCookies()" class="primary" style="padding:8px 15px; font-size:0.75rem; white-space:nowrap;">COMPRIS</button>
+        <button onclick="acceptCookies()" class="primary" style="padding:8px 15px; font-size:0.75rem; white-space:nowrap;" data-i18n="cookie.ok">COMPRIS</button>
     </div>
 </div>
   </body>

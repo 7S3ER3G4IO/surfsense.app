@@ -34,22 +34,28 @@
           SwellSync
         </div>
         <div class="nav-links">
-          <a href="index.html">Carte</a>
-          <a href="cameras.html">Caméras</a>
-          <a href="favorites.html" class="active">Favoris</a>
-          <a href="versus.html">Versus</a>
-          <a href="actus.html">News</a>
-          <a href="contact.html">Contact</a>
+          <a href="index.html" data-i18n="nav.map">Carte</a>
+          <a href="cameras.html" data-i18n="nav.cameras">Caméras</a>
+          <a href="favorites.html" class="active" data-i18n="nav.favorites">Favoris</a>
+          <a href="versus.html" data-i18n="nav.versus">Versus</a>
+          <a href="actus.html" data-i18n="nav.news">News</a>
+          <a href="contact.html" data-i18n="nav.contact">Contact</a>
         </div>
         <div class="nav-actions">
-          <button class="cta" data-modal="auth">Se connecter</button>
+          <select id="lang-select" class="lang-select">
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+          </select>
+          <button class="cta" data-modal="auth" data-i18n="nav.login">Se connecter</button>
+          <button class="cta cta--icon" id="share-story-btn" aria-label="Partager Story" title="Partager Story">⤴︎</button>
         </div>
       </nav>
       
       <div class="hero-content" style="text-align: center; margin-top: 20px;">
-          <h1 class="hero-title" style="font-size: 2.5rem; margin-bottom: 10px;">Mon Line-up</h1>
+          <h1 class="hero-title" style="font-size: 2.5rem; margin-bottom: 10px;" data-i18n="fav.title">Mon Line-up</h1>
           <p class="hero-description" style="font-size: 1rem; max-width: 600px; margin: 0 auto;">
-            Vos spots préférés en un coup d'œil. Analyse temps réel.
+            <span data-i18n="fav.desc">Vos spots préférés en un coup d'œil. Analyse temps réel.</span>
           </p>
       </div>
     </header>
@@ -61,9 +67,9 @@
           
           <div id="empty-favs" style="display: none; text-align: center; padding: 60px 20px;">
               <div style="font-size: 4rem; margin-bottom: 20px; opacity: 0.5;">💔</div>
-              <h3 style="color: #fff; margin-bottom: 10px;">Aucun spot favori</h3>
-              <p style="color: #888; margin-bottom: 30px;">Connectez-vous pour retrouver vos favoris enregistrés sur votre compte.</p>
-              <button class="primary-pill" style="text-decoration: none;" onclick="document.getElementById('auth-modal').classList.add('is-open');">Se connecter</button>
+              <h3 style="color: #fff; margin-bottom: 10px;" data-i18n="fav.empty.title">Aucun spot favori</h3>
+              <p style="color: #888; margin-bottom: 30px;" data-i18n="fav.empty.desc">Connectez-vous pour retrouver vos favoris enregistrés sur votre compte.</p>
+              <button class="primary-pill" style="text-decoration: none;" onclick="document.getElementById('auth-modal').classList.add('is-open');" data-i18n="fav.empty.btn">Se connecter</button>
           </div>
       </div>
     </main>
@@ -75,10 +81,10 @@
           <p style="color: var(--muted); font-size: 0.75rem;">Robots: 11 • Source: Stormglass v2 • Quota: 500 req/j</p>
         </div>
         <div class="footer-legal-links" style="display: flex; gap: 25px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-          <a href="#" data-modal="legal-mentions" style="color: var(--muted);">Mentions Légales</a>
-          <a href="#" data-modal="legal-cgu" style="color: var(--muted);">CGU</a>
-          <a href="#" data-modal="legal-rgpd" style="color: var(--muted);">Confidentialité</a>
-          <a href="contact.html" style="color: var(--muted);">Contact</a>
+          <a href="#" data-modal="legal-mentions" style="color: var(--muted);" data-i18n="legal.mentions">Mentions Légales</a>
+          <a href="#" data-modal="legal-cgu" style="color: var(--muted);" data-i18n="legal.cgu">CGU</a>
+          <a href="#" data-modal="legal-rgpd" style="color: var(--muted);" data-i18n="legal.rgpd">Confidentialité</a>
+          <a href="contact.html" style="color: var(--muted);" data-i18n="nav.contact">Contact</a>
         </div>
       </div>
     </footer>

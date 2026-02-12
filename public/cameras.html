@@ -35,15 +35,21 @@
           SwellSync
         </div>
         <div class="nav-links">
-          <a href="index.html">Carte</a>
-          <a href="cameras.html" class="active">Caméras</a>
-          <a href="favorites.html">Favoris</a>
-          <a href="versus.html">Versus</a>
-          <a href="actus.html">News</a>
-          <a href="contact.html">Contact</a>
+          <a href="index.html" data-i18n="nav.map">Carte</a>
+          <a href="cameras.html" class="active" data-i18n="nav.cameras">Caméras</a>
+          <a href="favorites.html" data-i18n="nav.favorites">Favoris</a>
+          <a href="versus.html" data-i18n="nav.versus">Versus</a>
+          <a href="actus.html" data-i18n="nav.news">News</a>
+          <a href="contact.html" data-i18n="nav.contact">Contact</a>
         </div>
         <div class="nav-actions">
-          <button class="cta" data-modal="auth">Se connecter</button>
+          <select id="lang-select" class="lang-select">
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+          </select>
+          <button class="cta" data-modal="auth" data-i18n="nav.login">Se connecter</button>
+          <button class="cta cta--icon" id="share-story-btn" aria-label="Partager Story" title="Partager Story">⤴︎</button>
         </div>
       </nav>
     </header>
@@ -53,8 +59,8 @@
         <div class="cam-dashboard">
             <div class="cam-sidebar">
                 <div class="cam-sidebar-header">
-                    <h3>Réseau Live <span class="blink-dot"></span></h3>
-                    <span class="signal-ok">SIGNAL 100%</span>
+                    <h3><span data-i18n="cams.network">Réseau Live</span> <span class="blink-dot"></span></h3>
+                    <span class="signal-ok" data-i18n="cams.signal">SIGNAL 100%</span>
                 </div>
                 <div class="cam-list" id="cam-list-container">
                     </div>
@@ -71,12 +77,12 @@
                     <a id="cam-redirect-btn" href="#" target="_blank" class="cam-play-btn">
                         <span>▶</span>
                         <div style="display:flex; flex-direction:column; align-items:flex-start;">
-                            <span style="font-size:1rem; font-weight:800;">SOURCE OFFICIELLE</span>
-                            <span style="font-size:0.7rem; font-weight:400; opacity:0.8;">Ouvrir le flux sur le site d'origine</span>
+                            <span style="font-size:1rem; font-weight:800;" data-i18n="cams.source.title">SOURCE OFFICIELLE</span>
+                            <span style="font-size:0.7rem; font-weight:400; opacity:0.8;" data-i18n="cams.source.desc">Ouvrir le flux sur le site d'origine</span>
                         </div>
                     </a>
                     <a id="cam-gosurf-btn" href="#" target="_blank" class="btn-external-cam" style="margin-top: 12px;">
-                        🔗 Voir sur GoSurf
+                        🔗 <span data-i18n="cams.btn.gosurf">Voir sur GoSurf</span>
                     </a>
                 </div>
                         <div class="cam-overlay-bottom">
@@ -90,20 +96,20 @@
                 
                 <div class="cam-controls">
                     <div class="cam-meta">
-                        <h2 id="meta-title">Sélectionnez une caméra</h2>
-                        <p id="meta-desc">Accès direct aux webcams partenaires.</p>
+                        <h2 id="meta-title" data-i18n="cams.meta.title">Sélectionnez une caméra</h2>
+                        <p id="meta-desc" data-i18n="cams.meta.desc">Accès direct aux webcams partenaires.</p>
                     </div>
                     <div class="cam-stats-row">
                         <div class="cs-item">
-                            <span class="cs-label">Vent</span>
+                            <span class="cs-label" data-i18n="cams.stat.wind">Vent</span>
                             <span class="cs-val" id="cs-wind">--</span>
                         </div>
                         <div class="cs-item">
-                            <span class="cs-label">Houle</span>
+                            <span class="cs-label" data-i18n="cams.stat.swell">Houle</span>
                             <span class="cs-val" id="cs-swell">--</span>
                         </div>
                         <div class="cs-item">
-                            <span class="cs-label">Marée</span>
+                            <span class="cs-label" data-i18n="cams.stat.tide">Marée</span>
                             <span class="cs-val" id="cs-tide">--</span>
                         </div>
                     </div>
@@ -120,10 +126,10 @@
           <p style="color: var(--muted); font-size: 0.75rem;">Robots: 11 • Source: Stormglass v2 • Quota: 500 req/j</p>
         </div>
         <div class="footer-legal-links" style="display: flex; gap: 25px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
-          <a href="#" data-modal="legal-mentions" style="color: var(--muted);">Mentions Légales</a>
-          <a href="#" data-modal="legal-cgu" style="color: var(--muted);">CGU</a>
-          <a href="#" data-modal="legal-rgpd" style="color: var(--muted);">Confidentialité</a>
-          <a href="contact.html" style="color: var(--muted);">Contact</a>
+          <a href="#" data-modal="legal-mentions" style="color: var(--muted);" data-i18n="legal.mentions">Mentions Légales</a>
+          <a href="#" data-modal="legal-cgu" style="color: var(--muted);" data-i18n="legal.cgu">CGU</a>
+          <a href="#" data-modal="legal-rgpd" style="color: var(--muted);" data-i18n="legal.rgpd">Confidentialité</a>
+          <a href="contact.html" style="color: var(--muted);" data-i18n="nav.contact">Contact</a>
         </div>
       </div>
     </footer>

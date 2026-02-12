@@ -50,6 +50,107 @@ app.use(helmet({
   contentSecurityPolicy: false, // On désactive la CSP stricte pour laisser Leaflet/Images charger
 }));
 
+const baseUrlForReq = (req) => {
+  const h = req.get("host");
+  const proto = (req.headers["x-forwarded-proto"] || req.protocol || "http").split(",")[0];
+  const envUrl = process.env.BASE_URL;
+  return envUrl || `${proto}://${h}`;
+};
+
+const buildSpotOg = async (spotName) => {
+  const s = spots.find(x => x.name === spotName);
+  if (!s) {
+    return {
+      title: `Conditions Live`,
+      desc: `Analyse en temps réel`,
+      imagePath: `/logo-og.png`
+    };
+  }
+  const key = `${s.coords[0]},lng=${s.coords[1]}`;
+  let d = cache.get(key)?.data || null;
+  if (!d) {
+    try { d = await getDataSmart(s.coords[0], s.coords[1], s.name); } catch {}
+  }
+  const h = d?.waveHeight != null ? `${Number(d.waveHeight).toFixed(1)}m` : "--";
+  const p = d?.wavePeriod != null ? `${Math.round(Number(d.wavePeriod))}s` : "--";
+  const w = d?.windSpeed != null ? `${Number(d.windSpeed)} km/h` : "--";
+  const wd = d?.windDirection || "--";
+  const title = `${s.name} • Conditions Live`;
+  const desc = `Houle ${h} • Période ${p} • Vent ${w} ${wd}`;
+  return { title, desc, imagePath: `/og/spot.png?spot=${encodeURIComponent(s.name)}` };
+};
+
+app.get("/og/spot.png", async (req, res) => {
+  const spotName = (req.query.spot || "").toString();
+  const s = spots.find(x => x.name === spotName);
+  const info = await buildSpotOg(spotName);
+  const size = { w: 1200, h: 630 };
+  const html = `
+  <html><head><meta charset="utf-8"><style>
+    body{margin:0;background:#0b0e16;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto;color:#fff}
+    .wrap{width:${size.w}px;height:${size.h}px;display:flex;flex-direction:column;justify-content:space-between;padding:40px;background:
+      radial-gradient(600px 300px at 0% 0%, rgba(124,58,237,.18), transparent 60%),
+      radial-gradient(600px 300px at 100% 100%, rgba(34,197,94,.18), transparent 60%)
+    }
+    .brand{font-size:24px;font-weight:900;color:#c4b5fd}
+    .title{font-size:48px;font-weight:900}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .box{background:rgba(17,24,39,.85);border:1px solid rgba(124,58,237,.25);border-radius:12px;padding:16px}
+    .label{color:#94a3b8;font-weight:700;font-size:18px}
+    .val{font-size:34px;font-weight:900}
+    .foot{display:flex;justify-content:space-between;align-items:center;color:#94a3b8}
+  </style></head>
+  <body><div class="wrap">
+    <div class="brand">SwellSync</div>
+    <div class="title">${info.title}</div>
+    <div class="grid">
+      <div class="box"><div class="label">Résumé</div><div class="val">${info.desc}</div></div>
+      <div class="box"><div class="label">Spot</div><div class="val">${s ? s.region : "—"}</div></div>
+    </div>
+    <div class="foot"><div>Généré • ${new Date().toLocaleString("fr-FR")}</div><div>swellsync.fr</div></div>
+  </div></body></html>`;
+  let browser;
+  try {
+    browser = await puppeteer.launch({ headless: "new", args: ["--no-sandbox","--disable-setuid-sandbox"] });
+    const page = await browser.newPage();
+    await page.setViewport({ width: size.w, height: size.h, deviceScaleFactor: 2 });
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    const buf = await page.screenshot({ type: "png" });
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "public, max-age=600");
+    res.status(200).send(buf);
+  } catch (e) {
+    res.status(500).send("");
+  } finally {
+    if (browser) try { await browser.close(); } catch {}
+  }
+});
+
+app.get("/conditions.html", async (req, res, next) => {
+  try {
+    const spotName = (req.query.spot || "").toString();
+    const og = await buildSpotOg(spotName);
+    const base = baseUrlForReq(req);
+    const url = `${base}/conditions.html${spotName ? `?spot=${encodeURIComponent(spotName)}` : ""}`;
+    const filePath = path.join(__dirname, "public", "conditions.html");
+    let html = fs.readFileSync(filePath, "utf8");
+    const meta = `
+      <link rel="canonical" href="${url}">
+      <meta property="og:title" content="${og.title}">
+      <meta property="og:description" content="${og.desc}">
+      <meta property="og:image" content="${base}${og.imagePath}">
+      <meta property="og:url" content="${url}">
+      <meta property="og:type" content="article">
+      <meta name="twitter:card" content="summary_large_image">
+      <meta name="twitter:title" content="${og.title}">
+      <meta name="twitter:description" content="${og.desc}">
+      <meta name="twitter:image" content="${base}${og.imagePath}">
+    `;
+    html = html.replace("<head>", "<head>" + meta);
+    res.setHeader("Cache-Control", "no-cache");
+    res.status(200).send(html);
+  } catch (e) { next(); }
+});
  
 
 // --- CONFIGURATION BASE DE DONNÉES ---
