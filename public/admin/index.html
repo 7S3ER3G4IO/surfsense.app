@@ -184,11 +184,11 @@
     </div>
     <script>
       (function(){
-        const ADMIN_EMAIL = "loviatmax@gmail.com";
-        const u = JSON.parse(localStorage.getItem("surfUser") || "null");
+        const params = new URLSearchParams(window.location.search);
+        const tParam = params.get("token");
+        if (tParam) { try { localStorage.setItem("surfAdminToken", tParam); history.replaceState({}, "", window.location.pathname); } catch {} }
         const tok = localStorage.getItem("surfAdminToken") || "";
-        if (!u || u.email !== ADMIN_EMAIL || !tok) { window.location.href = "../index.html"; return; }
-        const headers = { "x-user-id": String(u.id), "x-user-email": u.email, "x-admin-token": tok };
+        const headers = tok ? { "x-admin-token": tok } : {};
         const q = (id) => document.getElementById(id);
         const toast = (msg, type="success") => {
           const el = document.createElement("div");
@@ -422,11 +422,11 @@
             const rr = await fetch(url, { headers });
             if (!rr.ok) { toast("Erreur export logs", "error"); return; }
             const blob = await rr.blob();
-            const url = URL.createObjectURL(blob);
+            const blobUrl = URL.createObjectURL(blob);
             const a = document.createElement("a");
-            a.href = url; a.download = "logs.csv";
+            a.href = blobUrl; a.download = "logs.csv";
             document.body.appendChild(a); a.click();
-            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+            setTimeout(() => { URL.revokeObjectURL(blobUrl); a.remove(); }, 0);
             toast("CSV logs exporté");
           } catch { toast("Erreur export logs", "error"); }
         };
@@ -489,12 +489,12 @@
             const rr = await fetch("/api/admin/users/export", { headers });
             if (!rr.ok) { toast("Erreur export", "error"); return; }
             const blob = await rr.blob();
-            const url = URL.createObjectURL(blob);
+            const blobUrl = URL.createObjectURL(blob);
             const a = document.createElement("a");
-            a.href = url; a.download = "users.csv";
+            a.href = blobUrl; a.download = "users.csv";
             document.body.appendChild(a);
             a.click();
-            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+            setTimeout(() => { URL.revokeObjectURL(blobUrl); a.remove(); }, 0);
             toast("CSV exporté");
           } catch { toast("Erreur export", "error"); }
         };

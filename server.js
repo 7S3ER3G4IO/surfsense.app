@@ -15,12 +15,22 @@ const adminStaticGate = (req, res, next) => {
   if (!req.path.startsWith("/admin")) return next();
   const cookieHeader = req.headers.cookie || "";
   const m = cookieHeader.match(/(?:^|;)\s*admin_session=([^;]+)/);
-  if (!m) return res.status(403).send("Forbidden");
-  const tok = m[1];
-  const rec = adminTokensByValue.get(tok);
-  if (!rec || rec.expires < Date.now() || rec.email !== ADMIN_EMAIL) {
-    if (rec && rec.expires < Date.now()) adminTokensByValue.delete(tok);
+  if (!m) {
+    const t = (req.query && req.query.token) || "";
+    if (t && t === ADMIN_TOKEN) {
+      const secure = process.env.RENDER ? "Secure; " : "";
+      res.setHeader("Set-Cookie", `admin_session=${ADMIN_TOKEN}; ${secure}HttpOnly; SameSite=Strict; Path=/`);
+      return next();
+    }
     return res.status(403).send("Forbidden");
+  } else {
+    const tok = m[1];
+    if (tok === ADMIN_TOKEN) return next();
+    const rec = adminTokensByValue.get(tok);
+    if (!rec || rec.expires < Date.now() || rec.email !== ADMIN_EMAIL) {
+      if (rec && rec.expires < Date.now()) adminTokensByValue.delete(tok);
+      return res.status(403).send("Forbidden");
+    }
   }
   next();
 };
@@ -33,6 +43,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const parser = new Parser();
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "loviatmax@gmail.com";
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "Hinalol08-";
 const adminTokens = new Map();
 const adminTokensByValue = new Map();
 let deletedTodayCount = 0;
@@ -916,16 +927,23 @@ app.get("/api/all-status", (req, res) => {
 });
 
 const requireAdmin = (req) => {
+  const headerTok = req.headers["x-admin-token"];
+  if (headerTok && headerTok === ADMIN_TOKEN) return true;
+  const cookieHeader = req.headers.cookie || "";
+  const m = cookieHeader.match(/(?:^|;)\s*admin_session=([^;]+)/);
+  if (m && m[1] === ADMIN_TOKEN) return true;
   const id = parseInt(req.headers["x-user-id"]);
   const email = req.headers["x-user-email"];
   const token = req.headers["x-admin-token"];
-  if (!id || !email || !token) return false;
-  const rec = adminTokens.get(id);
-  if (!rec) return false;
-  if (rec.expires < Date.now()) { adminTokens.delete(id); return false; }
-  if (email !== ADMIN_EMAIL) return false;
-  if (rec.token !== token) return false;
-  return true;
+  if (id && email && token) {
+    const rec = adminTokens.get(id);
+    if (!rec) return false;
+    if (rec.expires < Date.now()) { adminTokens.delete(id); return false; }
+    if (email !== ADMIN_EMAIL) return false;
+    if (rec.token !== token) return false;
+    return true;
+  }
+  return false;
 };
 
 // Gate d'accès à la page /admin (HTML), avant la statique
@@ -933,12 +951,23 @@ app.get("/admin", (req, res) => res.redirect("/admin/"));
 app.get("/admin/", (req, res) => {
   const cookieHeader = req.headers.cookie || "";
   const m = cookieHeader.match(/(?:^|;)\s*admin_session=([^;]+)/);
-  if (!m) return res.status(403).send("Forbidden");
-  const tok = m[1];
-  const rec = adminTokensByValue.get(tok);
-  if (!rec || rec.expires < Date.now() || rec.email !== ADMIN_EMAIL) {
-    if (rec && rec.expires < Date.now()) adminTokensByValue.delete(tok);
-    return res.status(403).send("Forbidden");
+  if (!m) {
+    const t = (req.query && req.query.token) || "";
+    if (t && t === ADMIN_TOKEN) {
+      const secure = process.env.RENDER ? "Secure; " : "";
+      res.setHeader("Set-Cookie", `admin_session=${ADMIN_TOKEN}; ${secure}HttpOnly; SameSite=Strict; Path=/`);
+    } else {
+      return res.status(403).send("Forbidden");
+    }
+  } else {
+    const tok = m[1];
+    if (tok !== ADMIN_TOKEN) {
+      const rec = adminTokensByValue.get(tok);
+      if (!rec || rec.expires < Date.now() || rec.email !== ADMIN_EMAIL) {
+        if (rec && rec.expires < Date.now()) adminTokensByValue.delete(tok);
+        return res.status(403).send("Forbidden");
+      }
+    }
   }
   res.sendFile(path.join(__dirname, "public", "admin", "index.html"));
 });
@@ -979,6 +1008,14 @@ app.get("/api/admin/metrics", async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: "Erreur serveur admin" });
   }
+});
+
+app.post("/api/admin/session/token", async (req, res) => {
+  const tok = (req.body && req.body.token) || "";
+  if (!tok || tok !== ADMIN_TOKEN) return res.status(403).json({ error: "Forbidden" });
+  const secure = process.env.RENDER ? "Secure; " : "";
+  res.setHeader("Set-Cookie", `admin_session=${ADMIN_TOKEN}; ${secure}HttpOnly; SameSite=Strict; Path=/`);
+  res.json({ ok: true, adminToken: ADMIN_TOKEN });
 });
 
 app.get("/api/admin/logs", async (req, res) => {
