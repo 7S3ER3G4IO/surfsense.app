@@ -126,6 +126,97 @@ app.get("/og/spot.png", async (req, res) => {
   }
 });
 
+app.get("/og/post.png", async (req, res) => {
+  const spotName = (req.query.spot || "").toString();
+  const s = spots.find(x => x.name === spotName);
+  const info = await buildSpotOg(spotName);
+  const size = { w: 1080, h: 1080 };
+  const html = `
+  <html><head><meta charset="utf-8"><style>
+    body{margin:0;background:#0b0e16;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto;color:#fff}
+    .wrap{width:${size.w}px;height:${size.h}px;display:flex;flex-direction:column;justify-content:space-between;padding:48px;background:
+      radial-gradient(800px 400px at 0% 0%, rgba(124,58,237,.18), transparent 60%),
+      radial-gradient(800px 400px at 100% 100%, rgba(34,197,94,.18), transparent 60%)
+    }
+    .brand{font-size:28px;font-weight:900;color:#c4b5fd}
+    .title{font-size:56px;font-weight:900}
+    .grid{display:grid;grid-template-columns:1fr;gap:16px}
+    .box{background:rgba(17,24,39,.85);border:1px solid rgba(124,58,237,.25);border-radius:16px;padding:18px}
+    .label{color:#94a3b8;font-weight:700;font-size:20px}
+    .val{font-size:38px;font-weight:900}
+    .foot{display:flex;justify-content:space-between;align-items:center;color:#94a3b8}
+  </style></head>
+  <body><div class="wrap">
+    <div class="brand">SwellSync</div>
+    <div class="title">${info.title}</div>
+    <div class="grid">
+      <div class="box"><div class="label">Résumé</div><div class="val">${info.desc}</div></div>
+      <div class="box"><div class="label">Spot</div><div class="val">${s ? s.region : "—"}</div></div>
+    </div>
+    <div class="foot"><div>Généré • ${new Date().toLocaleString("fr-FR")}</div><div>swellsync.fr</div></div>
+  </div></body></html>`;
+  let browser;
+  try {
+    browser = await puppeteer.launch({ headless: "new", args: ["--no-sandbox","--disable-setuid-sandbox"] });
+    const page = await browser.newPage();
+    await page.setViewport({ width: size.w, height: size.h, deviceScaleFactor: 2 });
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    const buf = await page.screenshot({ type: "png" });
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "public, max-age=600");
+    res.status(200).send(buf);
+  } catch (e) {
+    res.status(500).send("");
+  } finally {
+    if (browser) try { await browser.close(); } catch {}
+  }
+});
+
+app.get("/og/story.png", async (req, res) => {
+  const spotName = (req.query.spot || "").toString();
+  const s = spots.find(x => x.name === spotName);
+  const info = await buildSpotOg(spotName);
+  const size = { w: 1080, h: 1920 };
+  const html = `
+  <html><head><meta charset="utf-8"><style>
+    body{margin:0;background:#0b0e16;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto;color:#fff}
+    .wrap{width:${size.w}px;height:${size.h}px;display:flex;flex-direction:column;justify-content:space-between;padding:64px;background:
+      radial-gradient(800px 800px at 0% 0%, rgba(124,58,237,.18), transparent 60%),
+      radial-gradient(800px 800px at 100% 100%, rgba(34,197,94,.18), transparent 60%)
+    }
+    .brand{font-size:34px;font-weight:900;color:#c4b5fd}
+    .title{font-size:72px;font-weight:900}
+    .grid{display:grid;grid-template-columns:1fr;gap:18px}
+    .box{background:rgba(17,24,39,.85);border:1px solid rgba(124,58,237,.25);border-radius:20px;padding:24px}
+    .label{color:#94a3b8;font-weight:700;font-size:24px}
+    .val{font-size:44px;font-weight:900}
+    .foot{display:flex;justify-content:space-between;align-items:center;color:#94a3b8}
+  </style></head>
+  <body><div class="wrap">
+    <div class="brand">SwellSync</div>
+    <div class="title">${info.title}</div>
+    <div class="grid">
+      <div class="box"><div class="label">Résumé</div><div class="val">${info.desc}</div></div>
+      <div class="box"><div class="label">Spot</div><div class="val">${s ? s.region : "—"}</div></div>
+    </div>
+    <div class="foot"><div>Généré • ${new Date().toLocaleString("fr-FR")}</div><div>swellsync.fr</div></div>
+  </div></body></html>`;
+  let browser;
+  try {
+    browser = await puppeteer.launch({ headless: "new", args: ["--no-sandbox","--disable-setuid-sandbox"] });
+    const page = await browser.newPage();
+    await page.setViewport({ width: size.w, height: size.h, deviceScaleFactor: 2 });
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    const buf = await page.screenshot({ type: "png" });
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "public, max-age=600");
+    res.status(200).send(buf);
+  } catch (e) {
+    res.status(500).send("");
+  } finally {
+    if (browser) try { await browser.close(); } catch {}
+  }
+});
 app.get("/conditions.html", async (req, res, next) => {
   try {
     const spotName = (req.query.spot || "").toString();
@@ -639,6 +730,160 @@ app.post("/api/paypal/order/capture", async (req, res) => {
     robotLog(ROBOTS.AUTH, "ERROR", `PayPal Capture: ${error.message}`);
     res.status(500).json({ success: false, error: "Erreur PayPal (capture)." });
   }
+});
+// INSCRIPTION
+// --- MARKETING AUTO-POST (via Webhook orchestrateur type Zapier/Make/Buffer) ---
+let marketing = {
+  running: false,
+  timer: null,
+  intervalMs: (parseInt(process.env.MARKETING_INTERVAL_MINUTES || "0", 10) || 0) * 60 * 1000,
+  webhookUrl: process.env.MARKETING_WEBHOOK_URL || "",
+  channels: (process.env.MARKETING_CHANNELS || "").split(",").map(s => s.trim()).filter(Boolean),
+  nextRunAt: 0,
+  template: process.env.MARKETING_MESSAGE || "SurfSense: conditions live sur {spot} • {desc} #surf #ocean #meteo",
+  contentType: "story",
+  connectors: {
+    instagram: { enabled: false, webhook: "" },
+    facebook: { enabled: false, webhook: "" },
+    tiktok: { enabled: false, webhook: "" },
+    youtube: { enabled: false, webhook: "" },
+    twitter: { enabled: false, webhook: "" }
+  }
+};
+const pickSpotForMarketing = () => {
+  if (epicSpots && epicSpots.length) {
+    const idx = Math.floor(Math.random() * epicSpots.length);
+    return epicSpots[idx]?.name || null;
+  }
+  const i = Math.floor(Math.random() * spots.length);
+  return spots[i]?.name || null;
+};
+const buildMarketingPayload = (req) => {
+  const spot = pickSpotForMarketing();
+  const base = baseUrlForReq(req);
+  let image = `${base}/logo-og.png`;
+  if (spot) {
+    if (marketing.contentType === "story") image = `${base}/og/story.png?spot=${encodeURIComponent(spot)}`;
+    else if (marketing.contentType === "classic") image = `${base}/og/post.png?spot=${encodeURIComponent(spot)}`;
+    else image = `${base}/og/post.png?spot=${encodeURIComponent(spot)}`;
+  }
+  const descObj = { title: "", desc: "" };
+  try {
+    descObj.title = `${spot} • Conditions Live`;
+    descObj.desc = `Houle & période en temps réel`;
+  } catch {}
+  const text = marketing.template
+    .replace("{spot}", spot || "ton spot favori")
+    .replace("{desc}", descObj.desc || "Analyse en temps réel");
+  const channels = marketing.channels.length ? marketing.channels : ["instagram","facebook","tiktok"];
+  return { text, image, channels, link: base, type: marketing.contentType };
+};
+const fireMarketing = async (req) => {
+  try {
+    const payload = buildMarketingPayload(req);
+    if (marketing.webhookUrl) {
+      await fetch(marketing.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      robotLog(ROBOTS.NEWS, "PROMO", `Payload envoyé (${payload.channels.join(", ")})`);
+    } else {
+      const enabled = Object.entries(marketing.connectors).filter(([k, v]) => !!v.enabled && !!v.webhook);
+      for (const [name, conf] of enabled) {
+        try {
+          await fetch(conf.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, channel: name }) });
+          robotLog(ROBOTS.NEWS, "PROMO", `Payload ${name}`);
+        } catch (e) {
+          robotLog(ROBOTS.NEWS, "ERROR", `Promo ${name}: ${e.message}`);
+        }
+      }
+    }
+    return true;
+  } catch (e) {
+    robotLog(ROBOTS.NEWS, "ERROR", `Promo: ${e.message}`);
+    return false;
+  }
+};
+const startMarketingTimer = (req, intervalMs) => {
+  if (marketing.timer) clearInterval(marketing.timer);
+  marketing.intervalMs = intervalMs;
+  marketing.running = true;
+  marketing.nextRunAt = Date.now() + intervalMs;
+  marketing.timer = setInterval(async () => {
+    await fireMarketing(req);
+    marketing.nextRunAt = Date.now() + marketing.intervalMs;
+  }, intervalMs);
+};
+const stopMarketingTimer = () => {
+  if (marketing.timer) clearInterval(marketing.timer);
+  marketing.running = false;
+  marketing.timer = null;
+  marketing.nextRunAt = 0;
+};
+app.get("/api/admin/marketing/status", (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  res.json({
+    running: marketing.running,
+    intervalMinutes: Math.round(marketing.intervalMs / 60000),
+    channels: marketing.channels,
+    webhookSet: !!marketing.webhookUrl,
+    nextRunAt: marketing.nextRunAt
+  });
+});
+app.post("/api/admin/marketing/start", (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const { intervalMinutes, webhookUrl, channels, template } = req.body || {};
+  const iv = parseInt(intervalMinutes, 10);
+  if (!iv || iv < 1) return res.status(400).json({ success: false, error: "Intervalle invalide (minutes >= 1)" });
+  if (!webhookUrl && !marketing.webhookUrl) return res.status(400).json({ success: false, error: "Webhook requis" });
+  if (webhookUrl) marketing.webhookUrl = webhookUrl;
+  if (Array.isArray(channels) && channels.length) marketing.channels = channels;
+  if (template) marketing.template = template;
+  startMarketingTimer(req, iv * 60 * 1000);
+  res.json({ success: true, running: marketing.running, intervalMinutes: iv });
+});
+app.post("/api/admin/marketing/stop", (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  stopMarketingTimer();
+  res.json({ success: true, running: marketing.running });
+});
+app.post("/api/admin/marketing/fire", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const ok = await fireMarketing(req);
+  res.json({ success: ok });
+});
+app.get("/api/admin/marketing/config", (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  res.json({
+    channels: marketing.channels,
+    webhookUrl: marketing.webhookUrl,
+    intervalMinutes: Math.round(marketing.intervalMs / 60000),
+    template: marketing.template,
+    contentType: marketing.contentType,
+    connectors: marketing.connectors
+  });
+});
+app.post("/api/admin/marketing/config", (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const { channels, webhookUrl, intervalMinutes, template, contentType, connectors } = req.body || {};
+  if (Array.isArray(channels)) marketing.channels = channels.map(s => String(s)).filter(Boolean);
+  if (typeof webhookUrl === "string") marketing.webhookUrl = webhookUrl;
+  if (template) marketing.template = String(template);
+  if (contentType && ["story","classic","video"].includes(contentType)) marketing.contentType = contentType;
+  if (connectors && typeof connectors === "object") {
+    Object.keys(marketing.connectors).forEach(k => {
+      const v = connectors[k];
+      if (v && typeof v === "object") {
+        marketing.connectors[k].enabled = !!v.enabled;
+        marketing.connectors[k].webhook = String(v.webhook || "");
+      }
+    });
+  }
+  if (intervalMinutes) {
+    const iv = parseInt(intervalMinutes, 10);
+    if (iv >= 1) {
+      startMarketingTimer(req, iv * 60 * 1000);
+      return res.json({ success: true, running: marketing.running, intervalMinutes: iv });
+    }
+  }
+  res.json({ success: true });
 });
 // INSCRIPTION
 app.post("/api/auth/register", async (req, res) => {
