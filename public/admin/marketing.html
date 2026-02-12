@@ -23,6 +23,9 @@
       .net-card:hover { border-color: rgba(124, 58, 237, 0.5); background: rgba(17, 24, 39, 0.8); transform: translateY(-2px); }
       .net-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
       .net-title { font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; font-size: 15px; }
+      .st-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: #374151; color: #9ca3af; display: none; }
+      .st-badge.active { display: inline-block; background: #22c55e; color: #000; font-weight: 600; }
+      .st-badge.missing { display: inline-block; background: #ef4444; color: #fff; }
       .net-body { display: flex; flex-direction: column; gap: 10px; flex:1; }
       
       .premium-input { background: #0b0e16; border: 1px solid #374151; color: #e5e7eb; padding: 10px 12px; border-radius: 8px; width: 100%; font-size: 13px; transition: border-color 0.2s; }
@@ -120,24 +123,25 @@
                 <div style="background:#1f2937; padding:20px; border-radius:12px; margin-bottom:20px;">
                     <h3 style="color:#4ade80; margin-top:0;">✨ Mode Direct Activé</h3>
                     <p style="color:#e5e7eb; line-height:1.6;">
-                        Excellente nouvelle ! Nous avons activé le <strong>Mode Direct</strong> pour Instagram.
+                        Excellente nouvelle ! Le <strong>Mode Direct</strong> est maintenant actif pour :
                     </p>
                     <ul style="color:#e5e7eb; line-height:1.6;">
-                        <li>✅ Plus besoin de Make pour Instagram</li>
-                        <li>✅ Plus besoin de Webhook</li>
-                        <li>✅ Publication instantanée et directe</li>
+                        <li>📸 <strong>Instagram</strong></li>
+                        <li>🧵 <strong>Threads</strong></li>
+                        <li>✖️ <strong>X / Twitter</strong></li>
+                        <li>✈️ <strong>Telegram</strong></li>
+                        <li>👾 <strong>Discord</strong></li>
                     </ul>
                     <p style="color:#9ca3af; font-size:14px; margin-top:15px;">
-                        Le système utilise maintenant une connexion directe sécurisée via le serveur. Vous n'avez rien à configurer.
-                        Assurez-vous simplement que le champ "Webhook URL" d'Instagram est vide.
+                        Plus besoin de Make ! Le système se connecte directement.
+                        Assurez-vous que les champs "Webhook URL" sont vides pour ces réseaux (sauf Discord qui nécessite son Webhook).
                     </p>
                 </div>
 
                 <div style="background:rgba(239, 68, 68, 0.1); padding:20px; border-radius:12px; margin-bottom:20px; border:1px solid rgba(239, 68, 68, 0.2);">
-                    <h3 style="color:#f87171; margin-top:0;">Pour les autres réseaux (Optionnel)</h3>
+                    <h3 style="color:#f87171; margin-top:0;">Pour Facebook, TikTok, YouTube</h3>
                     <p style="color:#e5e7eb; font-size:14px;">
-                        Si vous souhaitez activer Facebook, Twitter ou TikTok, vous pouvez toujours utiliser les Webhooks classiques via Make.
-                        Mais pour Instagram, c'est réglé ! 🚀
+                        Pour ces réseaux complexes, nous utilisons toujours les Webhooks classiques via Make.
                     </p>
                 </div>
 
@@ -154,7 +158,7 @@
             <!-- Instagram -->
             <div class="net-card">
                 <div class="net-header">
-                    <div class="net-title">📸 Instagram</div>
+                    <div class="net-title">📸 Instagram <span id="st-instagram" class="st-badge"></span></div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="mk-ch-instagram">
                         <span class="slider"></span>
@@ -175,7 +179,7 @@
                         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
                             <input id="mk-pf-instagram" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
                             <input id="mk-wh-instagram" class="premium-input" placeholder="Laisser vide pour Mode Direct (Recommandé)" style="font-size:11px;">
-                            <div style="font-size:10px; color:#4ade80; margin-top:4px;">✨ Mode Direct Actif : Connexion serveur utilisée</div>
+                            <div style="font-size:10px; color:#4ade80; margin-top:4px;">✨ Mode Direct : API + Fallback Stealth (Vidéo)</div>
                         </div>
                     </div>
                 </div>
@@ -184,7 +188,7 @@
             <!-- Facebook -->
             <div class="net-card">
                 <div class="net-header">
-                    <div class="net-title">📘 Facebook</div>
+                    <div class="net-title">📘 Facebook <span id="st-facebook" class="st-badge"></span></div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="mk-ch-facebook">
                         <span class="slider"></span>
@@ -204,7 +208,8 @@
                     <div class="collapsible">
                         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
                             <input id="mk-pf-facebook" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
-                            <input id="mk-wh-facebook" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                            <input id="mk-wh-facebook" class="premium-input" placeholder="Laisser vide pour Mode Direct (Recommandé)" style="font-size:11px;">
+                            <div style="font-size:10px; color:#4ade80; margin-top:4px;">✨ Mode Direct : API + Fallback Stealth</div>
                         </div>
                     </div>
                 </div>
@@ -213,7 +218,7 @@
             <!-- TikTok -->
             <div class="net-card">
                 <div class="net-header">
-                    <div class="net-title">🎵 TikTok</div>
+                    <div class="net-title">🎵 TikTok <span id="st-tiktok" class="st-badge"></span></div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="mk-ch-tiktok">
                         <span class="slider"></span>
@@ -231,7 +236,8 @@
                     <div class="collapsible">
                         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
                             <input id="mk-pf-tiktok" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
-                            <input id="mk-wh-tiktok" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                            <input id="mk-wh-tiktok" class="premium-input" placeholder="Laisser vide pour Mode Stealth (Direct)" style="font-size:11px;">
+                            <div style="font-size:10px; color:#c084fc; margin-top:4px;">🕵️ Mode Stealth : Navigateur simulé (Nécessite Cookies)</div>
                         </div>
                     </div>
                 </div>
@@ -259,7 +265,8 @@
                     <div class="collapsible">
                         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
                             <input id="mk-pf-threads" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
-                            <input id="mk-wh-threads" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                            <input id="mk-wh-threads" class="premium-input" placeholder="Laisser vide pour Mode Direct (Recommandé)" style="font-size:11px;">
+                            <div style="font-size:10px; color:#4ade80; margin-top:4px;">✨ Mode Direct Actif : Connexion serveur utilisée</div>
                         </div>
                     </div>
                 </div>
@@ -268,7 +275,7 @@
             <!-- YouTube -->
             <div class="net-card">
                 <div class="net-header">
-                    <div class="net-title">▶️ YouTube</div>
+                    <div class="net-title">▶️ YouTube <span id="st-youtube" class="st-badge"></span></div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="mk-ch-youtube">
                         <span class="slider"></span>
@@ -287,7 +294,10 @@
                     <div class="collapsible">
                         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
                             <input id="mk-pf-youtube" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
-                            <input id="mk-wh-youtube" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                            <input id="mk-wh-youtube" class="premium-input" placeholder="Laisser vide pour Mode Direct (Recommandé)" style="font-size:11px;">
+                            <div style="font-size:10px; color:#4ade80; margin-top:4px;">✨ Mode Direct : Conversion Vidéo + Fallback Stealth</div>
+                            <div style="font-size:10px; color:#60a5fa; margin-top:2px;">📈 Traffic Boost & CTA Link-in-Bio inclus</div>
+                            <button id="btn-preview-video" class="premium-button" style="margin-top:8px; font-size:11px; padding:4px 8px; width:100%;">🎥 Prévisualiser le Montage Vidéo</button>
                         </div>
                     </div>
                 </div>
@@ -296,7 +306,7 @@
             <!-- X/Twitter -->
             <div class="net-card">
                 <div class="net-header">
-                    <div class="net-title">✖️ X / Twitter</div>
+                    <div class="net-title">✖️ X / Twitter <span id="st-twitter" class="st-badge"></span></div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="mk-ch-twitter">
                         <span class="slider"></span>
@@ -314,7 +324,8 @@
                     <div class="collapsible">
                         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
                             <input id="mk-pf-twitter" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
-                            <input id="mk-wh-twitter" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                            <input id="mk-wh-twitter" class="premium-input" placeholder="Laisser vide pour Mode Direct (Recommandé)" style="font-size:11px;">
+                            <div style="font-size:10px; color:#4ade80; margin-top:4px;">✨ Mode Direct : API + Fallback Stealth</div>
                         </div>
                     </div>
                 </div>
@@ -341,7 +352,8 @@
                     <div class="collapsible">
                         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
                             <input id="mk-pf-telegram" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
-                            <input id="mk-wh-telegram" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                            <input id="mk-wh-telegram" class="premium-input" placeholder="Laisser vide pour Mode Direct (Recommandé)" style="font-size:11px;">
+                            <div style="font-size:10px; color:#4ade80; margin-top:4px;">✨ Mode Direct Actif : Connexion serveur utilisée</div>
                         </div>
                     </div>
                 </div>
@@ -369,7 +381,8 @@
                     <div class="collapsible">
                         <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
                             <input id="mk-pf-discord" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
-                            <input id="mk-wh-discord" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                            <input id="mk-wh-discord" class="premium-input" placeholder="Webhook URL (Direct)" style="font-size:11px;">
+                            <div style="font-size:10px; color:#4ade80; margin-top:4px;">✨ Mode Direct : Utilise le Webhook natif</div>
                         </div>
                     </div>
                 </div>
@@ -388,6 +401,7 @@
              </div>
              
              <div>
+                 <button id="btn-import-cookies" style="background:#c084fc; color:white; border:none; padding:4px 8px; font-size:11px; margin-right:8px; border-radius:4px; cursor:pointer;">🍪 Importer Cookies (Stealth)</button>
                  <a id="mk-email-link" href="#" style="color:#64748b; font-size:12px; text-decoration:none;">Support: <span id="mk-email-text">swellsync@outlook.fr</span></a>
                  <button id="mk-email-copy" style="background:none; border:none; color:#4b5563; cursor:pointer; font-size:12px;">(Copier)</button>
              </div>
@@ -395,6 +409,7 @@
           
           <div style="margin-top:12px; text-align:right;">
              <button id="mk-agg-status" style="background:none; border:none; color:#4b5563; font-size:11px; cursor:pointer;">Logs Système</button>
+             <div id="mk-modal-help" style="display:inline-block; margin-left:12px; font-size:12px; color:#3b82f6; cursor:pointer; text-decoration:underline;">Guide Mode Direct</div>
              <div id="agg-out" style="margin-top:8px; color:#64748b; font-size:11px; font-family:monospace;"></div>
           </div>
 
@@ -430,11 +445,60 @@
             };
         }
 
+        // Cookie Import Logic
+        if (q("btn-import-cookies")) {
+            q("btn-import-cookies").onclick = async () => {
+                const input = document.createElement("input");
+                input.type = "file";
+                input.accept = ".json";
+                input.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const text = await file.text();
+                    try {
+                        JSON.parse(text); // Validate JSON
+                        const r = await fetch("/api/admin/marketing/cookies", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", ...headers },
+                            body: text
+                        });
+                        if (r.ok) alert("✅ Cookies Stealth importés avec succès !");
+                        else alert("Erreur import cookies");
+                    } catch {
+                        alert("Fichier JSON invalide");
+                    }
+                };
+                input.click();
+            };
+        }
+
         async function loadMarketing() {
           try {
             const r = await fetch("/api/admin/marketing/status", { headers });
             const s = await r.json();
             q("mk-status").textContent = "Status: "+(s.running ? "RUNNING" : "STOPPED")+" • "+(s.intervalMinutes||"-")+" min";
+            
+            // Update Cookie Status Badges
+            if (s.cookieStatus) {
+                const updateBadge = (id, active) => {
+                    const el = q(id);
+                    if (!el) return;
+                    if (active) {
+                        el.textContent = "Stealth OK";
+                        el.classList.add("active");
+                        el.classList.remove("missing");
+                    } else {
+                        el.textContent = "No Cookies";
+                        el.classList.add("missing");
+                        el.classList.remove("active");
+                    }
+                };
+                updateBadge("st-instagram", s.cookieStatus.instagram);
+                updateBadge("st-facebook", s.cookieStatus.facebook);
+                updateBadge("st-tiktok", s.cookieStatus.tiktok);
+                updateBadge("st-youtube", s.cookieStatus.youtube);
+                updateBadge("st-twitter", s.cookieStatus.twitter);
+            }
           } catch {}
           try {
             const rr = await fetch("/api/admin/marketing/config", { headers });
@@ -490,6 +554,70 @@
             alert("Adresse copiée");
           } catch {}
         };
+        q("mk-modal-help").onclick = () => {
+            const modal = document.createElement("div");
+            modal.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; display:flex; justify-content:center; align-items:center;";
+            modal.innerHTML = `
+                <div style="background:#1e293b; padding:24px; border-radius:12px; max-width:500px; color:#f8fafc; font-family:sans-serif; position:relative;">
+                    <button id="mk-close-help" style="position:absolute; top:12px; right:12px; background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;">&times;</button>
+                    <h3 style="margin-top:0; color:#3b82f6;">Guide du Mode Direct</h3>
+                    <p style="font-size:13px; line-height:1.6; color:#cbd5e1;">
+                        Le <strong>Mode Direct</strong> permet au serveur de poster directement sur vos réseaux sans passer par Make.com.
+                        Pour l'activer, laissez le champ "Webhook" vide pour les réseaux compatibles.
+                    </p>
+                    <ul style="color:#e5e7eb; line-height:1.6; font-size:13px; padding-left:20px;">
+                        <li>📸 <strong>Instagram</strong> : Supporté (Images/Stories)</li>
+                        <li>🧵 <strong>Threads</strong> : Supporté</li>
+                        <li>✖️ <strong>X / Twitter</strong> : Supporté</li>
+                        <li>✈️ <strong>Telegram</strong> : Supporté</li>
+                        <li>👾 <strong>Discord</strong> : Supporté (Mettre URL Webhook dans admin)</li>
+                        <li>📘 <strong>Facebook</strong> : Supporté (Nécessite Page Token dans .env)</li>
+                        <li>📺 <strong>YouTube</strong> : Supporté (L'image est convertie en vidéo de 5s automatiquement). Nécessite API Keys.</li>
+                    </ul>
+                    <p style="font-size:12px; color:#facc15; margin-top:12px; background:#422006; padding:8px; border-radius:4px;">
+                        ⚠️ <strong>TikTok</strong> : API publique fermée aux posts automatiques simples. 
+                        Le serveur ne peut pas poster directement sur TikTok pour le moment sans risque de blocage.
+                        Utilisez le Webhook pour TikTok.
+                    </p>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.querySelector("#mk-close-help").onclick = () => modal.remove();
+            modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+        };
+        q("btn-preview-video").onclick = async () => {
+             const btn = q("btn-preview-video");
+             const originalText = btn.textContent;
+             btn.textContent = "Génération en cours... (15-30s)";
+             btn.disabled = true;
+
+             try {
+                 const res = await fetch("/api/admin/preview-video?spot=Anglet"); // Default spot for preview
+                 if (!res.ok) throw new Error("Erreur génération");
+                 
+                 const blob = await res.blob();
+                 const url = URL.createObjectURL(blob);
+                 
+                 const modal = document.createElement("div");
+                 modal.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:10000; display:flex; flex-direction:column; justify-content:center; align-items:center;";
+                 modal.innerHTML = `
+                     <div style="position:relative; width:300px; height:533px; background:#000;">
+                        <video src="${url}" controls autoplay style="width:100%; height:100%; object-fit:cover;"></video>
+                        <button id="close-vid" style="position:absolute; top:-40px; right:0; color:white; background:none; border:none; font-size:24px;">&times;</button>
+                     </div>
+                     <a href="${url}" download="montage_preview.mp4" style="margin-top:20px; color:#3b82f6; text-decoration:none;">⬇️ Télécharger la vidéo</a>
+                 `;
+                 document.body.appendChild(modal);
+                 modal.querySelector("#close-vid").onclick = () => modal.remove();
+                 
+             } catch (e) {
+                 alert("Erreur: " + e.message);
+             } finally {
+                 btn.textContent = originalText;
+                 btn.disabled = false;
+             }
+        };
+
         q("mk-save").onclick = async () => {
           const channels = [];
           if (q("mk-ch-instagram").checked) channels.push("instagram");
