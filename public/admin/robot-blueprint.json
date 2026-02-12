@@ -18,7 +18,7 @@
     },
     {
       "id": 2,
-      "module": "instagram-business:CreatePhotoPost",
+      "module": "instagram-business:createPhotoPost",
       "version": 1,
       "parameters": {
         "account": "YOUR_INSTAGRAM_CONNECTION_ID"
@@ -31,13 +31,52 @@
         "designer": {
           "x": 300,
           "y": 0,
-          "name": "Post Instagram"
+          "name": "Post Instagram (Photo)"
         }
       }
     },
     {
       "id": 3,
-      "module": "facebook-pages:CreatePost",
+      "module": "instagram-business:createReelPost",
+      "version": 1,
+      "parameters": {
+        "account": "YOUR_INSTAGRAM_CONNECTION_ID"
+      },
+      "mapper": {
+        "videoUrl": "{{1.image}}",
+        "caption": "{{1.text}}",
+        "coverUrl": "{{1.image}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 150,
+          "name": "Post Instagram (Reel)"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "module": "instagram-business:createStory",
+      "version": 1,
+      "parameters": {
+        "account": "YOUR_INSTAGRAM_CONNECTION_ID"
+      },
+      "mapper": {
+        "mediaUrl": "{{1.image}}",
+        "caption": "{{1.text}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 300,
+          "name": "Post Instagram (Story)"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "module": "facebook-pages:createPost",
       "version": 1,
       "parameters": {
         "account": "YOUR_FACEBOOK_CONNECTION_ID"
@@ -48,8 +87,8 @@
       },
       "metadata": {
         "designer": {
-          "x": 300,
-          "y": 200,
+          "x": 600,
+          "y": 0,
           "name": "Post Facebook"
         }
       }
