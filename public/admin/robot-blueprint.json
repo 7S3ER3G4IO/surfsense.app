@@ -1,0 +1,61 @@
+{
+  "name": "SurfSense Viral Robot 🤖",
+  "description": "Scénario d'automatisation pour poster les alertes SurfSense sur Instagram, Facebook et TikTok.",
+  "flow": [
+    {
+      "id": 1,
+      "module": "webhook:CustomWebhook",
+      "version": 1,
+      "parameters": {},
+      "mapper": {},
+      "metadata": {
+        "designer": {
+          "x": 0,
+          "y": 0,
+          "name": "Webhook SurfSense"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "module": "instagram-business:CreatePhotoPost",
+      "version": 1,
+      "parameters": {
+        "account": "YOUR_INSTAGRAM_CONNECTION_ID"
+      },
+      "mapper": {
+        "photoUrl": "{{1.image}}",
+        "caption": "{{1.text}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 0,
+          "name": "Post Instagram"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "module": "facebook-pages:CreatePost",
+      "version": 1,
+      "parameters": {
+        "account": "YOUR_FACEBOOK_CONNECTION_ID"
+      },
+      "mapper": {
+        "link": "{{1.image}}",
+        "message": "{{1.text}}"
+      },
+      "metadata": {
+        "designer": {
+          "x": 300,
+          "y": 200,
+          "name": "Post Facebook"
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "version": 1
+  }
+}

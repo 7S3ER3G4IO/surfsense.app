@@ -790,6 +790,18 @@ app.post("/api/paypal/order/capture", async (req, res) => {
 });
 // INSCRIPTION
 // --- MARKETING AUTO-POST (via Webhook orchestrateur type Zapier/Make/Buffer) ---
+const VIRAL_HOOKS = [
+    "🚨 ALERTE SURF : C'est le feu !",
+    "🌊 Conditions épiques détectées !",
+    "⚡ Session validée par le robot.",
+    "🤙 Qui va à l'eau maintenant ?",
+    "🔥 Le spot est en feu !",
+    "👀 Regardez ça... C'est parfait.",
+    "🏄‍♂️ Sortez les planches !",
+    "💎 Pépite en vue sur le spot."
+];
+const VIRAL_HASHTAGS = ["#surf", "#waves", "#ocean", "#surfing", "#france", "#beach", "#nature", "#travel", "#surfsense", "#live"];
+
 let marketing = {
   running: false,
   timer: null,
@@ -797,7 +809,7 @@ let marketing = {
   webhookUrl: process.env.MARKETING_WEBHOOK_URL || ":internal",
   channels: (process.env.MARKETING_CHANNELS || "").split(",").map(s => s.trim()).filter(Boolean),
   nextRunAt: 0,
-  template: process.env.MARKETING_MESSAGE || "SurfSense: conditions live sur {spot} • {desc} #surf #ocean #meteo",
+  template: process.env.MARKETING_MESSAGE || "{hook} Conditions live sur {spot} • {desc} {tags}",
   contentType: "story",
   connectors: {
     instagram: { enabled: false, webhook: "", profileUrl: "https://www.instagram.com/swellsyncfr/", format: "story" },
@@ -837,9 +849,18 @@ const buildMarketingPayload = (req) => {
     descObj.title = `${spot} • Conditions Live`;
     descObj.desc = `Houle & période en temps réel`;
   } catch {}
+
+  // VIRAL ENGINE GENERATION
+  const hook = VIRAL_HOOKS[Math.floor(Math.random() * VIRAL_HOOKS.length)];
+  // Select 5 random tags
+  const tags = VIRAL_HASHTAGS.sort(() => 0.5 - Math.random()).slice(0, 5).join(" ");
+
   const text = marketing.template
     .replace("{spot}", spot || "ton spot favori")
-    .replace("{desc}", descObj.desc || "Analyse en temps réel");
+    .replace("{desc}", descObj.desc || "Analyse en temps réel")
+    .replace("{hook}", hook)
+    .replace("{tags}", tags);
+
   const channels = marketing.channels.length ? marketing.channels : ["instagram","facebook","tiktok","threads","youtube","twitter","telegram","discord"];
   const profiles = {};
   Object.keys(marketing.connectors).forEach(k => {
