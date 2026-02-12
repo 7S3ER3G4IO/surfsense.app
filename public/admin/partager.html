@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — Partager</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="icon" href="../logo.svg" type="image/svg+xml" />
+    <style>
+      .admin-layout{display:flex;min-height:100vh}
+      .admin-sidebar{width:260px;background:#0b0e16;border-right:1px solid #1f2937;padding:18px;position:sticky;top:0;height:100vh;backdrop-filter:blur(8px)}
+      .admin-brand{display:flex;align-items:center;gap:10px;color:#e5e7eb;font-weight:800;margin-bottom:18px}
+      .admin-nav a{display:block;padding:10px 12px;border-radius:12px;color:#c4b5fd;text-decoration:none;margin-bottom:6px;transition:background .2s, transform .1s}
+      .admin-nav a:hover{background:#111827;transform:translateX(2px)}
+      .admin-main{flex:1;padding:24px;background:
+        radial-gradient(1200px 600px at -10% -10%, rgba(124,58,237,.12), transparent 60%),
+        radial-gradient(1000px 500px at 110% 10%, rgba(34,197,94,.12), transparent 60%)}
+      .admin-card{background:rgba(11,14,22,.7);backdrop-filter:blur(8px);border:1px solid #1f2937;border-radius:16px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+      .preview-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
+      .preview-box{background:#0b0e16;border:1px solid #1f2937;border-radius:12px;padding:10px}
+      .preview-box img{width:100%;border-radius:10px;background:#111827}
+      .btn-row{display:flex;gap:8px;flex-wrap:wrap}
+    </style>
+  </head>
+  <body style="background:#080a12;">
+    <div class="admin-layout">
+      <aside class="admin-sidebar">
+        <div class="admin-brand">
+          <img src="../logo.svg" alt="logo" width="24" height="24"/>
+          <span>Admin</span>
+        </div>
+        <nav class="admin-nav">
+          <a href="/admin/">Dashboard</a>
+          <a href="/admin/surveillance.html">Surveillance</a>
+          <a href="/admin/marketing.html">Réseaux</a>
+          <a href="/admin/partager.html">Partager</a>
+        </nav>
+      </aside>
+      <main class="admin-main">
+        <div class="section" style="max-width:1100px; margin:0 auto;">
+          <div class="section-title">
+            <h2>Outils de Partage</h2>
+            <p style="color:#94a3b8;">Générer des visuels et publier en un clic</p>
+          </div>
+          <div class="admin-card" style="margin-top:10px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+              <div>
+                <div style="color:#94a3b8; margin-bottom:6px;">Spot</div>
+                <select id="share-spot" class="btn" style="width:100%; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;"></select>
+              </div>
+              <div>
+                <div style="color:#94a3b8; margin-bottom:6px;">Type</div>
+                <select id="share-type" class="btn" style="width:100%; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
+                  <option value="story">Story 1080×1920</option>
+                  <option value="classic">Post 1080×1080</option>
+                </select>
+              </div>
+              <div style="grid-column:1 / span 2;">
+                <div style="color:#94a3b8; margin-bottom:6px;">Message</div>
+                <input id="share-msg" class="btn" placeholder="SurfSense: conditions live sur {spot} • {desc}" style="width:100%; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;" />
+              </div>
+            </div>
+            <div class="btn-row" style="margin-top:12px;">
+              <button id="btn-copy-text" class="btn">Copier le message</button>
+              <button id="btn-open-link" class="btn">Ouvrir lien spot</button>
+              <button id="btn-download" class="btn">Télécharger l’image</button>
+              <button id="btn-publish" class="btn">Publier via agrégateur</button>
+            </div>
+            <div class="preview-grid">
+              <div class="preview-box">
+                <div style="color:#94a3b8; margin-bottom:6px;">Aperçu</div>
+                <img id="share-preview" alt="preview"/>
+              </div>
+              <div class="preview-box">
+                <div style="color:#94a3b8; margin-bottom:6px;">Lien Canonical</div>
+                <div id="share-link" style="color:#e5e7eb;word-break:break-all;">-</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script src="../data.js"></script>
+    <script>
+      (function(){
+        const params = new URLSearchParams(window.location.search);
+        const tParam = params.get("token");
+        if (tParam) { try { localStorage.setItem("surfAdminToken", tParam); history.replaceState({}, "", window.location.pathname); } catch {} }
+        const tok = localStorage.getItem("surfAdminToken") || "";
+        const headers = tok ? { "x-admin-token": tok } : {};
+        const q = (id) => document.getElementById(id);
+        const spots = (window.rawSpots || []).map(s => ({ name: s.name, region: s.region, coords: s.coords }));
+        const spotSel = q("share-spot");
+        spotSel.innerHTML = spots.map(s => `<option value="${s.name}">${s.name}</option>`).join("");
+        if (spots.length) spotSel.value = spots[0].name;
+        const updatePreview = () => {
+          const name = spotSel.value;
+          const type = q("share-type").value;
+          const base = window.location.origin;
+          const img = type === "story" ? `${base}/og/story.png?spot=${encodeURIComponent(name)}` : `${base}/og/post.png?spot=${encodeURIComponent(name)}`;
+          q("share-preview").src = img;
+          q("share-link").textContent = `https://swellsync.fr/conditions.html?spot=${encodeURIComponent(name)}`;
+          const tpl = q("share-msg").value || "SurfSense: conditions live sur {spot} • {desc}";
+          q("share-msg").value = tpl.replace("{spot}", name).replace("{desc}", "Houle & période en temps réel");
+        };
+        spotSel.onchange = updatePreview;
+        q("share-type").onchange = updatePreview;
+        q("share-msg").oninput = () => {};
+        updatePreview();
+        q("btn-copy-text").onclick = async () => {
+          try { await navigator.clipboard.writeText(q("share-msg").value); alert("Message copié"); } catch { alert("Copie impossible"); }
+        };
+        q("btn-open-link").onclick = () => {
+          const name = spotSel.value;
+          const url = `https://swellsync.fr/conditions.html?spot=${encodeURIComponent(name)}`;
+          window.open(url, "_blank");
+        };
+        q("btn-download").onclick = async () => {
+          const name = spotSel.value;
+          const type = q("share-type").value;
+          const url = type === "story" ? `/og/story.png?spot=${encodeURIComponent(name)}` : `/og/post.png?spot=${encodeURIComponent(name)}`;
+          try {
+            const r = await fetch(url);
+            const b = await r.blob();
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(b);
+            a.download = `${type}-${name.replace(/[^a-z0-9]/gi,'_')}.png`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+          } catch { alert("Téléchargement échoué"); }
+        };
+        q("btn-publish").onclick = async () => {
+          const name = spotSel.value;
+          const type = q("share-type").value;
+          const template = q("share-msg").value;
+          try {
+            await fetch("/api/admin/marketing/config", {
+              method:"POST",
+              headers: { ...headers, "Content-Type":"application/json" },
+              body: JSON.stringify({ contentType: type, template })
+            });
+            const r = await fetch("/api/admin/marketing/fire", { method:"POST", headers });
+            const j = await r.json();
+            if (!r.ok || !j.success) { alert("Publication échouée"); return; }
+            alert("Publication envoyée");
+          } catch { alert("Publication échouée"); }
+        };
+      })();
+    </script>
+  </body>
+</html>

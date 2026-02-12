@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — Réseaux</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="icon" href="../logo.svg" type="image/svg+xml" />
+    <style>
+      .admin-layout{display:flex;min-height:100vh}
+      .admin-sidebar{width:260px;background:#0b0e16;border-right:1px solid #1f2937;padding:18px;position:sticky;top:0;height:100vh;backdrop-filter:blur(8px)}
+      .admin-brand{display:flex;align-items:center;gap:10px;color:#e5e7eb;font-weight:800;margin-bottom:18px}
+      .admin-nav a{display:block;padding:10px 12px;border-radius:12px;color:#c4b5fd;text-decoration:none;margin-bottom:6px;transition:background .2s, transform .1s}
+      .admin-nav a:hover{background:#111827;transform:translateX(2px)}
+      .admin-main{flex:1;padding:24px;background:
+        radial-gradient(1200px 600px at -10% -10%, rgba(124,58,237,.12), transparent 60%),
+        radial-gradient(1000px 500px at 110% 10%, rgba(34,197,94,.12), transparent 60%)}
+      .admin-card{background:rgba(11,14,22,.7);backdrop-filter:blur(8px);border:1px solid #1f2937;border-radius:16px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+      .act-btn{background:#0b0e16;border:1px solid #1f2937;color:#e5e7eb;border-radius:10px;padding:6px 10px;transition:transform .1s}
+      .act-btn:hover{transform:translateY(-1px)}
+    </style>
+  </head>
+  <body style="background:#080a12;">
+    <div class="admin-layout">
+      <aside class="admin-sidebar">
+        <div class="admin-brand">
+          <img src="../logo.svg" alt="logo" width="24" height="24"/>
+          <span>Admin</span>
+        </div>
+        <nav class="admin-nav">
+          <a href="/admin/">Dashboard</a>
+          <a href="/admin/surveillance.html">Surveillance</a>
+          <a href="/admin/marketing.html">Réseaux</a>
+        </nav>
+      </aside>
+      <main class="admin-main">
+        <div class="section" style="max-width:1100px; margin:0 auto;">
+          <div class="section-title">
+            <h2>Réseaux & Publications</h2>
+            <p style="color:#94a3b8;">Configuration des canaux & planification</p>
+          </div>
+          <div class="admin-card" style="margin-top:10px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+              <div>
+                <div style="color:#94a3b8; margin-bottom:6px;">Webhook agrégateur (optionnel)</div>
+                <input id="mk-webhook" class="btn" placeholder="https://hooks..." style="width:100%; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;" />
+              </div>
+              <div>
+                <div style="color:#94a3b8; margin-bottom:6px;">Intervalle (minutes)</div>
+                <input id="mk-interval" type="number" min="1" step="1" class="btn" placeholder="60" style="width:100%; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;" />
+              </div>
+              <div style="grid-column:1 / span 2;">
+                <div style="color:#94a3b8; margin-bottom:6px;">Template message</div>
+                <input id="mk-template" class="btn" placeholder="SurfSense: conditions live sur {spot} • {desc}" style="width:100%; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;" />
+              </div>
+              <div>
+                <div style="color:#94a3b8; margin-bottom:6px;">Type de contenu</div>
+                <select id="mk-type" class="btn" style="width:100%; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
+                  <option value="story">Story</option>
+                  <option value="classic">Post classique</option>
+                  <option value="video">Vidéo</option>
+                </select>
+              </div>
+              <div>
+                <div style="color:#94a3b8; margin-bottom:6px;">Canaux</div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                  <label class="act-btn"><input type="checkbox" id="mk-ch-instagram"> Instagram</label>
+                  <label class="act-btn"><input type="checkbox" id="mk-ch-facebook"> Facebook</label>
+                  <label class="act-btn"><input type="checkbox" id="mk-ch-tiktok"> TikTok</label>
+                  <label class="act-btn"><input type="checkbox" id="mk-ch-youtube"> YouTube</label>
+                  <label class="act-btn"><input type="checkbox" id="mk-ch-twitter"> X/Twitter</label>
+                </div>
+              </div>
+              <div style="grid-column:1 / span 2;">
+                <div style="color:#94a3b8; margin-bottom:6px;">Webhooks connexions directes (optionnel)</div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                  <input id="mk-wh-instagram" class="btn" placeholder="Instagram webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
+                  <input id="mk-wh-facebook" class="btn" placeholder="Facebook webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
+                  <input id="mk-wh-tiktok" class="btn" placeholder="TikTok webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
+                  <input id="mk-wh-youtube" class="btn" placeholder="YouTube webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
+                  <input id="mk-wh-twitter" class="btn" placeholder="X/Twitter webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:12px;">
+              <button id="mk-save" class="btn">Enregistrer</button>
+              <button id="mk-fire" class="btn">Publier maintenant</button>
+              <button id="mk-start" class="btn">Démarrer planificateur</button>
+              <button id="mk-stop" class="btn">Stop planificateur</button>
+              <span id="mk-status" style="color:#94a3b8; margin-left:auto;">Status: -</span>
+            </div>
+            <div style="margin-top:12px;">
+              <button id="mk-agg-status" class="btn btn--compact">Voir état agrégateur</button>
+              <div id="agg-out" style="margin-top:8px; color:#94a3b8;"></div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script>
+      (function(){
+        const params = new URLSearchParams(window.location.search);
+        const tParam = params.get("token");
+        if (tParam) { try { localStorage.setItem("surfAdminToken", tParam); history.replaceState({}, "", window.location.pathname); } catch {} }
+        const tok = localStorage.getItem("surfAdminToken") || "";
+        const headers = tok ? { "x-admin-token": tok } : {};
+        const q = (id) => document.getElementById(id);
+        async function loadMarketing() {
+          try {
+            const r = await fetch("/api/admin/marketing/status", { headers });
+            const s = await r.json();
+            q("mk-status").textContent = "Status: "+(s.running ? "RUNNING" : "STOPPED")+" • "+(s.intervalMinutes||"-")+" min";
+          } catch {}
+          try {
+            const rr = await fetch("/api/admin/marketing/config", { headers });
+            const c = await rr.json();
+            q("mk-webhook").value = c.webhookUrl || "";
+            q("mk-interval").value = c.intervalMinutes || "";
+            q("mk-template").value = c.template || "";
+            q("mk-type").value = c.contentType || "story";
+            const chs = new Set(c.channels || []);
+            q("mk-ch-instagram").checked = chs.has("instagram");
+            q("mk-ch-facebook").checked = chs.has("facebook");
+            q("mk-ch-tiktok").checked = chs.has("tiktok");
+            q("mk-ch-youtube").checked = chs.has("youtube");
+            q("mk-ch-twitter").checked = chs.has("twitter");
+            const cx = c.connectors || {};
+            q("mk-wh-instagram").value = cx.instagram?.webhook || "";
+            q("mk-wh-facebook").value = cx.facebook?.webhook || "";
+            q("mk-wh-tiktok").value = cx.tiktok?.webhook || "";
+            q("mk-wh-youtube").value = cx.youtube?.webhook || "";
+            q("mk-wh-twitter").value = cx.twitter?.webhook || "";
+          } catch {}
+        }
+        q("mk-save").onclick = async () => {
+          const channels = [];
+          if (q("mk-ch-instagram").checked) channels.push("instagram");
+          if (q("mk-ch-facebook").checked) channels.push("facebook");
+          if (q("mk-ch-tiktok").checked) channels.push("tiktok");
+          if (q("mk-ch-youtube").checked) channels.push("youtube");
+          if (q("mk-ch-twitter").checked) channels.push("twitter");
+          const connectors = {
+            instagram: { enabled: q("mk-ch-instagram").checked, webhook: q("mk-wh-instagram").value.trim() },
+            facebook: { enabled: q("mk-ch-facebook").checked, webhook: q("mk-wh-facebook").value.trim() },
+            tiktok: { enabled: q("mk-ch-tiktok").checked, webhook: q("mk-wh-tiktok").value.trim() },
+            youtube: { enabled: q("mk-ch-youtube").checked, webhook: q("mk-wh-youtube").value.trim() },
+            twitter: { enabled: q("mk-ch-twitter").checked, webhook: q("mk-wh-twitter").value.trim() }
+          };
+          try {
+            const rr = await fetch("/api/admin/marketing/config", {
+              method: "POST",
+              headers: { ...headers, "Content-Type":"application/json" },
+              body: JSON.stringify({
+                channels,
+                webhookUrl: q("mk-webhook").value.trim(),
+                template: q("mk-template").value,
+                contentType: q("mk-type").value,
+                connectors
+              })
+            });
+            const dj = await rr.json();
+            if (!rr.ok || !dj.success) { alert("Erreur configuration"); return; }
+            loadMarketing();
+          } catch { alert("Erreur configuration"); }
+        };
+        q("mk-fire").onclick = async () => {
+          try {
+            const rr = await fetch("/api/admin/marketing/fire", { method: "POST", headers });
+            const dj = await rr.json();
+            if (!rr.ok || !dj.success) { alert("Erreur publication"); return; }
+            alert("Publication envoyée");
+          } catch { alert("Erreur publication"); }
+        };
+        q("mk-start").onclick = async () => {
+          const iv = parseInt(q("mk-interval").value, 10) || 60;
+          try {
+            const rr = await fetch("/api/admin/marketing/start", {
+              method: "POST",
+              headers: { ...headers, "Content-Type":"application/json" },
+              body: JSON.stringify({ intervalMinutes: iv })
+            });
+            const dj = await rr.json();
+            if (!rr.ok || !dj.success) { alert("Erreur démarrage"); return; }
+            loadMarketing();
+          } catch { alert("Erreur démarrage"); }
+        };
+        q("mk-stop").onclick = async () => {
+          try {
+            const rr = await fetch("/api/admin/marketing/stop", { method: "POST", headers });
+            const dj = await rr.json();
+            if (!rr.ok || !dj.success) { alert("Erreur stop"); return; }
+            loadMarketing();
+          } catch { alert("Erreur stop"); }
+        };
+        q("mk-agg-status").onclick = async () => {
+          try {
+            const r = await fetch("/api/admin/agg/status", { headers });
+            const j = await r.json();
+            q("agg-out").textContent = "Interne: "+(j.internal?"oui":"non")+" • livraisons: "+(j.deliveries?.length||0)+" • en attente: "+(j.queued||0);
+          } catch {
+            q("agg-out").textContent = "Erreur agrégateur";
+          }
+        };
+        loadMarketing();
+      })();
+    </script>
+  </body>
+</html>

@@ -737,7 +737,7 @@ let marketing = {
   running: false,
   timer: null,
   intervalMs: (parseInt(process.env.MARKETING_INTERVAL_MINUTES || "0", 10) || 0) * 60 * 1000,
-  webhookUrl: process.env.MARKETING_WEBHOOK_URL || "",
+  webhookUrl: process.env.MARKETING_WEBHOOK_URL || ":internal",
   channels: (process.env.MARKETING_CHANNELS || "").split(",").map(s => s.trim()).filter(Boolean),
   nextRunAt: 0,
   template: process.env.MARKETING_MESSAGE || "SurfSense: conditions live sur {spot} • {desc} #surf #ocean #meteo",
@@ -749,6 +749,10 @@ let marketing = {
     youtube: { enabled: false, webhook: "" },
     twitter: { enabled: false, webhook: "" }
   }
+};
+const aggregator = {
+  deliveries: [],
+  queue: []
 };
 const pickSpotForMarketing = () => {
   if (epicSpots && epicSpots.length) {
@@ -781,7 +785,10 @@ const buildMarketingPayload = (req) => {
 const fireMarketing = async (req) => {
   try {
     const payload = buildMarketingPayload(req);
-    if (marketing.webhookUrl) {
+    if (marketing.webhookUrl === ":internal") {
+      const ok = await deliverAggregator(req, payload);
+      if (ok) robotLog(ROBOTS.NEWS, "PROMO", `Payload interne (${payload.channels.join(", ")})`);
+    } else if (marketing.webhookUrl) {
       await fetch(marketing.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       robotLog(ROBOTS.NEWS, "PROMO", `Payload envoyé (${payload.channels.join(", ")})`);
     } else {
@@ -799,6 +806,35 @@ const fireMarketing = async (req) => {
   } catch (e) {
     robotLog(ROBOTS.NEWS, "ERROR", `Promo: ${e.message}`);
     return false;
+  }
+};
+const deliverAggregator = async (req, payload) => {
+  try {
+    const enabled = Object.entries(marketing.connectors).filter(([k, v]) => !!v.enabled && !!v.webhook);
+    if (!enabled.length) {
+      aggregator.queue.push({ when: Date.now(), payload, reason: "no_connectors" });
+      return false;
+    }
+    for (const [name, conf] of enabled) {
+      try {
+        await fetch(conf.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, channel: name }) });
+        aggregator.deliveries.push({ when: Date.now(), channel: name, ok: true });
+      } catch (e) {
+        aggregator.deliveries.push({ when: Date.now(), channel: name, ok: false, error: e.message });
+        aggregator.queue.push({ when: Date.now(), payload: { ...payload, channel: name }, reason: "delivery_error" });
+      }
+    }
+    return true;
+  } catch (e) {
+    aggregator.queue.push({ when: Date.now(), payload, reason: "internal_error" });
+    return false;
+  }
+};
+const drainAggregatorQueue = async (req) => {
+  const pending = aggregator.queue.slice();
+  aggregator.queue = [];
+  for (const item of pending) {
+    await deliverAggregator(req, item.payload);
   }
 };
 const startMarketingTimer = (req, intervalMs) => {
@@ -883,7 +919,25 @@ app.post("/api/admin/marketing/config", (req, res) => {
       return res.json({ success: true, running: marketing.running, intervalMinutes: iv });
     }
   }
+  drainAggregatorQueue(req);
   res.json({ success: true });
+});
+app.post("/api/agg/entry", async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const ok = await deliverAggregator(req, payload);
+    res.json({ success: ok });
+  } catch (e) {
+    res.status(500).json({ success: false, error: "Erreur agg." });
+  }
+});
+app.get("/api/admin/agg/status", (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  res.json({
+    deliveries: aggregator.deliveries.slice(-50),
+    queued: aggregator.queue.length,
+    internal: marketing.webhookUrl === ":internal"
+  });
 });
 // INSCRIPTION
 app.post("/api/auth/register", async (req, res) => {
