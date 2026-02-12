@@ -948,6 +948,13 @@ const requireAdmin = (req) => {
 
 // Gate d'accès à la page /admin (HTML), avant la statique
 app.get("/admin", (req, res) => res.redirect("/admin/"));
+app.get("/admin/login", (req, res) => {
+  const t = (req.query && req.query.token) || "";
+  if (!t || t !== ADMIN_TOKEN) return res.status(403).send("Forbidden");
+  const secure = process.env.RENDER ? "Secure; " : "";
+  res.setHeader("Set-Cookie", `admin_session=${ADMIN_TOKEN}; ${secure}HttpOnly; SameSite=Strict; Path=/`);
+  res.redirect("/admin/");
+});
 app.get("/admin/", (req, res) => {
   const cookieHeader = req.headers.cookie || "";
   const m = cookieHeader.match(/(?:^|;)\s*admin_session=([^;]+)/);
