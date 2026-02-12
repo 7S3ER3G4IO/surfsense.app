@@ -548,8 +548,17 @@
             </div>
           </div>
           <div style="display:flex; gap:10px; margin-top:10px;">
-            <button id="support-continue" class="primary" data-i18n="support.cta.continue">Continuer</button>
+            <div id="support-applepay-btn" style="display:none;"></div>
+            <button id="support-continue" class="primary" data-i18n="support.cta.continue">Payer par carte</button>
+          </div>
+          <div id="support-paypal-btn" style="display:none; margin-top:10px;"></div>
+          <div style="display:flex; gap:10px; margin-top:10px;">
             <button id="support-copy-email" class="ghost-pill" data-i18n="support.cta.copy">Copier l’adresse email</button>
+          </div>
+          <div class="trust-row">
+            <span class="lock">🔒</span>
+            <span>Paiement sécurisé via Stripe</span>
+            <span class="sub">Checkout hébergé — aucune carte traitée par SurfSense</span>
           </div>
         </div>
       </div>

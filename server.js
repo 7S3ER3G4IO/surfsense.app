@@ -556,6 +556,90 @@ app.post("/api/support/checkout", async (req, res) => {
   }
 });
 
+app.post("/api/support/intent", async (req, res) => {
+  try {
+    const { amount } = req.body || {};
+    const amt = parseInt(amount, 10);
+    if (!amt || amt < 1) return res.status(400).json({ success: false, error: "Montant invalide." });
+    const secret = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET;
+    if (!secret) return res.status(500).json({ success: false, error: "Stripe non configuré côté serveur." });
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(secret);
+    const intent = await stripe.paymentIntents.create({
+      amount: amt * 100,
+      currency: "eur",
+      automatic_payment_methods: { enabled: true },
+      metadata: { kind: "donation", amount: `${amt}` }
+    });
+    return res.json({ success: true, clientSecret: intent.client_secret });
+  } catch (error) {
+    robotLog(ROBOTS.AUTH, "ERROR", `Stripe Intent: ${error.message}`);
+    return res.status(500).json({ success: false, error: "Erreur Stripe." });
+  }
+});
+// INSCRIPTION
+// PAYPAL CONFIG + ORDERS (Sandbox par défaut)
+app.get("/api/paypal/config", (req, res) => {
+  const clientId = process.env.PAYPAL_CLIENT_ID || "";
+  const secret = process.env.PAYPAL_SECRET || "";
+  const mode = (process.env.PAYPAL_MODE === "live") ? "live" : "sandbox";
+  if (!clientId || !secret) return res.json({ enabled: false });
+  res.json({ enabled: true, clientId, currency: "EUR", mode });
+});
+const paypalApiBase = () => (process.env.PAYPAL_MODE === "live" ? "https://api-m.paypal.com" : "https://api-m.sandbox.paypal.com");
+const getPaypalAccessToken = async () => {
+  const clientId = process.env.PAYPAL_CLIENT_ID;
+  const secret = process.env.PAYPAL_SECRET;
+  if (!clientId || !secret) throw new Error("PayPal non configuré");
+  const creds = Buffer.from(`${clientId}:${secret}`).toString("base64");
+  const r = await fetch(`${paypalApiBase()}/v1/oauth2/token`, {
+    method: "POST",
+    headers: { "Authorization": `Basic ${creds}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: "grant_type=client_credentials"
+  });
+  if (!r.ok) throw new Error("OAuth PayPal échoué");
+  const j = await r.json();
+  return j.access_token;
+};
+app.post("/api/paypal/order/create", async (req, res) => {
+  try {
+    const { amount } = req.body || {};
+    const amt = parseFloat(amount);
+    if (!amt || amt < 1) return res.status(400).json({ success: false, error: "Montant invalide." });
+    const token = await getPaypalAccessToken();
+    const r = await fetch(`${paypalApiBase()}/v2/checkout/orders`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        intent: "CAPTURE",
+        purchase_units: [{ amount: { currency_code: "EUR", value: amt.toFixed(2) }, description: "Don SurfSense" }]
+      })
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j?.message || "Création commande PayPal échouée");
+    res.json({ success: true, id: j.id });
+  } catch (error) {
+    robotLog(ROBOTS.AUTH, "ERROR", `PayPal Create: ${error.message}`);
+    res.status(500).json({ success: false, error: "Erreur PayPal (create)." });
+  }
+});
+app.post("/api/paypal/order/capture", async (req, res) => {
+  try {
+    const { orderID } = req.body || {};
+    if (!orderID) return res.status(400).json({ success: false, error: "orderID manquant" });
+    const token = await getPaypalAccessToken();
+    const r = await fetch(`${paypalApiBase()}/v2/checkout/orders/${orderID}/capture`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" }
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j?.message || "Capture PayPal échouée");
+    res.json({ success: true, details: j });
+  } catch (error) {
+    robotLog(ROBOTS.AUTH, "ERROR", `PayPal Capture: ${error.message}`);
+    res.status(500).json({ success: false, error: "Erreur PayPal (capture)." });
+  }
+});
 // INSCRIPTION
 app.post("/api/auth/register", async (req, res) => {
     const { name, email, password } = req.body;

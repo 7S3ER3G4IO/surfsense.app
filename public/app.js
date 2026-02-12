@@ -1621,6 +1621,79 @@ const initVersusPage = () => {
 };
 
 // --- 10. INITIALISATION AU CHARGEMENT ---
+let supportStripe = null;
+let supportPR = null;
+let supportPRMounted = false;
+const STRIPE_PK = "pk_test_51RMZjQJJmEGlNADUiBQcGOtpT3KyTai98JliTR2JrMUawseMficBtuyxf5DtulPv6ECF8IsBPh9VzDEnrddDoNbF00VHvgb3mL";
+const ensureStripeJs = () => new Promise((resolve) => {
+  if (window.Stripe) return resolve();
+  const s = document.createElement("script");
+  s.src = "https://js.stripe.com/v3";
+  s.onload = () => resolve();
+  document.head.appendChild(s);
+});
+const getSupportAmount = () => {
+  let amount = 0;
+  const checked = document.querySelector('input[name="support-amount"]:checked');
+  if (checked) amount = parseInt(checked.value, 10) || 0;
+  if (!amount) {
+    const custom = document.getElementById("support-amount-custom");
+    if (custom) amount = parseInt(custom.value, 10) || 0;
+  }
+  return amount;
+};
+const updatePRTotal = () => {
+  const a = getSupportAmount();
+  if (supportPR && a > 0) {
+    supportPR.update({ total: { label: "Don SurfSense", amount: a * 100 } });
+  }
+};
+const setupSupportApplePay = async () => {
+  await ensureStripeJs();
+  if (!supportStripe) supportStripe = Stripe(STRIPE_PK);
+  const a = getSupportAmount();
+  supportPR = supportStripe.paymentRequest({
+    country: "FR",
+    currency: "eur",
+    total: { label: "Don SurfSense", amount: Math.max(1, a) * 100 },
+    requestPayerName: true,
+    requestPayerEmail: true
+  });
+  const can = await supportPR.canMakePayment();
+  const host = document.getElementById("support-applepay-btn");
+  if (!host) return;
+  if (can && !supportPRMounted) {
+    const elements = supportStripe.elements();
+    const prButton = elements.create("paymentRequestButton", {
+      paymentRequest: supportPR,
+      style: { paymentRequestButton: { type: "applePay", theme: "dark", height: "40px" } }
+    });
+    prButton.mount(host);
+    host.style.display = "block";
+    supportPRMounted = true;
+    supportPR.on("paymentmethod", async (ev) => {
+      const amount = getSupportAmount();
+      if (!amount || amount < 1) { ev.complete("fail"); return; }
+      try {
+        const r = await fetch("/api/support/intent", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount })
+        });
+        const data = await r.json();
+        if (!data || !data.success || !data.clientSecret) { ev.complete("fail"); return; }
+        const res = await supportStripe.confirmCardPayment(data.clientSecret, { payment_method: ev.paymentMethod.id });
+        if (res.error) { ev.complete("fail"); return; }
+        ev.complete("success");
+        window.location.href = "contact.html?don=" + encodeURIComponent(amount) + "&ok=1";
+      } catch {
+        ev.complete("fail");
+      }
+    });
+  } else {
+    if (host) host.style.display = "none";
+  }
+};
 window.addEventListener("load", () => {
   initGatekeeper();
   handleAuthSwitch(); 
@@ -1684,6 +1757,8 @@ window.addEventListener("load", () => {
     if (e.target.matches("[data-modal='support']")) {
       const modal = document.getElementById("support-modal");
       if (modal) modal.classList.add("is-open");
+      setupSupportApplePay().then(() => updatePRTotal());
+      setupSupportPayPal();
     }
 
     const supportLabel = e.target.closest("#support-modal label.ghost-pill");
@@ -1695,11 +1770,13 @@ window.addEventListener("load", () => {
         supportLabel.classList.add('is-selected');
         const custom = document.getElementById('support-amount-custom');
         if (custom) custom.value = '';
+        updatePRTotal();
       }
     }
     if (e.target && e.target.id === "support-amount-custom") {
       document.querySelectorAll('#support-modal input[name="support-amount"]').forEach(r => r.checked = false);
       document.querySelectorAll('#support-modal label.ghost-pill').forEach(el => el.classList.remove('is-selected'));
+      updatePRTotal();
     }
 
     const legalTarget = e.target.closest("[data-modal^='legal-']");
@@ -1831,6 +1908,46 @@ if (!window.legalTexts) window.legalTexts = {
   }
 };
 
+const ensurePayPalJs = (clientId, currency = "EUR") => new Promise((resolve) => {
+  if (window.paypal) return resolve();
+  const s = document.createElement("script");
+  s.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=${currency}`;
+  s.onload = () => resolve();
+  document.head.appendChild(s);
+});
+const setupSupportPayPal = async () => {
+  try {
+    const host = document.getElementById("support-paypal-btn");
+    if (!host) return;
+    const cfgRes = await fetch("/api/paypal/config");
+    const cfg = await cfgRes.json();
+    if (!cfg || !cfg.enabled || !cfg.clientId) { host.style.display = "none"; return; }
+    await ensurePayPalJs(cfg.clientId, cfg.currency || "EUR");
+    host.style.display = "block";
+    window.paypal.Buttons({
+      style: { layout: "horizontal", color: "gold", shape: "rect", label: "paypal" },
+      createOrder: async () => {
+        const amount = getSupportAmount() || 5;
+        const r = await fetch("/api/paypal/order/create", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount })
+        });
+        const j = await r.json();
+        return j.id;
+      },
+      onApprove: async (data) => {
+        const amount = getSupportAmount() || 5;
+        await fetch("/api/paypal/order/capture", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderID: data.orderID })
+        });
+        window.location.href = "contact.html?don=" + encodeURIComponent(amount) + "&ok=1";
+      },
+      onError: () => { /* noop, UI cache */ }
+    }).render("#support-paypal-btn");
+  } catch {}
+};
+
 function initI18n() {
   const select = document.getElementById("lang-select");
   window.lang = localStorage.getItem("lang") || "fr";
@@ -1872,7 +1989,7 @@ const i18n = {
     "support.breakdown.api": "Abonnement API météo (Stormglass Premium).",
     "support.breakdown.domain": "Nom de domaine, certificats SSL et maintenance.",
     "support.breakdown.dev": "Développement des robots et des nouvelles fonctionnalités.",
-    "support.cta.continue": "Payer maintenant",
+    "support.cta.continue": "Payer par carte",
     "support.cta.copy": "Copier l’adresse email",
     "support.custom": "Montant libre",
     "hero.title": "Prévisions surf essentielles.",
@@ -1985,7 +2102,7 @@ const i18n = {
     "support.breakdown.api": "Premium weather API subscription (Stormglass).",
     "support.breakdown.domain": "Domain name, SSL certificates and maintenance.",
     "support.breakdown.dev": "Robots and new feature development.",
-    "support.cta.continue": "Pay now",
+    "support.cta.continue": "Pay by card",
     "support.cta.copy": "Copy email address",
     "support.custom": "Custom amount",
     "hero.title": "Essential surf forecasts.",
@@ -2098,7 +2215,7 @@ const i18n = {
     "support.breakdown.api": "Suscripción API de meteo Premium (Stormglass).",
     "support.breakdown.domain": "Dominio, certificados SSL y mantenimiento.",
     "support.breakdown.dev": "Desarrollo de robots y nuevas funciones.",
-    "support.cta.continue": "Pagar ahora",
+    "support.cta.continue": "Pagar con tarjeta",
     "support.cta.copy": "Copiar dirección de email",
     "support.custom": "Importe libre",
     "hero.title": "Previsiones de surf esenciales.",
