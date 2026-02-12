@@ -52,6 +52,31 @@
       @keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
       @keyframes pulse{0%{transform:scale(1);opacity:.9}50%{transform:scale(1.4);opacity:.6}100%{transform:scale(1);opacity:.9}}
       @keyframes flash{0%{box-shadow:0 0 0 rgba(124,58,237,0)}50%{box-shadow:0 0 18px rgba(124,58,237,.35)}100%{box-shadow:0 0 0 rgba(124,58,237,0)}}
+      .spot-grid-admin{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+      .spot-card-admin{background:rgba(11,14,22,.7);backdrop-filter:blur(8px);border:1px solid #1f2937;border-radius:14px;padding:12px;box-shadow:0 6px 24px rgba(0,0,0,.25);transition:transform .2s, box-shadow .2s}
+      .spot-card-admin:hover{transform:translateY(-2px);box-shadow:0 10px 36px rgba(0,0,0,.35)}
+      .spot-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+      .spot-name{color:#fff;font-weight:900}
+      .spot-region{color:#94a3b8;font-weight:700}
+      .status-pill{padding:4px 8px;border-radius:999px;font-size:.8rem;font-weight:800}
+      .status-live{background:rgba(34,197,94,.15);color:#22c55e}
+      .status-wait{background:rgba(250,204,21,.15);color:#facc15}
+      .status-epic{background:rgba(217,70,239,.15);color:#d946ef}
+      .pill-clean{background:rgba(34,197,94,.15);color:#22c55e}
+      .pill-fair{background:rgba(245,158,11,.15);color:#f59e0b}
+      .pill-messy{background:rgba(239,68,68,.15);color:#ef4444}
+      .spot-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:6px}
+      .metric-chip{background:#0b0e16;border:1px solid #1f2937;border-radius:10px;padding:8px;text-align:center}
+      .spot-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+      .act-btn{background:#0b0e16;border:1px solid #1f2937;color:#e5e7eb;border-radius:10px;padding:6px 10px;transition:transform .1s}
+      .act-btn:hover{transform:translateY(-1px)}
+      .spot-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;color:#94a3b8}
+      .priority-star{color:#f59e0b;font-weight:900}
+      .epic-glow{box-shadow:0 0 0 1px rgba(217,70,239,.35), 0 0 22px rgba(217,70,239,.25)}
+      .spot-grid-admin.compact{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+      .spot-grid-admin.compact .spot-card-admin{padding:10px;border-radius:12px}
+      .spot-grid-admin.compact .spot-name{font-size:.95rem}
+      .spot-grid-admin.compact .metric-chip{padding:6px}
     </style>
   </head>
   <body style="background:#080a12;">
@@ -175,14 +200,32 @@
       </div>
       <div id="spots" style="margin-top:30px;">
         <h3 class="forecast-title">Tableau des spots</h3>
-        <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
           <label style="color:#94a3b8;">Région</label>
           <select id="region-filter" class="btn" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
             <option value="">Toutes</option>
           </select>
+          <label style="color:#94a3b8;">Statut</label>
+          <select id="spot-status" class="btn" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
+            <option value="">Tous</option>
+            <option value="LIVE">LIVE</option>
+            <option value="WAITING">WAIT</option>
+            <option value="EPIC">EPIC</option>
+            <option value="PRIORITY">Priorité</option>
+          </select>
+          <label style="color:#94a3b8;">Tri</label>
+          <select id="spot-sort" class="btn" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
+            <option value="name">Nom</option>
+            <option value="time">Maj</option>
+            <option value="height">Hauteur</option>
+            <option value="period">Période</option>
+            <option value="wind">Vent</option>
+          </select>
+          <input id="spot-search-admin" type="search" placeholder="Rechercher un spot..." class="btn" style="flex:1; min-width:220px; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;"/>
+          <label class="live-toggle"><input type="checkbox" id="spots-compact"><span>Mode compact</span></label>
           <button id="btn-export-spots" class="btn">Exporter CSV spots</button>
         </div>
-        <div id="spots-list" style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px;"></div>
+        <div id="spots-list" class="spot-grid-admin"></div>
       </div>
       <div id="logs" style="margin-top:30px; display:grid; grid-template-columns:1fr 1fr; gap:20px;">
         <div>
@@ -437,21 +480,57 @@
                 o.value = reg; o.textContent = reg; sel.appendChild(o);
               });
             }
-            const filter = sel.value;
-            const filtered = filter ? arr.filter(x => x.region === filter) : arr;
-            const pr = await fetch("/api/admin/spots/priority", { headers }).then(r=>r.json()).catch(()=>[]);
-            const m = (x) => {
-              const dot = x.status === "LIVE" ? "#4ade80" : "#facc15";
-              const h = x.waveHeight != null ? x.waveHeight.toFixed(1)+"m" : "-";
-              const t = x.wavePeriod != null ? Math.round(x.wavePeriod)+"s" : "-";
-              const v = x.windSpeed != null ? Math.round(x.windSpeed)+"km/h" : "-";
+            const statusSel = document.getElementById("spot-status");
+            const sortSel = document.getElementById("spot-sort");
+            const searchInput = document.getElementById("spot-search-admin");
+            const regionVal = sel.value;
+            const statusVal = statusSel ? statusSel.value : "";
+            const sortVal = sortSel ? sortSel.value : "name";
+            const searchVal = (searchInput ? searchInput.value : "").toLowerCase();
+            const prList = await fetch("/api/admin/spots/priority", { headers }).then(rr=>rr.json()).catch(()=>[]);
+            const epicRaw = await fetch("/api/admin/alerts", { headers }).then(rr=>rr.json()).catch(()=>[]);
+            const epicList = Array.isArray(epicRaw) ? epicRaw.map(x => x.name || x) : [];
+            let filtered = regionVal ? arr.filter(x => x.region === regionVal) : arr.slice();
+            if (statusVal === "LIVE") filtered = filtered.filter(x => x.status === "LIVE");
+            else if (statusVal === "WAITING") filtered = filtered.filter(x => x.status !== "LIVE");
+            else if (statusVal === "EPIC") filtered = filtered.filter(x => epicList.includes(x.name));
+            else if (statusVal === "PRIORITY") filtered = filtered.filter(x => Array.isArray(prList) && prList.includes(x.name));
+            if (searchVal) filtered = filtered.filter(x => x.name.toLowerCase().includes(searchVal));
+            const sorter = {
+              name: (a,b) => a.name.localeCompare(b.name),
+              time: (a,b) => new Date(b.sourceTime || 0) - new Date(a.sourceTime || 0),
+              height: (a,b) => (b.waveHeight||0) - (a.waveHeight||0),
+              period: (a,b) => (b.wavePeriod||0) - (a.wavePeriod||0),
+              wind: (a,b) => (b.windSpeed||0) - (a.windSpeed||0)
+            }[sortVal] || ((a,b)=>a.name.localeCompare(b.name));
+            filtered.sort(sorter);
+            const view = (x) => {
+              const h = x.waveHeight != null ? x.waveHeight.toFixed(1) : "-";
+              const t = x.wavePeriod != null ? Math.round(x.wavePeriod) : "-";
+              const v = x.windSpeed != null ? Math.round(x.windSpeed) : "-";
               const d = x.windDirection || "-";
-              const time = x.sourceTime ? new Date(x.sourceTime).toLocaleTimeString() : "-";
-              const star = Array.isArray(pr) && pr.includes(x.name) ? "★" : "☆";
-              return '<div class="ai-robot-card"><span class="robot-icon">🏄‍♂️</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:'+dot+'"></span>'+x.name+' — '+x.region+'</span><span class="robot-value">H '+h+' • T '+t+' • V '+v+' '+d+'</span><span class="robot-desc">Maj '+time+'</span><div style="margin-top:8px; display:flex; gap:8px;"><button class="btn btn--compact" data-action="refresh" data-name="'+x.name+'">Forcer refresh</button><button class="btn btn--compact" data-action="clear" data-name="'+x.name+'">Effacer cache</button><button class="btn btn--compact" data-action="priority" data-name="'+x.name+'">'+star+' Priorité</button><button class="btn btn--compact" data-action="epic-add" data-name="'+x.name+'">Marquer EPIC</button><button class="btn btn--compact" data-action="epic-rem" data-name="'+x.name+'">Retirer EPIC</button></div></div></div>';
+              const timeLabel = x.sourceTime ? new Date(x.sourceTime).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : "-";
+              const isLive = x.status === "LIVE";
+              const isEpic = epicList.includes(x.name);
+              const star = Array.isArray(prList) && prList.includes(x.name) ? "★" : "☆";
+              const pillCls = isEpic ? "status-epic" : (isLive ? "status-live" : "status-wait");
+              const epicCls = isEpic ? "epic-glow" : "";
+              const score = (()=>{
+                let s = 0;
+                const hh = Number(x.waveHeight||0);
+                const pp = Number(x.wavePeriod||0);
+                const ww = Number(x.windSpeed||0);
+                if (pp >= 9) s+=2; else if (pp >= 7) s+=1;
+                if (ww <= 12) s+=2; else if (ww <= 20) s+=1;
+                if (hh >= .8 && hh <= 2.5) s+=2; else if (hh >= .5 && hh <= 3.5) s+=1;
+                return s;
+              })();
+              const cleanLabel = score >= 5 ? "CLEAN" : (score >= 3 ? "FAIR" : "MESSY");
+              const cleanCls = score >= 5 ? "pill-clean" : (score >= 3 ? "pill-fair" : "pill-messy");
+              return '<div class="spot-card-admin '+epicCls+'"><div class="spot-head"><div><div class="spot-name">'+x.name+'</div><div class="spot-region">'+x.region+'</div></div><div style="display:flex;gap:6px;align-items:center;"><div class="status-pill '+pillCls+'">'+(isEpic?'EPIC':(isLive?'LIVE':'WAIT'))+'</div><div class="status-pill '+cleanCls+'">'+cleanLabel+'</div></div></div><div class="spot-metrics"><div class="metric-chip"><div class="metric-label">Hauteur</div><div class="metric-value">'+h+'m</div></div><div class="metric-chip"><div class="metric-label">Période</div><div class="metric-value">'+t+'s</div></div><div class="metric-chip"><div class="metric-label">Vent</div><div class="metric-value">'+v+' km/h</div></div><div class="metric-chip"><div class="metric-label">Dir. Vent</div><div class="metric-value">'+d+'</div></div></div><div class="spot-footer"><div>Maj '+timeLabel+'</div><div class="priority-star">'+star+'</div></div><div class="spot-actions"><button class="act-btn" title="Refresh" data-action="refresh" data-name="'+x.name+'">⟳ Refresh</button><button class="act-btn" title="Effacer cache" data-action="clear" data-name="'+x.name+'">🗑️ Cache</button><button class="act-btn" title="Priorité" data-action="priority" data-name="'+x.name+'">⭐ Priorité</button><button class="act-btn" title="Marquer EPIC" data-action="epic-add" data-name="'+x.name+'">⚡ EPIC</button><button class="act-btn" title="Retirer EPIC" data-action="epic-rem" data-name="'+x.name+'">— EPIC</button></div></div>';
             };
             const container = document.getElementById("spots-list");
-            container.innerHTML = filtered.map(m).join("");
+            container.innerHTML = filtered.map(view).join("");
             container.querySelectorAll("button[data-action]").forEach(btn => {
               btn.onclick = async () => {
                 const name = btn.getAttribute("data-name");
@@ -478,6 +557,13 @@
           } catch {}
         }
         document.getElementById("region-filter").onchange = loadSpots;
+        if (document.getElementById("spot-status")) document.getElementById("spot-status").onchange = loadSpots;
+        if (document.getElementById("spot-sort")) document.getElementById("spot-sort").onchange = loadSpots;
+        if (document.getElementById("spot-search-admin")) document.getElementById("spot-search-admin").oninput = () => { clearTimeout(window.__spotSearchTimer); window.__spotSearchTimer = setTimeout(loadSpots, 250); };
+        if (document.getElementById("spots-compact")) document.getElementById("spots-compact").onchange = (e) => {
+          const list = document.getElementById("spots-list");
+          if (list) list.classList.toggle("compact", !!e.target.checked);
+        };
         document.getElementById("btn-export-spots").onclick = async () => {
           try {
             const rr = await fetch("/api/admin/spots/export", { headers });
