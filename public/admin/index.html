@@ -8,14 +8,50 @@
     <link rel="icon" href="../logo.svg" type="image/svg+xml" />
     <style>
       .admin-layout{display:flex;min-height:100vh}
-      .admin-sidebar{width:240px;background:#0b0e16;border-right:1px solid #1f2937;padding:16px;position:sticky;top:0;height:100vh}
-      .admin-brand{display:flex;align-items:center;gap:10px;color:#e5e7eb;font-weight:700;margin-bottom:16px}
-      .admin-nav a{display:block;padding:10px 12px;border-radius:10px;color:#c4b5fd;text-decoration:none;margin-bottom:6px}
-      .admin-nav a:hover{background:#111827}
-      .admin-main{flex:1;padding:20px}
-      .section-title h2{color:#c4b5fd}
-      .forecast-title{color:#c4b5fd}
+      .admin-sidebar{width:260px;background:#0b0e16;border-right:1px solid #1f2937;padding:18px;position:sticky;top:0;height:100vh;backdrop-filter:blur(8px)}
+      .admin-brand{display:flex;align-items:center;gap:10px;color:#e5e7eb;font-weight:800;margin-bottom:18px}
+      .admin-nav a{display:block;padding:10px 12px;border-radius:12px;color:#c4b5fd;text-decoration:none;margin-bottom:6px;transition:background .2s, transform .1s}
+      .admin-nav a:hover{background:#111827;transform:translateX(2px)}
+      .admin-main{flex:1;padding:24px;background:
+        radial-gradient(1200px 600px at -10% -10%, rgba(124,58,237,.12), transparent 60%),
+        radial-gradient(1000px 500px at 110% 10%, rgba(34,197,94,.12), transparent 60%)}
+      .section-title h2{background:linear-gradient(90deg,#7c3aed,#22c55e,#f59e0b,#d946ef);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:900;animation:gradientShift 12s ease infinite}
+      .forecast-title{color:#c4b5fd;font-weight:800}
       .btn.btn--compact{padding:6px 10px}
+      .admin-cards{margin-top:20px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+      .admin-card{background:rgba(11,14,22,.7);backdrop-filter:blur(8px);border:1px solid #1f2937;border-radius:16px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.35);transition:transform .2s, box-shadow .2s}
+      .admin-card:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,.45)}
+      .metric-label{color:#94a3b8;font-weight:700}
+      .metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+      .metric-value{color:#e5e7eb;font-weight:900;font-size:1.05rem}
+      .stats-grid-6{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-top:20px}
+      .stat-item{background:#0b0e16;border:1px solid #1f2937;border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:6px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+      .stat-label{color:#94a3b8;font-weight:700;display:flex;align-items:center;gap:8px}
+      .stat-icon{opacity:.9}
+      .stat-value{color:#fff;font-weight:900;font-size:1.3rem}
+      .pulse-dot{width:8px;height:8px;border-radius:50%;display:inline-block;animation:pulse 1.2s infinite}
+      .sparkline{width:100%;height:40px;opacity:.9}
+      .progress{height:10px;border-radius:8px;background:#111827;margin-top:10px;overflow:hidden}
+      .progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#d946ef,#f59e0b,#22c55e);transition:width .4s ease}
+      .flash{animation:flash .6s}
+      .live-toggle{display:flex;align-items:center;gap:10px;color:#94a3b8}
+      .live-toggle input{appearance:none;width:38px;height:20px;border-radius:10px;background:#1f2937;position:relative;outline:none;transition:background .2s}
+      .live-toggle input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s}
+      .live-toggle input:checked{background:#22c55e}
+      .live-toggle input:checked::after{left:20px}
+      .theme-toggle{display:flex;align-items:center;gap:10px;color:#94a3b8}
+      .theme-toggle input{appearance:none;width:38px;height:20px;border-radius:10px;background:#1f2937;position:relative;outline:none;transition:background .2s}
+      .theme-toggle input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s}
+      .theme-toggle input:checked{background:#d946ef}
+      .theme-toggle input:checked::after{left:20px}
+      .neon .admin-card{box-shadow:0 8px 34px rgba(217,70,239,.25), inset 0 0 0 1px rgba(217,70,239,.12)}
+      .neon .stat-item{box-shadow:0 6px 28px rgba(96,165,250,.25)}
+      .neon .admin-main{background:
+        radial-gradient(1200px 600px at -10% -10%, rgba(217,70,239,.16), transparent 60%),
+        radial-gradient(1000px 500px at 110% 10%, rgba(245,158,11,.14), transparent 60%)}
+      @keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+      @keyframes pulse{0%{transform:scale(1);opacity:.9}50%{transform:scale(1.4);opacity:.6}100%{transform:scale(1);opacity:.9}}
+      @keyframes flash{0%{box-shadow:0 0 0 rgba(124,58,237,0)}50%{box-shadow:0 0 18px rgba(124,58,237,.35)}100%{box-shadow:0 0 0 rgba(124,58,237,0)}}
     </style>
   </head>
   <body style="background:#080a12;">
@@ -43,40 +79,45 @@
           <h2>Tableau de bord Admin</h2>
           <p style="color:#94a3b8;">Surveillance en temps réel</p>
         </div>
-        <div>
+        <div style="display:flex; align-items:center; gap:14px;">
           <span class="badge badge--live">LIVE</span>
+          <label class="live-toggle"><input type="checkbox" id="live-mode"><span>Live mode</span></label>
+          <button id="pause-live" class="btn btn--compact">Pause Live</button>
+          <label class="theme-toggle"><input type="checkbox" id="dark-neon"><span>Dark Neon</span></label>
         </div>
       </div>
-      <div style="margin-top:20px; display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px;">
-        <div style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;">
-          <div style="color:#94a3b8;">Santé Système</div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
-            <div style="color:#9ca3af">DB</div><div id="health-db" style="color:#e5e7eb">-</div>
-            <div style="color:#9ca3af">Ping DB</div><div id="health-ping" style="color:#e5e7eb">-</div>
-            <div style="color:#9ca3af">Uptime</div><div id="health-uptime" style="color:#e5e7eb">-</div>
-            <div style="color:#9ca3af">Mémoire</div><div id="health-mem" style="color:#e5e7eb">-</div>
-            <div style="color:#9ca3af">Cache</div><div id="health-cache" style="color:#e5e7eb">-</div>
-            <div style="color:#9ca3af">API</div><div id="health-api" style="color:#e5e7eb">-</div>
-            <div style="color:#9ca3af">Spots</div><div id="health-spots" style="color:#e5e7eb">-</div>
+      <div class="admin-cards">
+        <div class="admin-card" id="card-health">
+          <div class="metric-label">Santé Système</div>
+          <div class="metric-grid">
+            <div style="color:#9ca3af">DB</div><div id="health-db" class="metric-value">-</div>
+            <div style="color:#9ca3af">Ping DB</div><div id="health-ping" class="metric-value">-</div>
+            <div style="color:#9ca3af">Uptime</div><div id="health-uptime" class="metric-value">-</div>
+            <div style="color:#9ca3af">Mémoire</div><div id="health-mem" class="metric-value">-</div>
+            <div style="color:#9ca3af">Cache</div><div id="health-cache" class="metric-value">-</div>
+            <div style="color:#9ca3af">API</div><div id="health-api" class="metric-value">-</div>
+            <div style="color:#9ca3af">Spots</div><div id="health-spots" class="metric-value">-</div>
           </div>
         </div>
-        <div style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;">
-          <div style="color:#94a3b8;">Workers</div>
+        <div class="admin-card" id="card-workers">
+          <div class="metric-label">Workers</div>
           <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+            <span class="pulse-dot" style="background:#22c55e"></span>
             <button id="btn-worker-pause" class="btn btn--compact">Pause</button>
             <button id="btn-worker-resume" class="btn btn--compact">Resume</button>
             <input id="worker-interval" type="number" min="1" max="240" value="45" class="btn" style="width:90px;"/>
             <button id="btn-worker-apply" class="btn btn--compact">Appliquer</button>
           </div>
-          <div style="color:#9ca3af; margin-top:6px;">Intervalle actuel: <span id="worker-interval-cur">-</span> min · État: <span id="worker-state">-</span></div>
+          <div style="color:#9ca3af; margin-top:6px;">Intervalle actuel: <span id="worker-interval-cur" class="metric-value">-</span> min · État: <span id="worker-state" class="metric-value">-</span></div>
         </div>
-        <div style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;">
-          <div style="color:#94a3b8;">Quota API</div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
-            <div style="color:#9ca3af">Limite</div><div id="health-limit" style="color:#e5e7eb">-</div>
-            <div style="color:#9ca3af">Restant</div><div id="health-rem" style="color:#e5e7eb">-</div>
-            <div style="color:#9ca3af">Utilisé</div><div id="health-used" style="color:#e5e7eb">-</div>
+        <div class="admin-card" id="card-quota">
+          <div class="metric-label">Quota API</div>
+          <div class="metric-grid">
+            <div style="color:#9ca3af">Limite</div><div id="health-limit" class="metric-value">-</div>
+            <div style="color:#9ca3af">Restant</div><div id="health-rem" class="metric-value">-</div>
+            <div style="color:#9ca3af">Utilisé</div><div id="health-used" class="metric-value">-</div>
           </div>
+          <div class="progress"><div id="quota-progress-bar" class="progress-bar"></div></div>
           <div style="margin-top:10px;">
             <button id="btn-quota-reel" class="btn btn--compact">Actualiser quota réel (Stormglass)</button>
             <div id="quota-source" style="color:#94a3b8; margin-top:6px;"></div>
@@ -84,36 +125,36 @@
         </div>
       </div>
       <div id="admin-grid" class="stats-grid-6">
-        <div class="stat-item"><span class="stat-label">Utilisateurs</span><span class="stat-value"><span id="m-users">-</span></span></div>
-        <div class="stat-item"><span class="stat-label">Favoris</span><span class="stat-value"><span id="m-favorites">-</span></span></div>
-        <div class="stat-item"><span class="stat-label">Clicks</span><span class="stat-value"><span id="m-clicks">-</span></span></div>
-        <div class="stat-item"><span class="stat-label">Spots LIVE</span><span class="stat-value"><span id="m-live">-</span></span></div>
-        <div class="stat-item"><span class="stat-label">Spots WAIT</span><span class="stat-value"><span id="m-wait">-</span></span></div>
-        <div class="stat-item"><span class="stat-label">Alertes ÉPIQUES</span><span class="stat-value"><span id="m-epic">-</span></span></div>
+        <div class="stat-item"><span class="stat-label"><span class="pulse-dot" style="background:#60a5fa"></span><span class="stat-icon">👤</span> Utilisateurs</span><span class="stat-value"><span id="m-users">-</span></span><canvas id="spark-users" class="sparkline" width="140" height="40"></canvas></div>
+        <div class="stat-item"><span class="stat-label"><span class="pulse-dot" style="background:#f59e0b"></span><span class="stat-icon">♥</span> Favoris</span><span class="stat-value"><span id="m-favorites">-</span></span></div>
+        <div class="stat-item"><span class="stat-label"><span class="pulse-dot" style="background:#94a3b8"></span><span class="stat-icon">🖱️</span> Clicks</span><span class="stat-value"><span id="m-clicks">-</span></span></div>
+        <div class="stat-item"><span class="stat-label"><span class="pulse-dot" style="background:#22c55e"></span><span class="stat-icon">🛰️</span> Spots LIVE</span><span class="stat-value"><span id="m-live">-</span></span><canvas id="spark-live" class="sparkline" width="140" height="40"></canvas></div>
+        <div class="stat-item"><span class="stat-label"><span class="pulse-dot" style="background:#facc15"></span><span class="stat-icon">⏳</span> Spots WAIT</span><span class="stat-value"><span id="m-wait">-</span></span></div>
+        <div class="stat-item"><span class="stat-label"><span class="pulse-dot" style="background:#d946ef"></span><span class="stat-icon">⚡</span> Alertes ÉPIQUES</span><span class="stat-value"><span id="m-epic">-</span></span><canvas id="spark-epic" class="sparkline" width="140" height="40"></canvas></div>
       </div>
       <div class="stats-grid-6" style="margin-top:20px;">
-        <div class="stat-item"><span class="stat-label">Quota RESTANT</span><span class="stat-value"><span id="m-quota-rem">-</span></span></div>
-        <div class="stat-item"><span class="stat-label">Quota LIMITE</span><span class="stat-value"><span id="m-quota-limit">-</span></span></div>
-        <div class="stat-item"><span class="stat-label">Quota UTILISÉ</span><span class="stat-value"><span id="m-quota-used">-</span></span></div>
-        <div class="stat-item"><span class="stat-label">Cache Items</span><span class="stat-value"><span id="m-cache">-</span></span></div>
-        <div class="stat-item"><span class="stat-label">Tide Keys</span><span class="stat-value"><span id="m-tide">-</span></span></div>
+        <div class="stat-item"><span class="stat-label"><span class="pulse-dot" style="background:#22c55e"></span><span class="stat-icon">🔑</span> Quota RESTANT</span><span class="stat-value"><span id="m-quota-rem">-</span></span><canvas id="spark-quota" class="sparkline" width="140" height="40"></canvas></div>
+        <div class="stat-item"><span class="stat-label"><span class="stat-icon">🎚️</span> Quota LIMITE</span><span class="stat-value"><span id="m-quota-limit">-</span></span></div>
+        <div class="stat-item"><span class="stat-label"><span class="stat-icon">📊</span> Quota UTILISÉ</span><span class="stat-value"><span id="m-quota-used">-</span></span></div>
+        <div class="stat-item"><span class="stat-label"><span class="stat-icon">🗄️</span> Cache Items</span><span class="stat-value"><span id="m-cache">-</span></span></div>
+        <div class="stat-item"><span class="stat-label"><span class="stat-icon">🌊</span> Tide Keys</span><span class="stat-value"><span id="m-tide">-</span></span></div>
       </div>
       <div id="analytics" style="margin-top:30px;">
         <h3 class="forecast-title">Analytique</h3>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
-          <div style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;">
+          <div class="admin-card">
             <div style="color:#94a3b8; margin-bottom:8px;">Spots LIVE vs WAIT (24h)</div>
             <canvas id="chart-live" width="520" height="180"></canvas>
           </div>
-          <div style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;">
+          <div class="admin-card">
             <div style="color:#94a3b8; margin-bottom:8px;">Quota restant (24h)</div>
             <canvas id="chart-quota" width="520" height="180"></canvas>
           </div>
-          <div style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;">
+          <div class="admin-card">
             <div style="color:#94a3b8; margin-bottom:8px;">Alertes ÉPIQUES (24h)</div>
             <canvas id="chart-epic" width="520" height="180"></canvas>
           </div>
-          <div style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;">
+          <div class="admin-card">
             <div style="color:#94a3b8; margin-bottom:8px;">Utilisateurs (24h)</div>
             <canvas id="chart-users" width="520" height="180"></canvas>
           </div>
@@ -230,6 +271,22 @@
           });
           ctx.stroke();
         };
+        const animateNumber = (el, val) => {
+          if (!el) return;
+          const target = Number(val) || 0;
+          const prev = Number(el.dataset.v || el.textContent || 0);
+          const steps = 12;
+          let i = 0;
+          const d = (target - prev) / steps;
+          el.classList.add("flash");
+          const tick = () => {
+            i++;
+            const cur = Math.round(prev + d * i);
+            el.textContent = String(cur);
+            if (i < steps) { requestAnimationFrame(tick); } else { el.textContent = String(target); el.dataset.v = String(target); el.classList.remove("flash"); }
+          };
+          tick();
+        };
         const drawBars = (container, data) => {
           if (!container) return;
           container.innerHTML = Object.entries(data).sort((a,b)=>b[1]-a[1]).map(([k,v]) => {
@@ -237,22 +294,52 @@
             return '<div style="display:flex; align-items:center; gap:10px; margin:6px 0;"><div style="width:160px; color:#e5e7eb;">'+k+'</div><div style="flex:1; background:#111827; border-radius:8px; overflow:hidden;"><div style="width:'+pct+'%; background:#7c3aed; height:16px;"></div></div><div style="width:60px; text-align:right; color:#94a3b8;">'+v+'</div></div>';
           }).join("");
         };
+        let timers = {};
+        let liveMode = false;
+        let paused = false;
+        const schedule = (fast) => {
+          Object.values(timers).forEach(id => { try { clearInterval(id); } catch {} });
+          timers = {};
+          if (paused) return;
+          if (fast) {
+            timers.t1 = setInterval(load, 2000);
+            timers.t2 = setInterval(loadHealth, 3000);
+            timers.t3 = setInterval(loadAnalytics, 6000);
+            timers.t4 = setInterval(loadRegions, 6000);
+            timers.t5 = setInterval(loadSpots, 3000);
+            timers.t6 = setInterval(loadLogs, 3000);
+            timers.t7 = setInterval(loadUsers, 4000);
+          } else {
+            timers.t1 = setInterval(load, 5000);
+            timers.t2 = setInterval(loadHealth, 8000);
+            timers.t3 = setInterval(loadAnalytics, 15000);
+            timers.t4 = setInterval(loadRegions, 15000);
+            timers.t5 = setInterval(loadSpots, 6000);
+            timers.t6 = setInterval(loadLogs, 7000);
+            timers.t7 = setInterval(loadUsers, 9000);
+          }
+        };
         async function load() {
           try {
             const res = await fetch("/api/admin/metrics", { headers });
             const d = await res.json();
             if (!res.ok) { throw new Error(d.error || "Forbidden"); }
-            q("m-users").textContent = d.users;
-            q("m-favorites").textContent = d.favorites;
-            q("m-clicks").textContent = d.clicks;
-            q("m-live").textContent = d.liveSpots;
-            q("m-wait").textContent = d.waitingSpots;
-            q("m-epic").textContent = d.epicAlerts;
-            q("m-quota-rem").textContent = d.quota.remaining;
-            q("m-quota-limit").textContent = d.quota.limit;
-            q("m-quota-used").textContent = d.quota.used;
-            q("m-cache").textContent = d.cacheItems;
-            q("m-tide").textContent = d.tideKeys;
+            animateNumber(q("m-users"), d.users);
+            animateNumber(q("m-favorites"), d.favorites);
+            animateNumber(q("m-clicks"), d.clicks);
+            animateNumber(q("m-live"), d.liveSpots);
+            animateNumber(q("m-wait"), d.waitingSpots);
+            animateNumber(q("m-epic"), d.epicAlerts);
+            animateNumber(q("m-quota-rem"), d.quota.remaining);
+            animateNumber(q("m-quota-limit"), d.quota.limit);
+            animateNumber(q("m-quota-used"), d.quota.used);
+            animateNumber(q("m-cache"), d.cacheItems);
+            animateNumber(q("m-tide"), d.tideKeys);
+            const lim = d.quota.limit || 0;
+            const used = d.quota.used || 0;
+            const pct = lim > 0 ? Math.min(100, Math.round((used / lim) * 100)) : 0;
+            const bar = document.getElementById("quota-progress-bar");
+            if (bar) bar.style.width = pct + "%";
             q("deleted-today").textContent = d.deletedToday || 0;
             const robots = d.robotsStatus || {};
             const container = document.getElementById("robots-list");
@@ -320,6 +407,10 @@
             drawLine(document.getElementById("chart-quota"), series.quota, "#f59e0b");
             drawLine(document.getElementById("chart-epic"), series.epic, "#d946ef");
             drawLine(document.getElementById("chart-users"), series.users, "#60a5fa");
+            drawLine(document.getElementById("spark-live"), series.live, "#22c55e");
+            drawLine(document.getElementById("spark-quota"), series.quota, "#f59e0b");
+            drawLine(document.getElementById("spark-epic"), series.epic, "#d946ef");
+            drawLine(document.getElementById("spark-users"), series.users, "#60a5fa");
           } catch {}
         }
         async function loadRegions() {
@@ -522,13 +613,19 @@
         loadSpots();
         loadLogs();
         loadUsers();
-        setInterval(load, 5000);
-        setInterval(loadHealth, 8000);
-        setInterval(loadAnalytics, 15000);
-        setInterval(loadRegions, 15000);
-        setInterval(loadSpots, 6000);
-        setInterval(loadLogs, 7000);
-        setInterval(loadUsers, 9000);
+        schedule(false);
+        document.getElementById("live-mode").onchange = (e) => { liveMode = !!e.target.checked; schedule(liveMode); };
+        document.getElementById("pause-live").onclick = () => {
+          paused = !paused;
+          Object.values(timers).forEach(id => { try { clearInterval(id); } catch {} });
+          timers = {};
+          document.getElementById("pause-live").textContent = paused ? "Reprendre Live" : "Pause Live";
+          if (!paused) schedule(liveMode);
+        };
+        document.getElementById("dark-neon").onchange = (e) => {
+          const active = !!e.target.checked;
+          document.body.classList.toggle("neon", active);
+        };
       })();
     </script>
       </main>
