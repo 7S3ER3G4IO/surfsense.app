@@ -13,26 +13,21 @@ import puppeteer from "puppeteer";
 // --- GATE ADMIN AVANT STATIQUE ---
 const adminStaticGate = (req, res, next) => {
   if (!req.path.startsWith("/admin")) return next();
-  const cookieHeader = req.headers.cookie || "";
-  const m = cookieHeader.match(/(?:^|;)\s*admin_session=([^;]+)/);
-  if (!m) {
-    const t = (req.query && req.query.token) || "";
-    if (t && t === ADMIN_TOKEN) {
-      const secure = process.env.RENDER ? "Secure; " : "";
-      res.setHeader("Set-Cookie", `admin_session=${ADMIN_TOKEN}; ${secure}HttpOnly; SameSite=Strict; Path=/`);
-      return next();
-    }
-    return res.status(403).send("Forbidden");
-  } else {
-    const tok = m[1];
-    if (tok === ADMIN_TOKEN) return next();
-    const rec = adminTokensByValue.get(tok);
-    if (!rec || rec.expires < Date.now() || rec.email !== ADMIN_EMAIL) {
-      if (rec && rec.expires < Date.now()) adminTokensByValue.delete(tok);
-      return res.status(403).send("Forbidden");
-    }
+  const t = (req.query && req.query.token) || "";
+  if (t && t === ADMIN_TOKEN) {
+    const secure = process.env.RENDER ? "Secure; " : "";
+    res.setHeader("Set-Cookie", `admin_session=${ADMIN_TOKEN}; ${secure}HttpOnly; SameSite=Strict; Path=/`);
+    return next();
   }
-  next();
+  const cookieHeader = req.headers.cookie || "";
+  const sessions = (cookieHeader || "").split(";").map(s => s.trim()).filter(s => /^admin_session=/i.test(s)).map(s => s.split("=")[1]);
+  if (sessions.includes(ADMIN_TOKEN)) return next();
+  const tok = sessions[0];
+  if (tok) {
+    const rec = adminTokensByValue.get(tok);
+    if (rec && rec.expires >= Date.now() && rec.email === ADMIN_EMAIL) return next();
+  }
+  return res.status(403).send("Forbidden");
 };
 import { fileURLToPath } from "url";
 import { spots } from "./spots.js";
@@ -956,22 +951,22 @@ app.get("/admin/login", (req, res) => {
   res.redirect("/admin/");
 });
 app.get("/admin/", (req, res) => {
-  const cookieHeader = req.headers.cookie || "";
-  const m = cookieHeader.match(/(?:^|;)\s*admin_session=([^;]+)/);
-  if (!m) {
-    const t = (req.query && req.query.token) || "";
-    if (t && t === ADMIN_TOKEN) {
-      const secure = process.env.RENDER ? "Secure; " : "";
-      res.setHeader("Set-Cookie", `admin_session=${ADMIN_TOKEN}; ${secure}HttpOnly; SameSite=Strict; Path=/`);
-    } else {
-      return res.status(403).send("Forbidden");
-    }
+  const t = (req.query && req.query.token) || "";
+  if (t && t === ADMIN_TOKEN) {
+    const secure = process.env.RENDER ? "Secure; " : "";
+    res.setHeader("Set-Cookie", `admin_session=${ADMIN_TOKEN}; ${secure}HttpOnly; SameSite=Strict; Path=/`);
   } else {
-    const tok = m[1];
-    if (tok !== ADMIN_TOKEN) {
-      const rec = adminTokensByValue.get(tok);
-      if (!rec || rec.expires < Date.now() || rec.email !== ADMIN_EMAIL) {
-        if (rec && rec.expires < Date.now()) adminTokensByValue.delete(tok);
+    const cookieHeader = req.headers.cookie || "";
+    const sessions = (cookieHeader || "").split(";").map(s => s.trim()).filter(s => /^admin_session=/i.test(s)).map(s => s.split("=")[1]);
+    if (!sessions.includes(ADMIN_TOKEN)) {
+      const tok = sessions[0];
+      if (tok) {
+        const rec = adminTokensByValue.get(tok);
+        if (!rec || rec.expires < Date.now() || rec.email !== ADMIN_EMAIL) {
+          if (rec && rec.expires < Date.now()) adminTokensByValue.delete(tok);
+          return res.status(403).send("Forbidden");
+        }
+      } else {
         return res.status(403).send("Forbidden");
       }
     }
