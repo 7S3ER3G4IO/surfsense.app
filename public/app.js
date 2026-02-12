@@ -1644,6 +1644,7 @@ window.addEventListener("load", () => {
       if (document.body.classList.contains("versus-page")) initVersusPage(); 
       if (document.body.classList.contains("actus-page")) renderFullNews(); 
       if (document.body.classList.contains("contact-page")) initContactPage(); 
+      attachAdminSecret();
   } catch (e) { console.error("Erreur critique init:", e); }
 
   document.body.addEventListener("click", e => {
@@ -1729,6 +1730,27 @@ const initContactPage = () => {
     } catch {
       if (statusEl) statusEl.textContent = "Erreur réseau. Réessayez.";
     }
+  });
+};
+const attachAdminSecret = () => {
+  const openPrompt = async () => {
+    const t = prompt("Jeton Admin");
+    if (!t) return;
+    try {
+      const r = await fetch("/api/admin/session/token", { method:"POST", headers: { "Content-Type":"application/json" }, body: JSON.stringify({ token: t }) });
+      const dj = await r.json();
+      if (!r.ok) { alert(dj.error || "Jeton invalide"); return; }
+      window.location.href = "/admin/";
+    } catch { alert("Erreur réseau"); }
+  };
+  const logo = document.querySelector(".logo");
+  if (logo) {
+    logo.addEventListener("click", (e) => { if (e.altKey) openPrompt(); });
+  }
+  document.addEventListener("keydown", (e) => {
+    const mac = navigator.platform.toLowerCase().includes("mac");
+    const ctrlOrMeta = mac ? e.metaKey : e.ctrlKey;
+    if (ctrlOrMeta && e.shiftKey && e.key && e.key.toLowerCase() === "a") { e.preventDefault(); openPrompt(); }
   });
 };
 // AFFICHER BANNIÈRE COOKIES
