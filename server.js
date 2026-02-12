@@ -7,7 +7,22 @@ import bcrypt from "bcrypt";
 import Parser from "rss-parser";
 import nodemailer from "nodemailer";
 import helmet from "helmet"; // SÉCURITÉ
+import crypto from "crypto";
  
+// --- GATE ADMIN AVANT STATIQUE ---
+const adminStaticGate = (req, res, next) => {
+  if (!req.path.startsWith("/admin")) return next();
+  const cookieHeader = req.headers.cookie || "";
+  const m = cookieHeader.match(/(?:^|;)\s*admin_session=([^;]+)/);
+  if (!m) return res.status(403).send("Forbidden");
+  const tok = m[1];
+  const rec = adminTokensByValue.get(tok);
+  if (!rec || rec.expires < Date.now() || rec.email !== ADMIN_EMAIL) {
+    if (rec && rec.expires < Date.now()) adminTokensByValue.delete(tok);
+    return res.status(403).send("Forbidden");
+  }
+  next();
+};
 import { fileURLToPath } from "url";
 import { spots } from "./spots.js";
 
@@ -16,6 +31,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 const parser = new Parser();
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "loviatmax@gmail.com";
+const adminTokens = new Map();
+const adminTokensByValue = new Map();
 
 // --- SÉCURITÉ 1 : HELMET (En-têtes HTTP sécurisés) ---
 app.use(helmet({
@@ -33,6 +51,7 @@ const pool = new pg.Pool({
     ssl: process.env.RENDER ? { rejectUnauthorized: false } : false
 });
 
+app.use(adminStaticGate);
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json()); 
 app.use(cors()); // Cors reste utile
@@ -412,9 +431,20 @@ app.post("/api/auth/login", async (req, res) => {
 
         if (!validPass) return res.status(401).json({ error: "Mot de passe incorrect." });
 
-        res.json({ 
-            success: true, 
-            user: { id: user.id, name: user.name, email: user.email, premium: user.premium } 
+        let adminToken = null;
+        if (user.email === ADMIN_EMAIL) {
+            adminToken = crypto.randomBytes(24).toString("hex");
+            const rec = { token: adminToken, expires: Date.now() + 12 * 60 * 60 * 1000, email: user.email, userId: user.id };
+            adminTokens.set(user.id, rec);
+            adminTokensByValue.set(adminToken, rec);
+            const cookie = `admin_session=${adminToken}; Path=/admin; Max-Age=${12*60*60}; HttpOnly; SameSite=Strict${process.env.RENDER ? "; Secure" : ""}`;
+            res.setHeader("Set-Cookie", cookie);
+        }
+        res.json({
+            success: true,
+            user: { id: user.id, name: user.name, email: user.email, premium: user.premium },
+            admin: !!adminToken,
+            adminToken
         });
         robotLog(ROBOTS.AUTH, "LOGIN", user.name);
 
@@ -845,6 +875,170 @@ app.get("/api/all-status", (req, res) => {
   const counts = Object.values(statusMap).reduce((a, v) => { a[v] = (a[v] || 0) + 1; return a; }, {});
   robotLog(ROBOTS.SERVER, "RESP", `LIVE=${counts.LIVE || 0} WAIT=${counts.WAITING || 0}`);
   res.json(statusMap);
+});
+
+const requireAdmin = (req) => {
+  const id = parseInt(req.headers["x-user-id"]);
+  const email = req.headers["x-user-email"];
+  const token = req.headers["x-admin-token"];
+  if (!id || !email || !token) return false;
+  const rec = adminTokens.get(id);
+  if (!rec) return false;
+  if (rec.expires < Date.now()) { adminTokens.delete(id); return false; }
+  if (email !== ADMIN_EMAIL) return false;
+  if (rec.token !== token) return false;
+  return true;
+};
+
+// Gate d'accès à la page /admin (HTML), avant la statique
+app.get("/admin", (req, res) => res.redirect("/admin/"));
+app.get("/admin/", (req, res) => {
+  const cookieHeader = req.headers.cookie || "";
+  const m = cookieHeader.match(/(?:^|;)\s*admin_session=([^;]+)/);
+  if (!m) return res.status(403).send("Forbidden");
+  const tok = m[1];
+  const rec = adminTokensByValue.get(tok);
+  if (!rec || rec.expires < Date.now() || rec.email !== ADMIN_EMAIL) {
+    if (rec && rec.expires < Date.now()) adminTokensByValue.delete(tok);
+    return res.status(403).send("Forbidden");
+  }
+  res.sendFile(path.join(__dirname, "public", "admin", "index.html"));
+});
+
+app.get("/api/admin/metrics", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const safeCount = async (sql) => {
+      try { const r = await pool.query(sql); return r.rows[0].c || 0; } catch { return 0; }
+    };
+    const safeQuery = async (sql) => {
+      try { return await pool.query(sql); } catch { return { rows: [] }; }
+    };
+    const usersC = await safeCount("SELECT COUNT(*)::int AS c FROM users");
+    const favC = await safeCount("SELECT COUNT(*)::int AS c FROM favorites");
+    const clicksC = await safeCount("SELECT COUNT(*)::int AS c FROM click_logs");
+    const statusMap = {};
+    spots.forEach(spot => {
+      statusMap[spot.name] = cache.has(`${spot.coords[0]},lng=${spot.coords[1]}`) ? "LIVE" : "WAITING";
+    });
+    const liveCount = Object.values(statusMap).filter(v => v === "LIVE").length;
+    const waitCount = Object.values(statusMap).filter(v => v === "WAITING").length;
+    const tideKeys = Array.from(cache.keys()).filter(k => k.startsWith("tide-")).length;
+    res.json({
+      users: usersC,
+      favorites: favC,
+      clicks: clicksC,
+      liveSpots: liveCount,
+      waitingSpots: waitCount,
+      epicAlerts: epicSpots.length,
+      quota: lastQuotaInfo,
+      cacheItems: cache.size,
+      tideKeys,
+      robotsStatus
+    });
+  } catch (e) {
+    res.status(500).json({ error: "Erreur serveur admin" });
+  }
+});
+
+app.get("/api/admin/logs", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const r = await (async () => {
+    try { return await pool.query("SELECT id, spot_name, ip FROM click_logs ORDER BY id DESC LIMIT 50"); } catch { return { rows: [] }; }
+  })();
+  res.json(r.rows);
+});
+
+app.get("/api/admin/users/recent", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const r = await (async () => {
+    try { return await pool.query("SELECT id, name, email, premium FROM users ORDER BY id DESC LIMIT 20"); } catch { return { rows: [] }; }
+  })();
+  res.json(r.rows);
+});
+
+app.post("/api/admin/cache/clear", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const type = (req.body && req.body.type) || "all";
+  let cleared = 0;
+  if (type === "tide") {
+    Array.from(cache.keys()).forEach(k => { if (k.startsWith("tide-")) { cache.delete(k); cleared++; } });
+  } else {
+    cleared = cache.size;
+    cache.clear();
+  }
+  res.json({ ok: true, cleared });
+});
+
+app.post("/api/admin/news/reload", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  await fetchSurfNews();
+  res.json({ ok: true, count: globalNews.length });
+});
+
+app.get("/api/admin/alerts", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  res.json(epicSpots);
+});
+
+app.post("/api/admin/robots/snapshot", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  logRobotSnapshot();
+  res.json(robotsStatus);
+});
+
+app.get("/api/admin/spots", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const arr = spots.map(s => {
+    const key = `${s.coords[0]},lng=${s.coords[1]}`;
+    const c = cache.get(key);
+    const d = c?.data || null;
+    return {
+      name: s.name,
+      region: s.region,
+      lat: s.coords[0],
+      lng: s.coords[1],
+      status: d ? "LIVE" : "WAITING",
+      waveHeight: d?.waveHeight ?? null,
+      wavePeriod: d?.wavePeriod ?? null,
+      windSpeed: d?.windSpeed ?? null,
+      windDirection: d?.windDirection ?? null,
+      sourceTime: d?.sourceTime ?? null
+    };
+  });
+  res.json(arr);
+});
+
+app.post("/api/admin/spots/refresh", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const name = req.body?.name;
+  const lat = req.body?.lat;
+  const lng = req.body?.lng;
+  let spot = null;
+  if (name) spot = spots.find(s => s.name === name);
+  if (!spot && lat != null && lng != null) spot = spots.find(s => s.coords[0] === lat && s.coords[1] === lng);
+  if (!spot) return res.status(404).json({ error: "Spot introuvable" });
+  const key = `${spot.coords[0]},lng=${spot.coords[1]}`;
+  cache.delete(key);
+  try { await pool.query("DELETE FROM cache WHERE key = $1", [key]); } catch {}
+  const d = await getDataSmart(spot.coords[0], spot.coords[1], spot.name, true);
+  res.json({ ok: true, name: spot.name, data: d });
+});
+
+app.post("/api/admin/spots/clear", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const name = req.body?.name;
+  const lat = req.body?.lat;
+  const lng = req.body?.lng;
+  let spot = null;
+  if (name) spot = spots.find(s => s.name === name);
+  if (!spot && lat != null && lng != null) spot = spots.find(s => s.coords[0] === lat && s.coords[1] === lng);
+  if (!spot) return res.status(404).json({ error: "Spot introuvable" });
+  const key = `${spot.coords[0]},lng=${spot.coords[1]}`;
+  const existed = cache.has(key);
+  cache.delete(key);
+  try { await pool.query("DELETE FROM cache WHERE key = $1", [key]); } catch {}
+  res.json({ ok: true, cleared: existed ? 1 : 0, name: spot.name });
 });
 
 app.get("/api/proxy-img", async (req, res) => {

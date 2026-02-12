@@ -138,6 +138,7 @@ const initAuthLogic = () => {
                 const data = await res.json();
                 if (data && data.success) {
                     localStorage.setItem("surfUser", JSON.stringify(data.user));
+                    if (data.adminToken) localStorage.setItem("surfAdminToken", data.adminToken);
                     sessionStorage.setItem("accessGranted", "true");
                     localStorage.setItem("surfAccessAccepted", "true");
                     document.getElementById("auth-modal")?.classList.remove("is-open");
@@ -218,6 +219,7 @@ const updateProfileModal = async () => {
 const logout = () => {
     if(confirm("DÉCONNEXION : Couper la liaison avec le terminal ?")) {
         localStorage.removeItem("surfUser");
+        localStorage.removeItem("surfAdminToken");
         sessionStorage.removeItem("accessGranted");
         window.location.reload();
     }

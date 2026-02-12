@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — SwellSync</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="icon" href="../logo.svg" type="image/svg+xml" />
+  </head>
+  <body style="background:#080a12;">
+    <div class="section" style="max-width:1200px; margin:0 auto;">
+      <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <h2>Tableau de bord Admin</h2>
+          <p style="color:#94a3b8;">Surveillance en temps réel</p>
+        </div>
+        <div>
+          <span class="badge badge--live">LIVE</span>
+        </div>
+      </div>
+      <div id="admin-grid" class="stats-grid-6">
+        <div class="stat-item"><span class="stat-label">Utilisateurs</span><span class="stat-value"><span id="m-users">-</span></span></div>
+        <div class="stat-item"><span class="stat-label">Favoris</span><span class="stat-value"><span id="m-favorites">-</span></span></div>
+        <div class="stat-item"><span class="stat-label">Clicks</span><span class="stat-value"><span id="m-clicks">-</span></span></div>
+        <div class="stat-item"><span class="stat-label">Spots LIVE</span><span class="stat-value"><span id="m-live">-</span></span></div>
+        <div class="stat-item"><span class="stat-label">Spots WAIT</span><span class="stat-value"><span id="m-wait">-</span></span></div>
+        <div class="stat-item"><span class="stat-label">Alertes ÉPIQUES</span><span class="stat-value"><span id="m-epic">-</span></span></div>
+      </div>
+      <div class="stats-grid-6" style="margin-top:20px;">
+        <div class="stat-item"><span class="stat-label">Quota RESTANT</span><span class="stat-value"><span id="m-quota-rem">-</span></span></div>
+        <div class="stat-item"><span class="stat-label">Quota LIMITE</span><span class="stat-value"><span id="m-quota-limit">-</span></span></div>
+        <div class="stat-item"><span class="stat-label">Quota UTILISÉ</span><span class="stat-value"><span id="m-quota-used">-</span></span></div>
+        <div class="stat-item"><span class="stat-label">Cache Items</span><span class="stat-value"><span id="m-cache">-</span></span></div>
+        <div class="stat-item"><span class="stat-label">Tide Keys</span><span class="stat-value"><span id="m-tide">-</span></span></div>
+      </div>
+      <div style="margin-top:30px;">
+        <h3 class="forecast-title">Robots</h3>
+        <div id="robots-list" class="robots-grid-container"></div>
+      </div>
+      <div style="margin-top:30px;">
+        <h3 class="forecast-title">Actions</h3>
+        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+          <button id="btn-clear-cache" class="btn">Vider cache</button>
+          <button id="btn-clear-tide" class="btn">Vider cache marée</button>
+          <button id="btn-reload-news" class="btn">Recharger actu</button>
+          <button id="btn-snapshot-robots" class="btn">Snapshot robots</button>
+        </div>
+      </div>
+      <div style="margin-top:30px;">
+        <h3 class="forecast-title">Tableau des spots</h3>
+        <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
+          <label style="color:#94a3b8;">Région</label>
+          <select id="region-filter" class="btn" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
+            <option value="">Toutes</option>
+          </select>
+        </div>
+        <div id="spots-list" style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px;"></div>
+      </div>
+      <div style="margin-top:30px; display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+        <div>
+          <h3 class="forecast-title">Logs récents</h3>
+          <div id="logs-list" style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px; max-height:320px; overflow:auto;"></div>
+        </div>
+        <div>
+          <h3 class="forecast-title">Utilisateurs récents</h3>
+          <div id="users-list" style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px; max-height:320px; overflow:auto;"></div>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function(){
+        const ADMIN_EMAIL = "loviatmax@gmail.com";
+        const u = JSON.parse(localStorage.getItem("surfUser") || "null");
+        const tok = localStorage.getItem("surfAdminToken") || "";
+        if (!u || u.email !== ADMIN_EMAIL || !tok) { window.location.href = "../index.html"; return; }
+        const headers = { "x-user-id": String(u.id), "x-user-email": u.email, "x-admin-token": tok };
+        const q = (id) => document.getElementById(id);
+        async function load() {
+          try {
+            const res = await fetch("/api/admin/metrics", { headers });
+            const d = await res.json();
+            if (!res.ok) { throw new Error(d.error || "Forbidden"); }
+            q("m-users").textContent = d.users;
+            q("m-favorites").textContent = d.favorites;
+            q("m-clicks").textContent = d.clicks;
+            q("m-live").textContent = d.liveSpots;
+            q("m-wait").textContent = d.waitingSpots;
+            q("m-epic").textContent = d.epicAlerts;
+            q("m-quota-rem").textContent = d.quota.remaining;
+            q("m-quota-limit").textContent = d.quota.limit;
+            q("m-quota-used").textContent = d.quota.used;
+            q("m-cache").textContent = d.cacheItems;
+            q("m-tide").textContent = d.tideKeys;
+            const robots = d.robotsStatus || {};
+            const container = document.getElementById("robots-list");
+            if (container) {
+              const items = Object.entries(robots).map(([name, info]) => {
+                const dot = info.status === "OK" ? "#4ade80" : "#facc15";
+                return '<div class="ai-robot-card"><span class="robot-icon">'+(info.icon||"🤖")+'</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:'+dot+'"></span>'+name+'</span><span class="robot-value">'+(info.status||"-")+'</span><span class="robot-desc">'+(info.details||"")+'</span></div></div>';
+              }).join("");
+              container.innerHTML = items;
+            }
+          } catch(e) {
+            alert("Accès refusé. Veuillez vous reconnecter.");
+            localStorage.removeItem("surfAdminToken");
+            window.location.href = "../index.html";
+          }
+        }
+        async function loadSpots() {
+          try {
+            const r = await fetch("/api/admin/spots", { headers });
+            const arr = await r.json();
+            const regions = Array.from(new Set(arr.map(x => x.region))).sort();
+            const sel = document.getElementById("region-filter");
+            if (sel && sel.options.length <= 1) {
+              regions.forEach(reg => {
+                const o = document.createElement("option");
+                o.value = reg; o.textContent = reg; sel.appendChild(o);
+              });
+            }
+            const filter = sel.value;
+            const filtered = filter ? arr.filter(x => x.region === filter) : arr;
+            const m = (x) => {
+              const dot = x.status === "LIVE" ? "#4ade80" : "#facc15";
+              const h = x.waveHeight != null ? x.waveHeight.toFixed(1)+"m" : "-";
+              const t = x.wavePeriod != null ? Math.round(x.wavePeriod)+"s" : "-";
+              const v = x.windSpeed != null ? Math.round(x.windSpeed)+"km/h" : "-";
+              const d = x.windDirection || "-";
+              const time = x.sourceTime ? new Date(x.sourceTime).toLocaleTimeString() : "-";
+              return '<div class="ai-robot-card"><span class="robot-icon">🏄‍♂️</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:'+dot+'"></span>'+x.name+' — '+x.region+'</span><span class="robot-value">H '+h+' • T '+t+' • V '+v+' '+d+'</span><span class="robot-desc">Maj '+time+'</span><div style="margin-top:8px; display:flex; gap:8px;"><button class="btn btn--compact" data-action="refresh" data-name="'+x.name+'">Forcer refresh</button><button class="btn btn--compact" data-action="clear" data-name="'+x.name+'">Effacer cache</button></div></div></div>';
+            };
+            const container = document.getElementById("spots-list");
+            container.innerHTML = filtered.map(m).join("");
+            container.querySelectorAll("button[data-action]").forEach(btn => {
+              btn.onclick = async () => {
+                const name = btn.getAttribute("data-name");
+                const action = btn.getAttribute("data-action");
+                if (action === "refresh") {
+                  await fetch("/api/admin/spots/refresh", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ name }) });
+                } else if (action === "clear") {
+                  await fetch("/api/admin/spots/clear", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ name }) });
+                }
+                loadSpots();
+              };
+            });
+          } catch {}
+        }
+        document.getElementById("region-filter").onchange = loadSpots;
+        async function loadLogs() {
+          try {
+            const r = await fetch("/api/admin/logs", { headers });
+            const arr = await r.json();
+            const el = document.getElementById("logs-list");
+            el.innerHTML = arr.map(x => '<div style="display:flex; justify-content:space-between; padding:6px 8px; border-bottom:1px solid #111827;"><span style="color:#9ca3af">'+(x.spot_name||"-")+'</span><span style="color:#6b7280">'+(x.ip||"-")+'</span></div>').join("");
+          } catch {}
+        }
+        async function loadUsers() {
+          try {
+            const r = await fetch("/api/admin/users/recent", { headers });
+            const arr = await r.json();
+            const el = document.getElementById("users-list");
+            el.innerHTML = arr.map(x => '<div style="display:flex; justify-content:space-between; padding:6px 8px; border-bottom:1px solid #111827;"><span style="color:#9ca3af">'+(x.name||"Utilisateur")+'</span><span style="color:#6b7280">'+(x.email||"-")+'</span><span style="color:'+(x.premium?'#d946ef':'#94a3b8')+'">'+(x.premium?'Premium':'Standard')+'</span></div>').join("");
+          } catch {}
+        }
+        async function clearCache(type) {
+          try {
+            await fetch("/api/admin/cache/clear", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ type }) });
+            load();
+          } catch {}
+        }
+        async function reloadNews() {
+          try { await fetch("/api/admin/news/reload", { method:"POST", headers }); } catch {}
+        }
+        async function snapshotRobots() {
+          try { await fetch("/api/admin/robots/snapshot", { method:"POST", headers }); load(); } catch {}
+        }
+        document.getElementById("btn-clear-cache").onclick = () => { if (confirm("Vider tout le cache ?")) clearCache("all"); };
+        document.getElementById("btn-clear-tide").onclick = () => clearCache("tide");
+        document.getElementById("btn-reload-news").onclick = reloadNews;
+        document.getElementById("btn-snapshot-robots").onclick = snapshotRobots;
+        load();
+        loadSpots();
+        loadLogs();
+        loadUsers();
+        setInterval(load, 5000);
+        setInterval(loadSpots, 6000);
+        setInterval(loadLogs, 7000);
+        setInterval(loadUsers, 9000);
+      })();
+    </script>
+  </body>
+</html>
