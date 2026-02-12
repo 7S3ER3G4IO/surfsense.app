@@ -6,10 +6,39 @@
     <title>Admin — SwellSync</title>
     <link rel="stylesheet" href="../styles.css">
     <link rel="icon" href="../logo.svg" type="image/svg+xml" />
+    <style>
+      .admin-layout{display:flex;min-height:100vh}
+      .admin-sidebar{width:240px;background:#0b0e16;border-right:1px solid #1f2937;padding:16px;position:sticky;top:0;height:100vh}
+      .admin-brand{display:flex;align-items:center;gap:10px;color:#e5e7eb;font-weight:700;margin-bottom:16px}
+      .admin-nav a{display:block;padding:10px 12px;border-radius:10px;color:#c4b5fd;text-decoration:none;margin-bottom:6px}
+      .admin-nav a:hover{background:#111827}
+      .admin-main{flex:1;padding:20px}
+      .section-title h2{color:#c4b5fd}
+      .forecast-title{color:#c4b5fd}
+      .btn.btn--compact{padding:6px 10px}
+    </style>
   </head>
   <body style="background:#080a12;">
+    <div class="admin-layout">
+      <aside class="admin-sidebar">
+        <div class="admin-brand">
+          <img src="../logo.svg" alt="logo" width="24" height="24"/>
+          <span>Admin</span>
+        </div>
+        <nav class="admin-nav">
+          <a href="#overview">Overview</a>
+          <a href="#analytics">Analytique</a>
+          <a href="#robots">Robots</a>
+          <a href="#actions">Actions</a>
+          <a href="#spots">Spots</a>
+          <a href="#logs">Logs</a>
+          <a href="#users">Utilisateurs</a>
+          <a href="#regions">Régions</a>
+        </nav>
+      </aside>
+      <main class="admin-main">
     <div class="section" style="max-width:1200px; margin:0 auto;">
-      <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="section-title" id="overview" style="display:flex; justify-content:space-between; align-items:center;">
         <div>
           <h2>Tableau de bord Admin</h2>
           <p style="color:#94a3b8;">Surveillance en temps réel</p>
@@ -33,11 +62,32 @@
         <div class="stat-item"><span class="stat-label">Cache Items</span><span class="stat-value"><span id="m-cache">-</span></span></div>
         <div class="stat-item"><span class="stat-label">Tide Keys</span><span class="stat-value"><span id="m-tide">-</span></span></div>
       </div>
-      <div style="margin-top:30px;">
+      <div id="analytics" style="margin-top:30px;">
+        <h3 class="forecast-title">Analytique</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+          <div style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;">
+            <div style="color:#94a3b8; margin-bottom:8px;">Spots LIVE vs WAIT (24h)</div>
+            <canvas id="chart-live" width="520" height="180"></canvas>
+          </div>
+          <div style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;">
+            <div style="color:#94a3b8; margin-bottom:8px;">Quota restant (24h)</div>
+            <canvas id="chart-quota" width="520" height="180"></canvas>
+          </div>
+          <div style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;">
+            <div style="color:#94a3b8; margin-bottom:8px;">Alertes ÉPIQUES (24h)</div>
+            <canvas id="chart-epic" width="520" height="180"></canvas>
+          </div>
+          <div style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;">
+            <div style="color:#94a3b8; margin-bottom:8px;">Utilisateurs (24h)</div>
+            <canvas id="chart-users" width="520" height="180"></canvas>
+          </div>
+        </div>
+      </div>
+      <div id="robots" style="margin-top:30px;">
         <h3 class="forecast-title">Robots</h3>
         <div id="robots-list" class="robots-grid-container"></div>
       </div>
-      <div style="margin-top:30px;">
+      <div id="actions" style="margin-top:30px;">
         <h3 class="forecast-title">Actions</h3>
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
           <button id="btn-clear-cache" class="btn">Vider cache</button>
@@ -46,25 +96,45 @@
           <button id="btn-snapshot-robots" class="btn">Snapshot robots</button>
         </div>
       </div>
-      <div style="margin-top:30px;">
+      <div id="spots" style="margin-top:30px;">
         <h3 class="forecast-title">Tableau des spots</h3>
         <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px;">
           <label style="color:#94a3b8;">Région</label>
           <select id="region-filter" class="btn" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
             <option value="">Toutes</option>
           </select>
+          <button id="btn-export-spots" class="btn">Exporter CSV spots</button>
         </div>
         <div id="spots-list" style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px;"></div>
       </div>
-      <div style="margin-top:30px; display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+      <div id="logs" style="margin-top:30px; display:grid; grid-template-columns:1fr 1fr; gap:20px;">
         <div>
           <h3 class="forecast-title">Logs récents</h3>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div></div>
+            <button id="btn-export-logs" class="btn">Exporter CSV logs</button>
+          </div>
           <div id="logs-list" style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px; max-height:320px; overflow:auto;"></div>
         </div>
-        <div>
+        <div id="users">
           <h3 class="forecast-title">Utilisateurs récents</h3>
+          <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+            <input id="user-search" class="btn" placeholder="Rechercher email" style="flex:1; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;"/>
+            <select id="user-type-filter" class="btn" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
+              <option value="">Tous</option>
+              <option value="premium">Premium</option>
+              <option value="standard">Standard</option>
+            </select>
+            <button id="btn-reset-premium" class="btn">Enlever Premium (tous)</button>
+            <button id="btn-export-users" class="btn">Exporter CSV</button>
+          </div>
+          <div style="color:#94a3b8; margin-bottom:8px;">Supprimés aujourd’hui: <span id="deleted-today">0</span></div>
           <div id="users-list" style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px; max-height:320px; overflow:auto;"></div>
         </div>
+      </div>
+      <div id="regions" style="margin-top:30px;">
+        <h3 class="forecast-title">Sessions par région (7 jours)</h3>
+        <div id="regions-bars" style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;"></div>
       </div>
     </div>
     <script>
@@ -75,6 +145,53 @@
         if (!u || u.email !== ADMIN_EMAIL || !tok) { window.location.href = "../index.html"; return; }
         const headers = { "x-user-id": String(u.id), "x-user-email": u.email, "x-admin-token": tok };
         const q = (id) => document.getElementById(id);
+        const toast = (msg, type="success") => {
+          const el = document.createElement("div");
+          el.textContent = msg;
+          el.style.position = "fixed";
+          el.style.right = "16px";
+          el.style.bottom = "16px";
+          el.style.background = type === "error" ? "#ef4444" : "#22c55e";
+          el.style.color = "#fff";
+          el.style.padding = "10px 12px";
+          el.style.borderRadius = "8px";
+          el.style.boxShadow = "0 4px 24px rgba(0,0,0,0.35)";
+          el.style.zIndex = "9999";
+          el.style.fontWeight = "600";
+          document.body.appendChild(el);
+          setTimeout(() => { el.style.transition = "opacity .3s"; el.style.opacity = "0"; setTimeout(() => el.remove(), 300); }, 1800);
+        };
+        const drawLine = (canvas, points, color="#7c3aed") => {
+          if (!canvas) return;
+          const ctx = canvas.getContext("2d");
+          const w = canvas.width, h = canvas.height;
+          ctx.clearRect(0,0,w,h);
+          const arr = points.slice(-50);
+          if (!arr.length) return;
+          const ys = arr.map(p => p.v);
+          const min = Math.min.apply(null, ys);
+          const max = Math.max.apply(null, ys);
+          const pad = 10;
+          const scaleY = (v) => {
+            if (max === min) return h/2;
+            return h - pad - ((v - min) / (max - min)) * (h - pad*2);
+          };
+          ctx.strokeStyle = "#1f2937"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad, pad); ctx.lineTo(pad, h-pad); ctx.lineTo(w-pad, h-pad); ctx.stroke();
+          ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath();
+          arr.forEach((p,i) => {
+            const x = pad + (i / Math.max(1, arr.length-1)) * (w - pad*2);
+            const y = scaleY(p.v);
+            if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+          });
+          ctx.stroke();
+        };
+        const drawBars = (container, data) => {
+          if (!container) return;
+          container.innerHTML = Object.entries(data).sort((a,b)=>b[1]-a[1]).map(([k,v]) => {
+            const pct = Math.min(100, Math.round(v * 3));
+            return '<div style="display:flex; align-items:center; gap:10px; margin:6px 0;"><div style="width:160px; color:#e5e7eb;">'+k+'</div><div style="flex:1; background:#111827; border-radius:8px; overflow:hidden;"><div style="width:'+pct+'%; background:#7c3aed; height:16px;"></div></div><div style="width:60px; text-align:right; color:#94a3b8;">'+v+'</div></div>';
+          }).join("");
+        };
         async function load() {
           try {
             const res = await fetch("/api/admin/metrics", { headers });
@@ -91,6 +208,7 @@
             q("m-quota-used").textContent = d.quota.used;
             q("m-cache").textContent = d.cacheItems;
             q("m-tide").textContent = d.tideKeys;
+            q("deleted-today").textContent = d.deletedToday || 0;
             const robots = d.robotsStatus || {};
             const container = document.getElementById("robots-list");
             if (container) {
@@ -105,6 +223,23 @@
             localStorage.removeItem("surfAdminToken");
             window.location.href = "../index.html";
           }
+        }
+        async function loadAnalytics() {
+          try {
+            const r = await fetch("/api/admin/analytics/timeseries", { headers });
+            const series = await r.json();
+            drawLine(document.getElementById("chart-live"), series.live, "#22c55e");
+            drawLine(document.getElementById("chart-quota"), series.quota, "#f59e0b");
+            drawLine(document.getElementById("chart-epic"), series.epic, "#d946ef");
+            drawLine(document.getElementById("chart-users"), series.users, "#60a5fa");
+          } catch {}
+        }
+        async function loadRegions() {
+          try {
+            const r = await fetch("/api/admin/regions", { headers });
+            const data = await r.json();
+            drawBars(document.getElementById("regions-bars"), data);
+          } catch {}
         }
         async function loadSpots() {
           try {
@@ -137,8 +272,10 @@
                 const action = btn.getAttribute("data-action");
                 if (action === "refresh") {
                   await fetch("/api/admin/spots/refresh", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ name }) });
+                  toast("Spot rafraîchi");
                 } else if (action === "clear") {
                   await fetch("/api/admin/spots/clear", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ name }) });
+                  toast("Cache spot effacé");
                 }
                 loadSpots();
               };
@@ -146,6 +283,19 @@
           } catch {}
         }
         document.getElementById("region-filter").onchange = loadSpots;
+        document.getElementById("btn-export-spots").onclick = async () => {
+          try {
+            const rr = await fetch("/api/admin/spots/export", { headers });
+            if (!rr.ok) { toast("Erreur export spots", "error"); return; }
+            const blob = await rr.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = "spots.csv";
+            document.body.appendChild(a); a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+            toast("CSV spots exporté");
+          } catch { toast("Erreur export spots", "error"); }
+        };
         async function loadLogs() {
           try {
             const r = await fetch("/api/admin/logs", { headers });
@@ -154,39 +304,119 @@
             el.innerHTML = arr.map(x => '<div style="display:flex; justify-content:space-between; padding:6px 8px; border-bottom:1px solid #111827;"><span style="color:#9ca3af">'+(x.spot_name||"-")+'</span><span style="color:#6b7280">'+(x.ip||"-")+'</span></div>').join("");
           } catch {}
         }
+        document.getElementById("btn-export-logs").onclick = async () => {
+          try {
+            const rr = await fetch("/api/admin/logs/export", { headers });
+            if (!rr.ok) { toast("Erreur export logs", "error"); return; }
+            const blob = await rr.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = "logs.csv";
+            document.body.appendChild(a); a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+            toast("CSV logs exporté");
+          } catch { toast("Erreur export logs", "error"); }
+        };
+        let usersCache = [];
         async function loadUsers() {
           try {
             const r = await fetch("/api/admin/users/recent", { headers });
             const arr = await r.json();
-            const el = document.getElementById("users-list");
-            el.innerHTML = arr.map(x => '<div style="display:flex; justify-content:space-between; padding:6px 8px; border-bottom:1px solid #111827;"><span style="color:#9ca3af">'+(x.name||"Utilisateur")+'</span><span style="color:#6b7280">'+(x.email||"-")+'</span><span style="color:'+(x.premium?'#d946ef':'#94a3b8')+'">'+(x.premium?'Premium':'Standard')+'</span></div>').join("");
+            usersCache = arr;
+            renderUsers();
           } catch {}
         }
+        function renderUsers() {
+          const el = document.getElementById("users-list");
+          const type = document.getElementById("user-type-filter").value;
+          const filtered = usersCache.filter(x => {
+            if (type === "premium") return !!x.premium;
+            if (type === "standard") return !x.premium;
+            return true;
+          });
+          el.innerHTML = filtered.map(x => '<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px solid #111827;"><div style="display:flex; gap:12px; align-items:center;"><span style="color:#9ca3af">'+(x.name||"Utilisateur")+'</span><span style="color:#6b7280">'+(x.email||"-")+'</span><span style="color:'+(x.premium?'#d946ef':'#94a3b8')+'">'+(x.premium?'Premium':'Standard')+'</span></div><div><button class="btn btn--compact" data-del="'+x.id+'">Supprimer</button></div></div>').join("");
+          el.querySelectorAll("button[data-del]").forEach(btn => {
+            btn.onclick = async () => {
+              const uid = parseInt(btn.getAttribute("data-del"));
+              if (!uid) return;
+              if (!confirm("Supprimer cet utilisateur ?")) return;
+              try {
+                const rr = await fetch("/api/admin/users/delete", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ userId: uid }) });
+                const dj = await rr.json();
+                if (!rr.ok) { alert(dj.error || "Erreur suppression"); return; }
+                loadUsers();
+                load();
+                toast("Utilisateur supprimé");
+              } catch { alert("Erreur suppression"); }
+            };
+          });
+        }
+        document.getElementById("user-type-filter").onchange = renderUsers;
+        document.getElementById("user-search").onchange = async (e) => {
+          const val = e.target.value.trim();
+          if (!val) { loadUsers(); return; }
+          try {
+            const r = await fetch("/api/admin/users/search?email="+encodeURIComponent(val), { headers });
+            usersCache = await r.json();
+            renderUsers();
+          } catch {}
+        }
+        document.getElementById("btn-reset-premium").onclick = async () => {
+          if (!confirm("Enlever Premium à tous les utilisateurs (sauf admin) ?")) return;
+          try {
+            const rr = await fetch("/api/admin/users/premium/reset", { method:"POST", headers });
+            const dj = await rr.json();
+            if (!rr.ok) { alert(dj.error || "Erreur"); return; }
+            loadUsers();
+            toast("Premium retiré");
+          } catch { alert("Erreur"); }
+        };
+        document.getElementById("btn-export-users").onclick = async () => {
+          try {
+            const rr = await fetch("/api/admin/users/export", { headers });
+            if (!rr.ok) { toast("Erreur export", "error"); return; }
+            const blob = await rr.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url; a.download = "users.csv";
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
+            toast("CSV exporté");
+          } catch { toast("Erreur export", "error"); }
+        };
         async function clearCache(type) {
           try {
             await fetch("/api/admin/cache/clear", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ type }) });
             load();
+            toast(type==="tide"?"Cache marée vidé":"Cache vidé");
           } catch {}
         }
         async function reloadNews() {
-          try { await fetch("/api/admin/news/reload", { method:"POST", headers }); } catch {}
+          try { await fetch("/api/admin/news/reload", { method:"POST", headers }); toast("Actu rechargée"); } catch {}
         }
         async function snapshotRobots() {
-          try { await fetch("/api/admin/robots/snapshot", { method:"POST", headers }); load(); } catch {}
+          try { await fetch("/api/admin/robots/snapshot", { method:"POST", headers }); load(); toast("Robots mis à jour"); } catch {}
         }
         document.getElementById("btn-clear-cache").onclick = () => { if (confirm("Vider tout le cache ?")) clearCache("all"); };
         document.getElementById("btn-clear-tide").onclick = () => clearCache("tide");
         document.getElementById("btn-reload-news").onclick = reloadNews;
         document.getElementById("btn-snapshot-robots").onclick = snapshotRobots;
         load();
+        loadAnalytics();
+        loadRegions();
         loadSpots();
         loadLogs();
         loadUsers();
         setInterval(load, 5000);
+        setInterval(loadAnalytics, 15000);
+        setInterval(loadRegions, 15000);
         setInterval(loadSpots, 6000);
         setInterval(loadLogs, 7000);
         setInterval(loadUsers, 9000);
       })();
     </script>
+      </main>
+    </div>
   </body>
 </html>

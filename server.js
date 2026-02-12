@@ -34,6 +34,9 @@ const parser = new Parser();
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "loviatmax@gmail.com";
 const adminTokens = new Map();
 const adminTokensByValue = new Map();
+let deletedTodayCount = 0;
+let lastDeletedReset = new Date().getDate();
+const resetDeletedIfNeeded = () => { const d = new Date().getDate(); if (d !== lastDeletedReset) { deletedTodayCount = 0; lastDeletedReset = d; } };
 
 // --- SÉCURITÉ 1 : HELMET (En-têtes HTTP sécurisés) ---
 app.use(helmet({
@@ -189,6 +192,23 @@ let epicSpots = [];
 let apiCallCount = 0;
 let lastQuotaInfo = { limit: 500, remaining: 500, used: 0 };
 let lastReset = new Date().getDate();
+let adminSeries = { live: [], wait: [], quota: [], epic: [], users: [] };
+const spotRegionMap = new Map(spots.map(s => [s.name, s.region]));
+const adminSafeCount = async (sql) => { try { const r = await pool.query(sql); return r.rows[0].c || 0; } catch { return 0; } };
+const adminSafeQuery = async (sql) => { try { return await pool.query(sql); } catch { return { rows: [] }; } };
+const pushSeries = (arr, v) => { arr.push({ t: Date.now(), v }); if (arr.length > 288) arr.shift(); };
+const sampleAdminSeries = async () => {
+  const usersC = await adminSafeCount("SELECT COUNT(*)::int AS c FROM users");
+  const statusMap = {};
+  spots.forEach(spot => { statusMap[spot.name] = cache.has(`${spot.coords[0]},lng=${spot.coords[1]}`) ? "LIVE" : "WAITING"; });
+  const liveCount = Object.values(statusMap).filter(v => v === "LIVE").length;
+  const waitCount = Object.values(statusMap).filter(v => v === "WAITING").length;
+  pushSeries(adminSeries.users, usersC);
+  pushSeries(adminSeries.live, liveCount);
+  pushSeries(adminSeries.wait, waitCount);
+  pushSeries(adminSeries.epic, epicSpots.length);
+  pushSeries(adminSeries.quota, lastQuotaInfo.remaining ?? 0);
+};
 
 const fallbackImages = [
     "https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=800",
@@ -924,6 +944,7 @@ app.get("/api/admin/metrics", async (req, res) => {
     const liveCount = Object.values(statusMap).filter(v => v === "LIVE").length;
     const waitCount = Object.values(statusMap).filter(v => v === "WAITING").length;
     const tideKeys = Array.from(cache.keys()).filter(k => k.startsWith("tide-")).length;
+    resetDeletedIfNeeded();
     res.json({
       users: usersC,
       favorites: favC,
@@ -934,7 +955,8 @@ app.get("/api/admin/metrics", async (req, res) => {
       quota: lastQuotaInfo,
       cacheItems: cache.size,
       tideKeys,
-      robotsStatus
+      robotsStatus,
+      deletedToday: deletedTodayCount
     });
   } catch (e) {
     res.status(500).json({ error: "Erreur serveur admin" });
@@ -955,6 +977,70 @@ app.get("/api/admin/users/recent", async (req, res) => {
     try { return await pool.query("SELECT id, name, email, premium FROM users ORDER BY id DESC LIMIT 20"); } catch { return { rows: [] }; }
   })();
   res.json(r.rows);
+});
+
+app.get("/api/admin/users/search", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const email = (req.query.email || "").toString().trim();
+  if (!email) return res.status(400).json({ error: "Email manquant" });
+  try {
+    const r = await pool.query("SELECT id, name, email, premium FROM users WHERE email ILIKE $1 ORDER BY id DESC LIMIT 20", [email]);
+    res.json(r.rows);
+  } catch {
+    res.json([]);
+  }
+});
+
+app.post("/api/admin/users/delete", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const id = parseInt(req.body?.userId);
+  if (!id) return res.status(400).json({ error: "userId manquant" });
+  try {
+    const r = await pool.query("SELECT email FROM users WHERE id = $1", [id]);
+    const email = r.rows[0]?.email || null;
+    if (email === ADMIN_EMAIL) return res.status(400).json({ error: "Interdit: compte admin" });
+    await pool.query("BEGIN");
+    try { await pool.query("DELETE FROM favorites WHERE user_id = $1", [id]); } catch {}
+    try { await pool.query("DELETE FROM twofa_codes WHERE user_id = $1", [id]); } catch {}
+    await pool.query("DELETE FROM users WHERE id = $1", [id]);
+    await pool.query("COMMIT");
+    resetDeletedIfNeeded();
+    deletedTodayCount++;
+    res.json({ ok: true, userId: id });
+  } catch (e) {
+    try { await pool.query("ROLLBACK"); } catch {}
+    res.status(500).json({ error: "Suppression impossible" });
+  }
+});
+
+app.post("/api/admin/users/premium/reset", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const r = await pool.query("UPDATE users SET premium = false WHERE email <> $1 RETURNING id", [ADMIN_EMAIL]);
+    res.json({ ok: true, updated: r.rows.length });
+  } catch {
+    res.status(500).json({ error: "Impossible de réinitialiser Premium" });
+  }
+});
+
+app.get("/api/admin/users/export", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const r = await pool.query("SELECT id, name, email, premium FROM users ORDER BY id DESC");
+    const esc = (v) => {
+      if (v == null) return "";
+      const s = String(v);
+      if (/[\",\\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    };
+    const lines = ["id,name,email,premium"].concat(r.rows.map(x => [esc(x.id), esc(x.name), esc(x.email), x.premium ? "true" : "false"].join(",")));
+    const csv = lines.join("\n");
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", "attachment; filename=\"users.csv\"");
+    res.status(200).send(csv);
+  } catch {
+    res.status(500).json({ error: "Export impossible" });
+  }
 });
 
 app.post("/api/admin/cache/clear", async (req, res) => {
@@ -987,6 +1073,56 @@ app.post("/api/admin/robots/snapshot", async (req, res) => {
   res.json(robotsStatus);
 });
 
+app.get("/api/admin/analytics/timeseries", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  res.json(adminSeries);
+});
+
+app.get("/api/admin/regions", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const r = await adminSafeQuery("SELECT spot_name, COUNT(*)::int AS c FROM click_logs WHERE ts > NOW() - INTERVAL '7 days' GROUP BY spot_name");
+  const out = {};
+  r.rows.forEach(row => {
+    const reg = spotRegionMap.get(row.spot_name) || "Inconnu";
+    out[reg] = (out[reg] || 0) + row.c;
+  });
+  res.json(out);
+});
+
+app.get("/api/admin/logs/export", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  let rows = [];
+  try { const r = await pool.query("SELECT id, spot_name, ip, ts FROM click_logs ORDER BY id DESC LIMIT 1000"); rows = r.rows; } catch { 
+    try { const r2 = await pool.query("SELECT id, spot_name, ip FROM click_logs ORDER BY id DESC LIMIT 1000"); rows = r2.rows; } catch { rows = []; }
+  }
+  const esc = (v) => { if (v == null) return ""; const s = String(v); if (/[\",\\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"'; return s; };
+  const lines = ["id,spot_name,ip,ts"].concat(rows.map(x => [esc(x.id), esc(x.spot_name), esc(x.ip), esc(x.ts)].join(",")));
+  const csv = lines.join("\n");
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", "attachment; filename=\"logs.csv\"");
+  res.status(200).send(csv);
+});
+
+app.get("/api/admin/spots/export", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const arr = spots.map(s => {
+    const key = `${s.coords[0]},lng=${s.coords[1]}`;
+    const d = cache.get(key)?.data || null;
+    return {
+      name: s.name, region: s.region, status: d ? "LIVE" : "WAITING",
+      waveHeight: d?.waveHeight ?? "", wavePeriod: d?.wavePeriod ?? "",
+      windSpeed: d?.windSpeed ?? "", windDirection: d?.windDirection ?? "", sourceTime: d?.sourceTime ?? ""
+    };
+  });
+  const esc = (v) => { if (v == null) return ""; const s = String(v); if (/[\",\\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"'; return s; };
+  const lines = ["name,region,status,waveHeight,wavePeriod,windSpeed,windDirection,sourceTime"].concat(
+    arr.map(x => [esc(x.name), esc(x.region), esc(x.status), esc(x.waveHeight), esc(x.wavePeriod), esc(x.windSpeed), esc(x.windDirection), esc(x.sourceTime)].join(","))
+  );
+  const csv = lines.join("\n");
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", "attachment; filename=\"spots.csv\"");
+  res.status(200).send(csv);
+});
 app.get("/api/admin/spots", async (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
   const arr = spots.map(s => {
@@ -1119,4 +1255,6 @@ app.listen(PORT, () => {
         robotLog(ROBOTS.API, "READY", "Liaison ÉTABLIE");
         startBackgroundWorkers();
     }, 1500);
+    setInterval(sampleAdminSeries, 5 * 60 * 1000);
+    setTimeout(sampleAdminSeries, 5000);
 });
