@@ -1821,7 +1821,7 @@ window.addEventListener("load", () => {
       }
     }
     if (e.target && e.target.id === "support-copy-email") {
-      navigator.clipboard.writeText("swellsync@gmail.com").catch(() => {});
+      navigator.clipboard.writeText("swellsync@outlook.fr").catch(() => {});
     }
   });
 });
@@ -1831,7 +1831,7 @@ if (!window.legalTexts) window.legalTexts = {
     title: "Mentions Légales",
     body: `
       <h3>Éditeur du site</h3>
-      <p>SwellSync — Service de prévisions et d’analyse surf. Contact: <a href="mailto:swellsync@gmail.com">swellsync@gmail.com</a>.</p>
+      <p>SwellSync — Service de prévisions et d’analyse surf. Contact: <a href="mailto:swellsync@outlook.fr">swellsync@outlook.fr</a>.</p>
       <h3>Responsable de la publication</h3>
       <p>Équipe SwellSync.</p>
       <h3>Hébergement</h3>
@@ -1843,7 +1843,7 @@ if (!window.legalTexts) window.legalTexts = {
       <h3>Liens externes</h3>
       <p>Les liens vers des sites tiers sont fournis à titre informatif; nous n’en contrôlons pas le contenu.</p>
       <h3>Contact</h3>
-      <p>Pour toute demande: <a href="mailto:swellsync@gmail.com">swellsync@gmail.com</a>.</p>
+      <p>Pour toute demande: <a href="mailto:swellsync@outlook.fr">swellsync@outlook.fr</a>.</p>
     `
   },
   "legal-cgu": {
@@ -1874,14 +1874,14 @@ if (!window.legalTexts) window.legalTexts = {
       <h3>12. Droit applicable</h3>
       <p>Droit applicable et juridictions compétentes selon le siège de l’éditeur et les règles de conflit de lois.</p>
       <h3>13. Contact</h3>
-      <p>Support: <a href="mailto:swellsync@gmail.com">swellsync@gmail.com</a>.</p>
+      <p>Support: <a href="mailto:swellsync@outlook.fr">swellsync@outlook.fr</a>.</p>
     `
   },
   "legal-rgpd": {
     title: "Politique de Confidentialité (RGPD)",
     body: `
       <h3>1. Responsable du traitement</h3>
-      <p>SwellSync. Contact: <a href="mailto:swellsync@gmail.com">swellsync@gmail.com</a>.</p>
+      <p>SwellSync. Contact: <a href="mailto:swellsync@outlook.fr">swellsync@outlook.fr</a>.</p>
       <h3>2. Données collectées</h3>
       <p>Identité (email lors de la création de compte), messages de contact, préférences (ex: favoris), journaux techniques (statuts robots, erreurs), données d’usage agrégées.</p>
       <h3>3. Finalités</h3>
@@ -1897,13 +1897,13 @@ if (!window.legalTexts) window.legalTexts = {
       <h3>8. Sécurité</h3>
       <p>Mesures techniques et organisationnelles; chiffrement en transit; contrôles d’accès; surveillance des quotas et anomalies.</p>
       <h3>9. Vos droits</h3>
-      <p>Accès, rectification, effacement, limitation, opposition, portabilité; retrait du consentement à tout moment. Exercice: <a href="mailto:swellsync@gmail.com">swellsync@gmail.com</a>.</p>
+      <p>Accès, rectification, effacement, limitation, opposition, portabilité; retrait du consentement à tout moment. Exercice: <a href="mailto:swellsync@outlook.fr">swellsync@outlook.fr</a>.</p>
       <h3>10. Réclamations</h3>
       <p>Autorité de contrôle compétente (ex: CNIL en France). Vous pouvez déposer une plainte si vous estimez que vos droits ne sont pas respectés.</p>
       <h3>11. Modifications</h3>
       <p>La présente politique peut évoluer; la version en ligne à jour s’applique.</p>
       <h3>12. Contact</h3>
-      <p>Confidentialité: <a href="mailto:swellsync@gmail.com">swellsync@gmail.com</a>.</p>
+      <p>Confidentialité: <a href="mailto:swellsync@outlook.fr">swellsync@outlook.fr</a>.</p>
     `
   }
 };
@@ -2342,7 +2342,7 @@ const initContactPage = () => {
         await navigator.clipboard.writeText(emailText.textContent.trim());
         if (statusEl) statusEl.textContent = "Adresse copiée dans le presse‑papier.";
       } catch {
-        if (statusEl) statusEl.textContent = "Copie impossible. Adresse: swellsync@gmail.com";
+        if (statusEl) statusEl.textContent = "Copie impossible. Adresse: swellsync@outlook.fr";
       }
     });
   }

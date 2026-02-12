@@ -82,7 +82,7 @@ const spotLinks = {
 const legalTexts = {
     "legal-mentions": {
         title: "Mentions Légales",
-        body: `<div class="legal-section"><h3>1. Édition</h3><p>SurfSense Premium. Contact: swellsync@gmail.com</p></div>`
+        body: `<div class="legal-section"><h3>1. Édition</h3><p>SurfSense Premium. Contact: swellsync@outlook.fr</p></div>`
     },
     "legal-cgu": {
         title: "Conditions Générales d'Utilisation",
