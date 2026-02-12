@@ -424,56 +424,8 @@ const initDB = async () => {
         console.error(`[ ${new Date().toLocaleTimeString()} ] ❌ Robot Tide-Master : ERREUR CRITIQUE sur | ${spotName} -> ${error.message}`);
     }
 }
-app.get('/api/marine', async (req, res) => {
-    const { lat, lng } = req.query;
-    console.log(`[ ${new Date().toLocaleTimeString()} ] 📡 Robot Marine-Sync : Requête entrante (Lat: ${lat}, Lng: ${lng})`);
-
-    // Vérification de la clé API
-    if (!process.env.STORMGLASS_API_KEY) {
-        console.error(`[ ${new Date().toLocaleTimeString()} ] ⚠️ Robot Marine-Sync : Clé API manquante dans l'environnement !`);
-    }
-
-    // ... après l'appel réussi ...
-    console.log(`[ ${new Date().toLocaleTimeString()} ] 💧 Robot Marine-Sync : Données météo synchronisées.`);
-});
 
  
-
-// ============================================================================
-// 🛡️ OPÉRATION BOUCLIER : ROUTE DE DOUBLE AUTHENTIFICATION (2FA)
-// ============================================================================
-app.post("/api/auth/verify-2fa", async (req, res) => {
-    try {
-        const { email, code } = req.body;
-        if (!email || !code) return res.status(400).json({ success: false, error: "Email ou code manquant." });
-        const u = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
-        if (u.rows.length === 0) return res.status(404).json({ success: false, error: "Utilisateur introuvable." });
-        const userId = u.rows[0].id;
-        const r = await pool.query("SELECT code, expires FROM twofa_codes WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1", [userId]);
-        if (r.rows.length === 0) return res.status(400).json({ success: false, error: "Aucun code en attente." });
-        const row = r.rows[0];
-        const now = Date.now();
-        if (row.code !== code) return res.status(401).json({ success: false, error: "Code invalide." });
-        if (now > parseInt(row.expires)) return res.status(401).json({ success: false, error: "Code expiré." });
-        await pool.query("DELETE FROM twofa_codes WHERE user_id = $1", [userId]);
-        robotLog(ROBOTS.AUTH, "SUCCESS", `2FA validé`);
-        return res.status(200).json({ success: true });
-    } catch (error) {
-        robotLog(ROBOTS.AUTH, "CRITICAL", `Erreur 2FA: ${error.message}`);
-        res.status(500).json({ success: false, error: "Erreur interne." });
-    }
-});
-
-app.get('/api/log-click', async (req, res) => {
-    const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString();
-    const spotName = req.query.spot || '';
-    try {
-        await pool.query("INSERT INTO click_logs (spot_name, ip) VALUES ($1, $2)", [spotName, ip]);
-        res.sendStatus(200);
-    } catch {
-        res.sendStatus(200);
-    }
-});
 
 };
 
@@ -530,7 +482,79 @@ const cleanupExpiredCache = async () => {
 
 app.use(cors());
 
-// --- ROUTES D'AUTHENTIFICATION (NOUVEAU) ---
+// --- ROUTES PUBLIQUES & AUTH ---
+// route /api/marine est définie plus bas avec getDataSmart
+
+app.post("/api/auth/verify-2fa", async (req, res) => {
+    try {
+        const { email, code } = req.body;
+        if (!email || !code) return res.status(400).json({ success: false, error: "Email ou code manquant." });
+        const u = await pool.query("SELECT id FROM users WHERE email = $1", [email]);
+        if (u.rows.length === 0) return res.status(404).json({ success: false, error: "Utilisateur introuvable." });
+        const userId = u.rows[0].id;
+        const r = await pool.query("SELECT code, expires FROM twofa_codes WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1", [userId]);
+        if (r.rows.length === 0) return res.status(400).json({ success: false, error: "Aucun code en attente." });
+        const row = r.rows[0];
+        const now = Date.now();
+        if (row.code !== code) return res.status(401).json({ success: false, error: "Code invalide." });
+        if (now > parseInt(row.expires)) return res.status(401).json({ success: false, error: "Code expiré." });
+        await pool.query("DELETE FROM twofa_codes WHERE user_id = $1", [userId]);
+        robotLog(ROBOTS.AUTH, "SUCCESS", `2FA validé`);
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        robotLog(ROBOTS.AUTH, "CRITICAL", `Erreur 2FA: ${error.message}`);
+        res.status(500).json({ success: false, error: "Erreur interne." });
+    }
+});
+
+app.get('/api/log-click', async (req, res) => {
+    const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString();
+    const spotName = req.query.spot || '';
+    try {
+        await pool.query("INSERT INTO click_logs (spot_name, ip) VALUES ($1, $2)", [spotName, ip]);
+        res.sendStatus(200);
+    } catch {
+        res.sendStatus(200);
+    }
+});
+
+app.post("/api/support/checkout", async (req, res) => {
+  try {
+    const { amount } = req.body || {};
+    const amt = parseInt(amount, 10);
+    if (!amt || amt < 1) return res.status(400).json({ success: false, error: "Montant invalide." });
+    const secret = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET;
+    if (!secret) return res.status(500).json({ success: false, error: "Stripe non configuré côté serveur." });
+    const Stripe = (await import("stripe")).default;
+    const stripe = new Stripe(secret);
+    const proto = (req.headers["x-forwarded-proto"] || req.protocol || "http");
+    const host = req.get("host");
+    const baseUrl = `${proto}://${host}`;
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      billing_address_collection: "auto",
+      allow_promotion_codes: true,
+      line_items: [
+        {
+          price_data: {
+            currency: "eur",
+            unit_amount: amt * 100,
+            product_data: { name: "Don SurfSense" }
+          },
+          quantity: 1
+        }
+      ],
+      success_url: `${baseUrl}/contact.html?don=${encodeURIComponent(amt)}&ok=1`,
+      cancel_url: `${baseUrl}/contact.html?don=${encodeURIComponent(amt)}&cancel=1`,
+      metadata: { kind: "donation", amount: `${amt}` }
+    });
+    return res.json({ success: true, url: session.url });
+  } catch (error) {
+    robotLog(ROBOTS.AUTH, "ERROR", `Stripe: ${error.message}`);
+    return res.status(500).json({ success: false, error: "Erreur Stripe." });
+  }
+});
 
 // INSCRIPTION
 app.post("/api/auth/register", async (req, res) => {

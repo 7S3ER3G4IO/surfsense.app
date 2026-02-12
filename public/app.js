@@ -1681,6 +1681,11 @@ window.addEventListener("load", () => {
       document.getElementById("tech-modal").classList.add("is-open");
     }
 
+    if (e.target.matches("[data-modal='support']")) {
+      const modal = document.getElementById("support-modal");
+      if (modal) modal.classList.add("is-open");
+    }
+
     const legalTarget = e.target.closest("[data-modal^='legal-']");
     if (legalTarget) {
         e.preventDefault();
@@ -1691,6 +1696,39 @@ window.addEventListener("load", () => {
             document.getElementById("legal-body").innerHTML = doc.body;
             document.getElementById("legal-modal").classList.add("is-open");
         }
+    }
+
+    if (e.target && e.target.id === "support-continue") {
+      let amount = 0;
+      const checked = document.querySelector('input[name="support-amount"]:checked');
+      if (checked) amount = parseInt(checked.value, 10) || 0;
+      if (!amount) {
+        const custom = document.getElementById("support-amount-custom");
+        if (custom) amount = parseInt(custom.value, 10) || 0;
+      }
+      if (amount && amount > 0) {
+        fetch("/api/support/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ amount })
+        }).then(async (r) => {
+          try {
+            const data = await r.json();
+            if (data && data.success && data.url) {
+              window.location.href = data.url;
+            } else {
+              window.location.href = "contact.html?don=" + encodeURIComponent(amount);
+            }
+          } catch {
+            window.location.href = "contact.html?don=" + encodeURIComponent(amount);
+          }
+        }).catch(() => {
+          window.location.href = "contact.html?don=" + encodeURIComponent(amount);
+        });
+      }
+    }
+    if (e.target && e.target.id === "support-copy-email") {
+      navigator.clipboard.writeText("swellsync@gmail.com").catch(() => {});
     }
   });
 });
@@ -1800,6 +1838,7 @@ const i18n = {
     "nav.versus": "Versus",
     "nav.news": "News",
     "nav.contact": "Contact",
+    "nav.support": "Soutenir",
     "nav.login": "Se connecter",
     "cta.explore": "Explorer les spots",
     "geo.find": "Trouver mon spot",
@@ -1810,6 +1849,16 @@ const i18n = {
     "legal.mentions": "Mentions Légales",
     "legal.cgu": "CGU",
     "legal.rgpd": "Confidentialité",
+    "support.title": "Soutenir SurfSense",
+    "support.desc": "Vos dons financent l’hébergement, l’API météo et le développement.",
+    "support.breakdown.title": "À quoi servent vos dons ?",
+    "support.breakdown.hosting": "Hébergement/serveur, bande passante et CDN.",
+    "support.breakdown.api": "Abonnement API météo (Stormglass Premium).",
+    "support.breakdown.domain": "Nom de domaine, certificats SSL et maintenance.",
+    "support.breakdown.dev": "Développement des robots et des nouvelles fonctionnalités.",
+    "support.cta.continue": "Payer maintenant",
+    "support.cta.copy": "Copier l’adresse email",
+    "support.custom": "Montant libre",
     "hero.title": "Prévisions surf essentielles.",
     "map.title": "Carte interactive",
     "map.desc": "Analyse précise via Stormglass Premium.",
@@ -1902,6 +1951,7 @@ const i18n = {
     "nav.versus": "Versus",
     "nav.news": "News",
     "nav.contact": "Contact",
+    "nav.support": "Support",
     "nav.login": "Sign in",
     "cta.explore": "Explore spots",
     "geo.find": "Find my spot",
@@ -1912,6 +1962,16 @@ const i18n = {
     "legal.mentions": "Legal",
     "legal.cgu": "Terms",
     "legal.rgpd": "Privacy",
+    "support.title": "Support SurfSense",
+    "support.desc": "Your donations fund hosting, weather APIs and development.",
+    "support.breakdown.title": "What do donations cover?",
+    "support.breakdown.hosting": "Hosting/server, bandwidth and CDN.",
+    "support.breakdown.api": "Premium weather API subscription (Stormglass).",
+    "support.breakdown.domain": "Domain name, SSL certificates and maintenance.",
+    "support.breakdown.dev": "Robots and new feature development.",
+    "support.cta.continue": "Pay now",
+    "support.cta.copy": "Copy email address",
+    "support.custom": "Custom amount",
     "hero.title": "Essential surf forecasts.",
     "map.title": "Interactive Map",
     "map.desc": "Precise analysis via Stormglass Premium.",
@@ -2004,6 +2064,7 @@ const i18n = {
     "nav.versus": "Versus",
     "nav.news": "Noticias",
     "nav.contact": "Contacto",
+    "nav.support": "Apoyar",
     "nav.login": "Conectar",
     "cta.explore": "Explorar spots",
     "geo.find": "Encontrar mi spot",
@@ -2014,6 +2075,16 @@ const i18n = {
     "legal.mentions": "Aviso legal",
     "legal.cgu": "Términos",
     "legal.rgpd": "Privacidad",
+    "support.title": "Apoyar SurfSense",
+    "support.desc": "Tus donaciones financian hosting, APIs meteorológicas y desarrollo.",
+    "support.breakdown.title": "¿Qué cubren las donaciones?",
+    "support.breakdown.hosting": "Alojamiento/servidor, ancho de banda y CDN.",
+    "support.breakdown.api": "Suscripción API de meteo Premium (Stormglass).",
+    "support.breakdown.domain": "Dominio, certificados SSL y mantenimiento.",
+    "support.breakdown.dev": "Desarrollo de robots y nuevas funciones.",
+    "support.cta.continue": "Pagar ahora",
+    "support.cta.copy": "Copiar dirección de email",
+    "support.custom": "Importe libre",
     "hero.title": "Previsiones de surf esenciales.",
     "map.title": "Mapa interactivo",
     "map.desc": "Análisis preciso con Stormglass Premium.",
@@ -2120,6 +2191,10 @@ function applyI18n() {
     shareBtn.setAttribute("aria-label", label);
     shareBtn.setAttribute("title", label);
   }
+  const customAmt = document.getElementById("support-amount-custom");
+  if (customAmt) {
+    customAmt.setAttribute("placeholder", t("support.custom"));
+  }
 }
 
 const initContactPage = () => {
@@ -2137,6 +2212,16 @@ const initContactPage = () => {
         if (statusEl) statusEl.textContent = "Copie impossible. Adresse: swellsync@gmail.com";
       }
     });
+  }
+  const params = new URLSearchParams(window.location.search);
+  const don = params.get("don");
+  if (don) {
+    const catEl = document.getElementById("ct-category");
+    const subjEl = document.getElementById("ct-subject");
+    const msgEl = document.getElementById("ct-message");
+    if (catEl) catEl.value = "Don";
+    if (subjEl) subjEl.value = "Don — Montant: " + don + "€";
+    if (msgEl) msgEl.value = "Bonjour, je souhaite soutenir SurfSense avec un don de " + don + "€.";
   }
   form.addEventListener("submit", async (e) => {
     e.preventDefault();

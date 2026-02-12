@@ -34,6 +34,7 @@
             <option value="en">EN</option>
             <option value="es">ES</option>
           </select>
+          <button class="cta" data-modal="support" data-i18n="nav.support">Soutenir</button>
           <button class="cta" data-modal="auth" data-i18n="nav.login">Se connecter</button>
         </div>
     </nav>
@@ -114,6 +115,39 @@
         <h2 id="legal-title">TITRE DU DOCUMENT</h2>
     </div>
     <div id="legal-body" style="overflow-y: auto; max-height: 60vh; padding: 20px 0; color: #94a3b8; font-size: 0.9rem; line-height: 1.7;">
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="support-modal">
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-content tech-modal" style="max-width: 720px;">
+    <div class="tech-header">
+        <span class="tech-label" data-i18n="support.title">Soutenir SurfSense</span>
+        <h2 data-i18n="support.desc">Vos dons financent l’hébergement, l’API météo et le développement.</h2>
+    </div>
+    <div style="overflow-y: auto; max-height: 64vh; padding: 10px 0;">
+      <h3 style="margin:10px 0;" data-i18n="support.breakdown.title">À quoi servent vos dons ?</h3>
+      <ul style="color:#94a3b8; font-size:0.9rem; line-height:1.7; margin:0 0 12px 0; padding-left:18px;">
+        <li data-i18n="support.breakdown.hosting">Hébergement/serveur, bande passante et CDN.</li>
+        <li data-i18n="support.breakdown.api">Abonnement API météo (Stormglass Premium).</li>
+        <li data-i18n="support.breakdown.domain">Nom de domaine, certificats SSL et maintenance.</li>
+        <li data-i18n="support.breakdown.dev">Développement des robots et des nouvelles fonctionnalités.</li>
+      </ul>
+      <div style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px; margin:12px 0;">
+        <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="5" style="display:none;"><span>5€</span></label>
+        <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="10" style="display:none;"><span>10€</span></label>
+        <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="20" style="display:none;"><span>20€</span></label>
+        <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="50" style="display:none;"><span>50€</span></label>
+        <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="100" style="display:none;"><span>100€</span></label>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="number" id="support-amount-custom" min="1" step="1" placeholder="Montant libre" style="width:100%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px; color: #fff; font-size: 0.95rem;" />
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button id="support-continue" class="primary" data-i18n="support.cta.continue">Continuer</button>
+        <button id="support-copy-email" class="ghost-pill" data-i18n="support.cta.copy">Copier l’adresse email</button>
+      </div>
     </div>
   </div>
 </div>
