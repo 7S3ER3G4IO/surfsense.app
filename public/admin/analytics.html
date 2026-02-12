@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin — Surveillance</title>
+    <title>Admin — Analytique</title>
     <link rel="stylesheet" href="../styles.css">
     <link rel="icon" href="../logo.svg" type="image/svg+xml" />
     <style>
@@ -16,7 +16,7 @@
         radial-gradient(1200px 600px at -10% -10%, rgba(124,58,237,.12), transparent 60%),
         radial-gradient(1000px 500px at 110% 10%, rgba(34,197,94,.12), transparent 60%)}
       .admin-card{background:rgba(11,14,22,.7);backdrop-filter:blur(8px);border:1px solid #1f2937;border-radius:16px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
-      .metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+      .metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:8px}
       .metric-label{color:#94a3b8;font-weight:700}
       .metric-value{color:#e5e7eb;font-weight:900}
     </style>
@@ -31,11 +31,11 @@
         <nav class="admin-nav" id="admin-nav"></nav>
       </aside>
       <main class="admin-main">
-        <div class="section" style="max-width:1000px; margin:0 auto;">
+        <div class="section" style="max-width:1100px; margin:0 auto;">
           <div class="section-title" style="display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <h2>Surveillance Système</h2>
-              <p style="color:#94a3b8;">Santé et états en temps réel</p>
+              <h2>Analytique</h2>
+              <p style="color:#94a3b8;">Séries temps réel (24h)</p>
             </div>
             <div>
               <button id="btn-refresh" class="btn btn--compact">Rafraîchir</button>
@@ -43,18 +43,11 @@
           </div>
           <div class="admin-card">
             <div class="metric-grid">
-              <div class="metric-label">DB</div><div id="health-db" class="metric-value">-</div>
-              <div class="metric-label">Ping DB</div><div id="health-ping" class="metric-value">-</div>
-              <div class="metric-label">Uptime</div><div id="health-uptime" class="metric-value">-</div>
-              <div class="metric-label">Mémoire</div><div id="health-mem" class="metric-value">-</div>
-              <div class="metric-label">Cache Items</div><div id="health-cache" class="metric-value">-</div>
-              <div class="metric-label">APIs (24h)</div><div id="health-api" class="metric-value">-</div>
-              <div class="metric-label">Spots</div><div id="health-spots" class="metric-value">-</div>
-              <div class="metric-label">Quota LIMITE</div><div id="health-limit" class="metric-value">-</div>
-              <div class="metric-label">Quota RESTANT</div><div id="health-rem" class="metric-value">-</div>
-              <div class="metric-label">Quota UTILISÉ</div><div id="health-used" class="metric-value">-</div>
-              <div class="metric-label">Worker</div><div id="worker-state" class="metric-value">-</div>
-              <div class="metric-label">Interval worker</div><div id="worker-interval-cur" class="metric-value">-</div>
+              <div class="metric-label">Spots LIVE (points)</div><div id="m-live" class="metric-value">-</div>
+              <div class="metric-label">Spots WAIT (points)</div><div id="m-wait" class="metric-value">-</div>
+              <div class="metric-label">Quota restant (points)</div><div id="m-quota" class="metric-value">-</div>
+              <div class="metric-label">Alertes ÉPIQUES (points)</div><div id="m-epic" class="metric-value">-</div>
+              <div class="metric-label">Utilisateurs (points)</div><div id="m-users" class="metric-value">-</div>
             </div>
           </div>
         </div>
@@ -69,30 +62,23 @@
         const tok = localStorage.getItem("surfAdminToken") || "";
         const headers = tok ? { "x-admin-token": tok } : {};
         const q = (id) => document.getElementById(id);
-        async function loadHealth() {
+        async function loadSeries() {
           try {
-            const r = await fetch("/api/admin/health", { headers });
-            const h = await r.json();
-            q("health-db").textContent = h.db ? "OK" : "ERREUR";
-            q("health-ping").textContent = (h.pingMs ?? "-")+" ms";
-            q("health-uptime").textContent = h.uptime+" s";
-            q("health-mem").textContent = h.memoryMB+" MB";
-            q("health-cache").textContent = h.cacheCount ?? "-";
-            q("health-api").textContent = (h.apiCallCount ?? 0)+" appels";
-            q("health-spots").textContent = "LIVE "+(h.live||0)+" · WAIT "+(h.wait||0);
-            q("health-limit").textContent = h.quota?.limit ?? "-";
-            q("health-rem").textContent = h.quota?.remaining ?? "-";
-            q("health-used").textContent = h.quota?.used ?? "-";
-            q("worker-interval-cur").textContent = h.worker?.intervalMinutes ?? "-";
-            q("worker-state").textContent = h.worker?.paused ? "PAUSED" : "RUNNING";
-          } catch (e) {
+            const r = await fetch("/api/admin/analytics/timeseries", { headers });
+            const s = await r.json();
+            q("m-live").textContent = s.live?.length ?? 0;
+            q("m-wait").textContent = s.wait?.length ?? 0;
+            q("m-quota").textContent = s.quota?.length ?? 0;
+            q("m-epic").textContent = s.epic?.length ?? 0;
+            q("m-users").textContent = s.users?.length ?? 0;
+          } catch {
             alert("Accès refusé. Veuillez vous reconnecter.");
             localStorage.removeItem("surfAdminToken");
             window.location.href = "../index.html";
           }
         }
-        document.getElementById("btn-refresh").onclick = loadHealth;
-        loadHealth();
+        document.getElementById("btn-refresh").onclick = loadSeries;
+        loadSeries();
       })();
     </script>
   </body>

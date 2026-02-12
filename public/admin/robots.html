@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin — Robots</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="icon" href="../logo.svg" type="image/svg+xml" />
+    <style>
+      .admin-layout{display:flex;min-height:100vh}
+      .admin-sidebar{width:260px;background:#0b0e16;border-right:1px solid #1f2937;padding:18px;position:sticky;top:0;height:100vh;backdrop-filter:blur(8px)}
+      .admin-brand{display:flex;align-items:center;gap:10px;color:#e5e7eb;font-weight:800;margin-bottom:18px}
+      .admin-nav a{display:block;padding:10px 12px;border-radius:12px;color:#c4b5fd;text-decoration:none;margin-bottom:6px;transition:background .2s, transform .1s}
+      .admin-nav a:hover{background:#111827;transform:translateX(2px)}
+      .admin-main{flex:1;padding:24px;background:
+        radial-gradient(1200px 600px at -10% -10%, rgba(124,58,237,.12), transparent 60%),
+        radial-gradient(1000px 500px at 110% 10%, rgba(34,197,94,.12), transparent 60%)}
+      .admin-card{background:rgba(11,14,22,.7);backdrop-filter:blur(8px);border:1px solid #1f2937;border-radius:16px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+    </style>
+  </head>
+  <body style="background:#080a12;">
+    <div class="admin-layout">
+      <aside class="admin-sidebar">
+        <div class="admin-brand">
+          <img src="../logo.svg" alt="logo" width="24" height="24"/>
+          <span>Admin</span>
+        </div>
+        <nav class="admin-nav" id="admin-nav"></nav>
+      </aside>
+      <main class="admin-main">
+        <div class="section" style="max-width:1000px; margin:0 auto;">
+          <div class="section-title">
+            <h2>Robots</h2>
+            <p style="color:#94a3b8;">Contrôle du worker météo</p>
+          </div>
+          <div class="admin-card">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span>État: <strong id="rb-state">-</strong></span>
+              <span>Intervalle: <strong id="rb-interval">-</strong> min</span>
+            </div>
+            <div style="display:flex; gap:8px; margin-top:10px;">
+              <button id="rb-pause" class="btn">Pause</button>
+              <button id="rb-resume" class="btn">Resume</button>
+              <input id="rb-minutes" type="number" min="1" max="240" value="45" class="btn" style="width:90px;"/>
+              <button id="rb-apply" class="btn">Appliquer</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    <script>
+      (function(){
+        fetch("/admin/nav.html").then(r=>r.text()).then(html=>{ const el=document.getElementById("admin-nav"); if(el) el.innerHTML=html; }).catch(()=>{});
+        const params = new URLSearchParams(window.location.search);
+        const tParam = params.get("token");
+        if (tParam) { try { localStorage.setItem("surfAdminToken", tParam); history.replaceState({}, "", window.location.pathname); } catch {} }
+        const tok = localStorage.getItem("surfAdminToken") || "";
+        const headers = tok ? { "x-admin-token": tok } : {};
+        const q = (id) => document.getElementById(id);
+        async function loadWorkers() {
+          try {
+            const r = await fetch("/api/admin/workers", { headers });
+            const w = await r.json();
+            q("rb-state").textContent = w.paused ? "PAUSED" : "RUNNING";
+            q("rb-interval").textContent = w.intervalMinutes ?? "-";
+          } catch {
+            alert("Accès refusé.");
+            localStorage.removeItem("surfAdminToken");
+            window.location.href = "../index.html";
+          }
+        }
+        q("rb-pause").onclick = async () => {
+          await fetch("/api/admin/workers", { method:"POST", headers, body: JSON.stringify({ action: "pause" }), });
+          loadWorkers();
+        };
+        q("rb-resume").onclick = async () => {
+          await fetch("/api/admin/workers", { method:"POST", headers, body: JSON.stringify({ action: "resume" }), });
+          loadWorkers();
+        };
+        q("rb-apply").onclick = async () => {
+          const minutes = parseInt(q("rb-minutes").value, 10);
+          const r = await fetch("/api/admin/workers", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ action: "setInterval", minutes }) });
+          if (!r.ok) alert("Minutes invalides");
+          loadWorkers();
+        };
+        loadWorkers();
+      })();
+    </script>
+  </body>
+</html>
