@@ -12,15 +12,40 @@
       .admin-brand{display:flex;align-items:center;gap:10px;color:#e5e7eb;font-weight:800;margin-bottom:18px}
       .admin-nav a{display:block;padding:10px 12px;border-radius:12px;color:#c4b5fd;text-decoration:none;margin-bottom:6px;transition:background .2s, transform .1s}
       .admin-nav a:hover{background:#111827;transform:translateX(2px)}
-      .admin-main{flex:1;padding:24px;background:
-        radial-gradient(1200px 600px at -10% -10%, rgba(124,58,237,.12), transparent 60%),
-        radial-gradient(1000px 500px at 110% 10%, rgba(34,197,94,.12), transparent 60%)}
-      .admin-card{background:rgba(11,14,22,.7);backdrop-filter:blur(8px);border:1px solid #1f2937;border-radius:16px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
-      .act-btn{background:#0b0e16;border:1px solid #1f2937;color:#e5e7eb;border-radius:10px;padding:6px 10px;transition:transform .1s}
-      .act-btn:hover{transform:translateY(-1px)}
+      .admin-main{flex:1;padding:24px;background:radial-gradient(1200px 600px at -10% -10%, rgba(124,58,237,.12), transparent 60%),radial-gradient(1000px 500px at 110% 10%, rgba(34,197,94,.12), transparent 60%)}
+      .admin-card{background:rgba(11,14,22,.7);backdrop-filter:blur(8px);border:1px solid #1f2937;border-radius:16px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.35); margin-bottom: 24px;}
+      .act-btn{background:#0b0e16;border:1px solid #1f2937;color:#e5e7eb;border-radius:10px;padding:8px 16px;transition:all .2s; cursor:pointer; font-weight:600;}
+      .act-btn:hover{transform:translateY(-1px); border-color:#8b5cf6;}
+      
+      /* Premium UI */
+      .premium-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin-top: 16px; }
+      .net-card { background: rgba(17, 24, 39, 0.6); border: 1px solid rgba(124, 58, 237, 0.2); border-radius: 12px; padding: 16px; transition: all 0.2s; display:flex; flex-direction:column; }
+      .net-card:hover { border-color: rgba(124, 58, 237, 0.5); background: rgba(17, 24, 39, 0.8); transform: translateY(-2px); }
+      .net-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+      .net-title { font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; font-size: 15px; }
+      .net-body { display: flex; flex-direction: column; gap: 10px; flex:1; }
+      
+      .premium-input { background: #0b0e16; border: 1px solid #374151; color: #e5e7eb; padding: 10px 12px; border-radius: 8px; width: 100%; font-size: 13px; transition: border-color 0.2s; }
+      .premium-input:focus { outline: none; border-color: #8b5cf6; box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2); }
+      .premium-select { appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 10px center; background-size: 16px; padding-right: 32px; cursor: pointer; }
+      
+      .toggle-switch { position: relative; width: 44px; height: 24px; }
+      .toggle-switch input { opacity: 0; width: 0; height: 0; }
+      .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #374151; transition: .4s; border-radius: 24px; }
+      .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+      input:checked + .slider { background-color: #8b5cf6; }
+      input:checked + .slider:before { transform: translateX(20px); }
+      
+      .collapsible { overflow: hidden; transition: max-height 0.3s ease-out; max-height: 0; }
+      .collapsible.open { max-height: 200px; }
+      .details-trigger { font-size: 11px; color: #94a3b8; cursor: pointer; text-decoration: underline; margin-top: auto; padding-top: 8px; }
+      .details-trigger:hover { color: #c4b5fd; }
+      
+      .section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
+      .badge-pro { background: linear-gradient(135deg, #8b5cf6, #ec4899); color: white; padding: 4px 8px; border-radius: 6px; font-size: 10px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; margin-left: 8px; vertical-align: middle; }
     </style>
   </head>
-  <body style="background:#080a12;">
+  <body style="background:#080a12; color: #fff; font-family: 'Inter', system-ui, sans-serif;">
     <div class="admin-layout">
       <aside class="admin-sidebar">
         <div class="admin-brand">
@@ -30,160 +55,291 @@
         <nav class="admin-nav" id="admin-nav"></nav>
       </aside>
       <main class="admin-main">
-        <div class="section" style="max-width:1100px; margin:0 auto;">
-          <div class="section-title">
-            <h2>Réseaux & Publications</h2>
-            <p style="color:#94a3b8;">Configuration des canaux & planification</p>
-          </div>
-          <div class="admin-card" style="margin-top:10px;">
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-              <div>
-                <div style="color:#94a3b8; margin-bottom:6px;">Webhook agrégateur (optionnel)</div>
-                <input id="mk-webhook" class="btn" placeholder="https://hooks..." style="width:100%; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;" />
-              </div>
-              <div>
-                <div style="color:#94a3b8; margin-bottom:6px;">Intervalle (minutes)</div>
-                <input id="mk-interval" type="number" min="1" step="1" class="btn" placeholder="60" style="width:100%; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;" />
-              </div>
-              <div style="grid-column:1 / span 2;">
-                <div style="color:#94a3b8; margin-bottom:6px;">Template message</div>
-                <input id="mk-template" class="btn" placeholder="SurfSense: conditions live sur {spot} • {desc}" style="width:100%; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;" />
-              </div>
-              <div>
-                <div style="color:#94a3b8; margin-bottom:6px;">Type de contenu</div>
-                <select id="mk-type" class="btn" style="width:100%; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                  <option value="story">Story</option>
-                  <option value="classic">Post classique</option>
-                  <option value="video">Vidéo</option>
-                </select>
-              </div>
-              <div>
-                <div style="color:#94a3b8; margin-bottom:6px;">Canaux</div>
-                <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                  <label class="act-btn"><input type="checkbox" id="mk-ch-instagram"> Instagram</label>
-                  <label class="act-btn"><input type="checkbox" id="mk-ch-facebook"> Facebook</label>
-                  <label class="act-btn"><input type="checkbox" id="mk-ch-tiktok"> TikTok</label>
-                  <label class="act-btn"><input type="checkbox" id="mk-ch-threads"> Threads</label>
-                  <label class="act-btn"><input type="checkbox" id="mk-ch-youtube"> YouTube</label>
-                  <label class="act-btn"><input type="checkbox" id="mk-ch-twitter"> X/Twitter</label>
-                  <label class="act-btn"><input type="checkbox" id="mk-ch-telegram"> Telegram</label>
-                  <label class="act-btn"><input type="checkbox" id="mk-ch-discord"> Discord</label>
-                </div>
-              </div>
-              <div style="grid-column:1 / span 2;">
-                <div style="color:#94a3b8; margin-bottom:6px;">Formats de publication</div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                  <div style="display:flex; align-items:center; gap:4px;">
-                    <label style="width:70px; color:#e5e7eb; font-size:12px;">Instagram</label>
-                    <select id="mk-fmt-instagram" class="btn" style="flex:1; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb; height:32px;">
-                      <option value="story">Story (9:16)</option>
-                      <option value="post">Post (4:5)</option>
-                      <option value="square">Post Carré (1:1)</option>
-                      <option value="reel">Reel (9:16)</option>
-                    </select>
-                  </div>
-                  <div style="display:flex; align-items:center; gap:4px;">
-                    <label style="width:70px; color:#e5e7eb; font-size:12px;">Facebook</label>
-                    <select id="mk-fmt-facebook" class="btn" style="flex:1; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb; height:32px;">
-                      <option value="post">Post (4:5)</option>
-                      <option value="square">Post Carré (1:1)</option>
-                      <option value="story">Story (9:16)</option>
-                      <option value="reel">Reel (9:16)</option>
-                    </select>
-                  </div>
-                  <div style="display:flex; align-items:center; gap:4px;">
-                    <label style="width:70px; color:#e5e7eb; font-size:12px;">TikTok</label>
-                    <select id="mk-fmt-tiktok" class="btn" style="flex:1; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb; height:32px;">
-                      <option value="video">Vidéo (9:16)</option>
-                      <option value="photo">Mode Photo (9:16)</option>
-                    </select>
-                  </div>
-                  <div style="display:flex; align-items:center; gap:4px;">
-                    <label style="width:70px; color:#e5e7eb; font-size:12px;">Threads</label>
-                    <select id="mk-fmt-threads" class="btn" style="flex:1; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb; height:32px;">
-                      <option value="post">Post (4:5)</option>
-                      <option value="square">Post Carré (1:1)</option>
-                      <option value="vertical">Vertical (9:16)</option>
-                    </select>
-                  </div>
-                  <div style="display:flex; align-items:center; gap:4px;">
-                    <label style="width:70px; color:#e5e7eb; font-size:12px;">YouTube</label>
-                    <select id="mk-fmt-youtube" class="btn" style="flex:1; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb; height:32px;">
-                      <option value="video">Vidéo Longue (16:9)</option>
-                      <option value="short">Short (9:16)</option>
-                      <option value="community">Post Communauté (1:1)</option>
-                    </select>
-                  </div>
-                  <div style="display:flex; align-items:center; gap:4px;">
-                    <label style="width:70px; color:#e5e7eb; font-size:12px;">X/Twitter</label>
-                    <select id="mk-fmt-twitter" class="btn" style="flex:1; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb; height:32px;">
-                      <option value="post">Post (16:9)</option>
-                      <option value="square">Carré (1:1)</option>
-                    </select>
-                  </div>
-                  <div style="display:flex; align-items:center; gap:4px;">
-                    <label style="width:70px; color:#e5e7eb; font-size:12px;">Telegram</label>
-                    <select id="mk-fmt-telegram" class="btn" style="flex:1; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb; height:32px;">
-                      <option value="post">Fichier (Original)</option>
-                      <option value="bulle">Bulle Vidéo (1:1)</option>
-                    </select>
-                  </div>
-                  <div style="display:flex; align-items:center; gap:4px;">
-                    <label style="width:70px; color:#e5e7eb; font-size:12px;">Discord</label>
-                    <select id="mk-fmt-discord" class="btn" style="flex:1; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb; height:32px;">
-                      <option value="message">Message (Flexible)</option>
-                      <option value="everyone">@everyone</option>
-                      <option value="annonce">Annonce</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div style="grid-column:1 / span 2;">
-                <div style="color:#94a3b8; margin-bottom:6px;">Liens Profils Publics (Optionnel)</div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                  <input id="mk-pf-instagram" class="btn" placeholder="URL Profil Instagram" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                  <input id="mk-pf-facebook" class="btn" placeholder="URL Profil Facebook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                  <input id="mk-pf-tiktok" class="btn" placeholder="URL Profil TikTok" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                  <input id="mk-pf-threads" class="btn" placeholder="URL Profil Threads" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                  <input id="mk-pf-youtube" class="btn" placeholder="URL Profil YouTube" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                  <input id="mk-pf-twitter" class="btn" placeholder="URL Profil X/Twitter" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                  <input id="mk-pf-telegram" class="btn" placeholder="URL Profil Telegram" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                  <input id="mk-pf-discord" class="btn" placeholder="URL Profil Discord" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                </div>
-              </div>
-              <div style="grid-column:1 / span 2;">
-                <div style="color:#94a3b8; margin-bottom:6px;">Webhooks connexions directes (optionnel)</div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                  <input id="mk-wh-instagram" class="btn" placeholder="Instagram webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                  <input id="mk-wh-facebook" class="btn" placeholder="Facebook webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                  <input id="mk-wh-tiktok" class="btn" placeholder="TikTok webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                  <input id="mk-wh-threads" class="btn" placeholder="Threads webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                  <input id="mk-wh-youtube" class="btn" placeholder="YouTube webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                  <input id="mk-wh-twitter" class="btn" placeholder="X/Twitter webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                  <input id="mk-wh-telegram" class="btn" placeholder="Telegram webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                  <input id="mk-wh-discord" class="btn" placeholder="Discord webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                </div>
-              </div>
-              <div style="grid-column:1 / span 2;">
-                <div style="color:#94a3b8; margin-bottom:6px;">Email Réseaux</div>
-                <div style="display:flex; align-items:center; gap:10px;">
-                  <a id="mk-email-link" href="#" style="color:#c4b5fd; font-weight:700;"><span id="mk-email-text">swellsync@outlook.fr</span></a>
-                  <button id="mk-email-copy" class="btn btn--compact">Copier</button>
-                </div>
-              </div>
+        <div class="section" style="max-width:1200px; margin:0 auto;">
+          <div class="section-header">
+            <div>
+              <h2 style="margin:0; font-size: 28px; display:flex; align-items:center;">Marketing Center <span class="badge-pro">Premium</span></h2>
+              <p style="color:#94a3b8; margin:6px 0 0 0;">Gérez votre présence multi-canal et vos automatisations</p>
             </div>
-            <div style="display:flex; gap:8px; margin-top:12px;">
-              <button id="mk-save" class="btn">Enregistrer</button>
-              <button id="mk-fire" class="btn">Publier maintenant</button>
-              <button id="mk-start" class="btn">Démarrer planificateur</button>
-              <button id="mk-stop" class="btn">Stop planificateur</button>
-              <span id="mk-status" style="color:#94a3b8; margin-left:auto;">Status: -</span>
-            </div>
-            <div style="margin-top:12px;">
-              <button id="mk-agg-status" class="btn btn--compact">Voir état agrégateur</button>
-              <div id="agg-out" style="margin-top:8px; color:#94a3b8;"></div>
+            <div style="display:flex; gap:10px;">
+                <button id="mk-share-native" class="act-btn" style="background: linear-gradient(135deg, #3b82f6, #2563eb); border:none;">
+                    <span style="margin-right:6px;">↗️</span> Partager
+                </button>
+                <button id="mk-fire" class="act-btn" style="background: linear-gradient(135deg, #ef4444, #dc2626); border:none;">Publier Maintenant</button>
             </div>
           </div>
+
+          <!-- Configuration Globale -->
+          <div class="admin-card">
+            <h3 style="margin-top:0; border-bottom:1px solid rgba(255,255,255,0.1); padding-bottom:12px; margin-bottom:16px; color:#c4b5fd;">Configuration Générale</h3>
+            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:16px;">
+                <div>
+                    <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:6px; font-weight:600;">TEMPLATE DU MESSAGE</label>
+                    <input id="mk-template" class="premium-input" placeholder="SurfSense: conditions live sur {spot} • {desc} #surf" />
+                </div>
+                <div>
+                    <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:6px; font-weight:600;">INTERVALLE (MINUTES)</label>
+                    <input id="mk-interval" type="number" min="1" class="premium-input" placeholder="60" />
+                </div>
+                <div style="grid-column: 1 / -1;">
+                    <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:6px; font-weight:600;">WEBHOOK AGRÉGATEUR (LOGS/DEBUG)</label>
+                    <input id="mk-webhook" class="premium-input" placeholder="https://discord.com/api/webhooks/..." />
+                </div>
+                 <!-- Hidden old Select used for compat if needed, or we just ignore it as we have per-channel formats now -->
+                <select id="mk-type" style="display:none;"><option value="story">Story</option></select>
+            </div>
+          </div>
+
+          <!-- Grille des Réseaux -->
+          <h3 style="margin: 24px 0 12px 0; color:#c4b5fd; font-size: 18px;">Canaux de Diffusion</h3>
+          <div class="premium-grid">
+            
+            <!-- Instagram -->
+            <div class="net-card">
+                <div class="net-header">
+                    <div class="net-title">📸 Instagram</div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="mk-ch-instagram">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="net-body">
+                    <div>
+                        <label style="font-size:11px; color:#94a3b8; font-weight:600;">FORMAT</label>
+                        <select id="mk-fmt-instagram" class="premium-input premium-select">
+                            <option value="story">Story (9:16)</option>
+                            <option value="post">Post (4:5)</option>
+                            <option value="square">Post Carré (1:1)</option>
+                            <option value="reel">Reel (9:16)</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+                            <input id="mk-pf-instagram" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
+                            <input id="mk-wh-instagram" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Facebook -->
+            <div class="net-card">
+                <div class="net-header">
+                    <div class="net-title">📘 Facebook</div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="mk-ch-facebook">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="net-body">
+                    <div>
+                        <label style="font-size:11px; color:#94a3b8; font-weight:600;">FORMAT</label>
+                        <select id="mk-fmt-facebook" class="premium-input premium-select">
+                            <option value="post">Post (4:5)</option>
+                            <option value="square">Post Carré (1:1)</option>
+                            <option value="story">Story (9:16)</option>
+                            <option value="reel">Reel (9:16)</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+                            <input id="mk-pf-facebook" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
+                            <input id="mk-wh-facebook" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TikTok -->
+            <div class="net-card">
+                <div class="net-header">
+                    <div class="net-title">🎵 TikTok</div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="mk-ch-tiktok">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="net-body">
+                    <div>
+                        <label style="font-size:11px; color:#94a3b8; font-weight:600;">FORMAT</label>
+                        <select id="mk-fmt-tiktok" class="premium-input premium-select">
+                            <option value="video">Vidéo (9:16)</option>
+                            <option value="photo">Mode Photo (9:16)</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+                            <input id="mk-pf-tiktok" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
+                            <input id="mk-wh-tiktok" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Threads -->
+            <div class="net-card">
+                <div class="net-header">
+                    <div class="net-title">🧵 Threads</div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="mk-ch-threads">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="net-body">
+                    <div>
+                        <label style="font-size:11px; color:#94a3b8; font-weight:600;">FORMAT</label>
+                        <select id="mk-fmt-threads" class="premium-input premium-select">
+                            <option value="post">Post (4:5)</option>
+                            <option value="square">Post Carré (1:1)</option>
+                            <option value="vertical">Vertical (9:16)</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+                            <input id="mk-pf-threads" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
+                            <input id="mk-wh-threads" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- YouTube -->
+            <div class="net-card">
+                <div class="net-header">
+                    <div class="net-title">▶️ YouTube</div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="mk-ch-youtube">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="net-body">
+                    <div>
+                        <label style="font-size:11px; color:#94a3b8; font-weight:600;">FORMAT</label>
+                        <select id="mk-fmt-youtube" class="premium-input premium-select">
+                            <option value="video">Vidéo Longue (16:9)</option>
+                            <option value="short">Short (9:16)</option>
+                            <option value="community">Post Communauté (1:1)</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+                            <input id="mk-pf-youtube" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
+                            <input id="mk-wh-youtube" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- X/Twitter -->
+            <div class="net-card">
+                <div class="net-header">
+                    <div class="net-title">✖️ X / Twitter</div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="mk-ch-twitter">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="net-body">
+                    <div>
+                        <label style="font-size:11px; color:#94a3b8; font-weight:600;">FORMAT</label>
+                        <select id="mk-fmt-twitter" class="premium-input premium-select">
+                            <option value="post">Post (16:9)</option>
+                            <option value="square">Carré (1:1)</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+                            <input id="mk-pf-twitter" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
+                            <input id="mk-wh-twitter" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Telegram -->
+            <div class="net-card">
+                <div class="net-header">
+                    <div class="net-title">✈️ Telegram</div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="mk-ch-telegram">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="net-body">
+                    <div>
+                        <label style="font-size:11px; color:#94a3b8; font-weight:600;">FORMAT</label>
+                        <select id="mk-fmt-telegram" class="premium-input premium-select">
+                            <option value="post">Fichier (Original)</option>
+                            <option value="bulle">Bulle Vidéo (1:1)</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+                            <input id="mk-pf-telegram" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
+                            <input id="mk-wh-telegram" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Discord -->
+            <div class="net-card">
+                <div class="net-header">
+                    <div class="net-title">👾 Discord</div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="mk-ch-discord">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="net-body">
+                    <div>
+                        <label style="font-size:11px; color:#94a3b8; font-weight:600;">FORMAT</label>
+                        <select id="mk-fmt-discord" class="premium-input premium-select">
+                            <option value="message">Message (Flexible)</option>
+                            <option value="everyone">@everyone</option>
+                            <option value="annonce">Annonce</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
+                            <input id="mk-pf-discord" class="premium-input" placeholder="URL Profil" style="font-size:11px;">
+                            <input id="mk-wh-discord" class="premium-input" placeholder="Webhook URL" style="font-size:11px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+          </div>
+
+          <!-- Actions Footer -->
+          <div class="admin-card" style="margin-top:24px; display:flex; justify-content:space-between; align-items:center;">
+             <div style="display:flex; gap:12px; align-items:center;">
+                <button id="mk-save" class="act-btn" style="background:#2563eb; border:none; padding:10px 24px;">ENREGISTRER</button>
+                <div style="height:24px; width:1px; background:#1f2937; margin:0 8px;"></div>
+                <button id="mk-start" class="act-btn">▶ Démarrer Auto</button>
+                <button id="mk-stop" class="act-btn">⏹ Stop</button>
+                <span id="mk-status" style="color:#94a3b8; font-size:13px; margin-left:12px;">Status: -</span>
+             </div>
+             
+             <div>
+                 <a id="mk-email-link" href="#" style="color:#64748b; font-size:12px; text-decoration:none;">Support: <span id="mk-email-text">swellsync@outlook.fr</span></a>
+                 <button id="mk-email-copy" style="background:none; border:none; color:#4b5563; cursor:pointer; font-size:12px;">(Copier)</button>
+             </div>
+          </div>
+          
+          <div style="margin-top:12px; text-align:right;">
+             <button id="mk-agg-status" style="background:none; border:none; color:#4b5563; font-size:11px; cursor:pointer;">Logs Système</button>
+             <div id="agg-out" style="margin-top:8px; color:#64748b; font-size:11px; font-family:monospace;"></div>
+          </div>
+
         </div>
       </main>
     </div>
@@ -196,6 +352,26 @@
         const tok = localStorage.getItem("surfAdminToken") || "";
         const headers = tok ? { "x-admin-token": tok } : {};
         const q = (id) => document.getElementById(id);
+        
+        // Native Share Logic
+        if (q("mk-share-native")) {
+            q("mk-share-native").onclick = async () => {
+                const tmpl = q("mk-template").value;
+                const url = window.location.origin;
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: 'SurfSense Live',
+                            text: tmpl.replace('{spot}', 'Spot').replace('{desc}', 'Conditions...'),
+                            url: url
+                        });
+                    } catch (err) { console.log('Share canceled', err); }
+                } else {
+                    alert("Le partage n'est pas supporté sur ce navigateur.");
+                }
+            };
+        }
+
         async function loadMarketing() {
           try {
             const r = await fetch("/api/admin/marketing/status", { headers });
