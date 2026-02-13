@@ -891,6 +891,7 @@ let marketing = {
   template: process.env.MARKETING_MESSAGE || "{hook} Conditions live sur {spot} • {desc} {tags}",
   contentType: "story",
   autopostEnabled: false,
+  autopostVideoReelsTikTokDefault: true,
   hashtags: [],
   networkIntervals: {},
   lastByNet: {},
@@ -953,6 +954,7 @@ const saveMarketingConfig = () => {
       template: marketing.template,
       contentType: marketing.contentType,
       autopostEnabled: marketing.autopostEnabled,
+      autopostVideoReelsTikTokDefault: marketing.autopostVideoReelsTikTokDefault,
       hashtags: marketing.hashtags,
       networkIntervals: marketing.networkIntervals,
       connectors: marketing.connectors
@@ -973,6 +975,7 @@ const loadMarketingConfig = () => {
       if (data.template) marketing.template = data.template;
       if (data.contentType) marketing.contentType = data.contentType;
       if (typeof data.autopostEnabled === "boolean") marketing.autopostEnabled = data.autopostEnabled;
+      if (typeof data.autopostVideoReelsTikTokDefault === "boolean") marketing.autopostVideoReelsTikTokDefault = data.autopostVideoReelsTikTokDefault;
       if (Array.isArray(data.hashtags)) marketing.hashtags = data.hashtags.filter(x => typeof x === "string" && x.trim().length).map(x => x.trim());
       if (data.networkIntervals && typeof data.networkIntervals === "object") marketing.networkIntervals = data.networkIntervals;
       if (data.connectors) {
@@ -995,6 +998,7 @@ const loadMarketingConfig = () => {
       }
       // Préremplissages par défaut pour automatisation
       marketing.autopostEnabled = true;
+      marketing.autopostVideoReelsTikTokDefault = true;
       marketing.hashtags = ["#surf","#vagues","#ocean","#report","#meteo","#swell","#beach","#france","#bretagne","#landes","#cote","#session","#today","#live"];
       marketing.networkIntervals = {
         instagram: 45, threads: 60, twitter: 90, facebook: 120,
@@ -1803,26 +1807,35 @@ const fireMarketing = async (req) => {
           channelPayload.image = `${payload.base}${imagePath}?spot=${encodeURIComponent(payload.spot || "spot")}`;
 
           // --- DIRECT MODE HANDLING ---
-          // Instagram: Direct only if env present, else Stealth
-          if (name === "instagram" && hasEnvForNetwork("instagram")) {
-             const ok = await retry(() => postToInstagram(channelPayload.image, channelPayload.text), 2);
-             if (!ok) {
-                if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
-                    try {
-                        const videoPath = await generateVideoMontage(payload.spot || "Spot");
-                        console.log("👣 Ensuring human-like login for Instagram before stealth post...");
-                        await socialAutomator.ensureHumanLoginIfNeeded("instagram");
-                        await socialAutomator.postToInstagramVideo(videoPath, channelPayload.text);
-                        safeCleanupVideo(videoPath, 60000);
-                    } catch (err) {
-                        robotLog(ROBOTS.NEWS, "ERROR", `IG Stealth Fail: ${err.message}`);
-                    }
-                } else {
-                    robotLog(ROBOTS.NEWS, "WARN", "IG Stealth disabled (no browser)");
+          // Instagram: par défaut poster en Reels (vidéo) si navigateur disponible
+          if (name === "instagram") {
+             if (socialAutomator.hasBrowser() && !HEADLESS_ONLY && marketing.autopostVideoReelsTikTokDefault) {
+                try {
+                   const videoPath = await generateVideoMontage(payload.spot || "Spot");
+                   console.log("👣 Ensuring human-like login for Instagram before Reels post...");
+                   await socialAutomator.ensureHumanLoginIfNeeded("instagram");
+                   await socialAutomator.postToInstagramVideo(videoPath, channelPayload.text);
+                } catch (err) {
+                   robotLog(ROBOTS.NEWS, "ERROR", `IG Reels Post Fail: ${err.message}`);
                 }
+                marketing.lastByNet[name] = Date.now();
+                continue;
              }
-             marketing.lastByNet[name] = Date.now();
-             continue; // Skip webhook fetch
+             if (hasEnvForNetwork("instagram")) {
+               const ok = await retry(() => postToInstagram(channelPayload.image, channelPayload.text), 2);
+               if (!ok && socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+                  try {
+                      const videoPath = await generateVideoMontage(payload.spot || "Spot");
+                      console.log("👣 Ensuring human-like login for Instagram before stealth post...");
+                      await socialAutomator.ensureHumanLoginIfNeeded("instagram");
+                      await socialAutomator.postToInstagramVideo(videoPath, channelPayload.text);
+                  } catch (err) {
+                      robotLog(ROBOTS.NEWS, "ERROR", `IG Stealth Fail: ${err.message}`);
+                  }
+               }
+               marketing.lastByNet[name] = Date.now();
+               continue; // Skip webhook fetch
+             }
           }
 
           // Twitter: Direct only if env present, else Stealth
@@ -2106,7 +2119,7 @@ app.post("/api/admin/social/post-all", async (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
   const requested = Array.isArray(req.body?.networks) && req.body.networks.length
     ? req.body.networks.map(s => String(s).toLowerCase())
-    : ["instagram","threads","twitter","facebook","youtube","telegram","discord"]; // tiktok exclu par défaut en prod
+    : ["instagram","threads","twitter","facebook","youtube","tiktok","telegram","discord"];
   const payload = buildMarketingPayload(req);
   const results = [];
   for (const net of requested) {
@@ -2373,6 +2386,7 @@ app.get("/api/admin/marketing/config", (req, res) => {
     template: marketing.template,
     contentType: marketing.contentType,
     autopostEnabled: marketing.autopostEnabled,
+    autopostVideoReelsTikTokDefault: marketing.autopostVideoReelsTikTokDefault,
     hashtags: marketing.hashtags,
     networkIntervals: marketing.networkIntervals,
     connectors: marketing.connectors,
@@ -2381,7 +2395,7 @@ app.get("/api/admin/marketing/config", (req, res) => {
 });
 app.post("/api/admin/marketing/config", (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
-  const { channels, webhookUrl, intervalMinutes, template, contentType, connectors, autopostEnabled, hashtags, networkIntervals } = req.body || {};
+  const { channels, webhookUrl, intervalMinutes, template, contentType, connectors, autopostEnabled, autopostVideoReelsTikTokDefault, hashtags, networkIntervals } = req.body || {};
   if (Array.isArray(channels)) marketing.channels = channels.map(s => String(s)).filter(Boolean);
   if (typeof webhookUrl === "string") marketing.webhookUrl = webhookUrl;
   if (template) marketing.template = String(template);
@@ -2398,6 +2412,7 @@ app.post("/api/admin/marketing/config", (req, res) => {
     });
   }
   if (typeof autopostEnabled === "boolean") marketing.autopostEnabled = autopostEnabled;
+  if (typeof autopostVideoReelsTikTokDefault === "boolean") marketing.autopostVideoReelsTikTokDefault = autopostVideoReelsTikTokDefault;
   if (Array.isArray(hashtags)) marketing.hashtags = hashtags.filter(x => typeof x === "string" && x.trim().length).map(x => x.trim());
   if (networkIntervals && typeof networkIntervals === "object") {
     const ni = {};
@@ -3189,6 +3204,36 @@ app.get("/api/admin/marketing/videos", (req, res) => {
       };
     }).sort((a, b) => b.mtime - a.mtime);
     res.json({ success: true, videos: list });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+app.post("/api/admin/marketing/publish/igtok", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  if (HEADLESS_ONLY || !socialAutomator.hasBrowser()) return res.status(400).json({ success: false, error: "Navigateur requis pour IG/TikTok" });
+  try {
+    const spot = String(req.body?.spot || req.query?.spot || "Spot");
+    const styleName = String(req.body?.style || req.query?.style || "");
+    const fxPreset = String(req.body?.fx || req.query?.fx || "fade");
+    const watermark = !!(req.body?.wm || req.query?.wm);
+    const colorGrade = String(req.body?.cg || req.query?.cg || "tealorange");
+    const subtitleText = String(req.body?.subtext || req.query?.subtext || "");
+    const subtitleStyle = String(req.body?.substyle || req.query?.substyle || "");
+    const subtitleSize = String(req.body?.subsize || req.query?.subsize || "");
+    const sfxPreset = String(req.body?.sfx || req.query?.sfx || "");
+    const sfxIntensity = String(req.body?.sfxi || req.query?.sfxi || "");
+    const videoPath = await generateVideoMontage(spot, { styleName, fxPreset, watermark, colorGrade, subtitleText, subtitleStyle, subtitleSize, sfxPreset, sfxIntensity });
+    const tags = Array.isArray(marketing.hashtags) ? marketing.hashtags.slice(0, 8).join(" ") : "";
+    const text = marketing.template
+      .replace("{spot}", spot)
+      .replace("{desc}", "Vidéo courte • Reels & TikTok")
+      .replace("{hook}", "LIVE")
+      .replace("{tags}", tags);
+    await socialAutomator.ensureHumanLoginIfNeeded("instagram");
+    await socialAutomator.postToInstagramVideo(videoPath, text);
+    await socialAutomator.ensureHumanLoginIfNeeded("tiktok");
+    await socialAutomator.postToTikTok(videoPath, text);
+    res.json({ success: true, posted: ["instagram","tiktok"], video: path.basename(videoPath) });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }

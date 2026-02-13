@@ -243,23 +243,41 @@
             <h1>Marketing Center <span class="badge-pro">Premium</span></h1>
             <p>Gérez votre présence multi-canal, vos automatisations et vos identités.</p>
           </div>
-          <div style="display:flex; gap:12px;">
-            <button id="mk-start" class="btn btn-success">▶ Démarrer</button>
-            <button id="mk-stop" class="btn btn-danger">⏹ Arrêter</button>
-            <button id="mk-fire" class="btn btn-primary">⚡ Publier Maintenant</button>
-            <button id="mk-post-ig" class="btn">📸 IG</button>
-            <button id="mk-post-x" class="btn">✖️ X</button>
-            <button id="mk-post-fb" class="btn">📘 FB</button>
-            <button id="mk-post-yt" class="btn">📺 YT</button>
-            <button id="mk-post-th" class="btn">🧵 TH</button>
-            <button id="mk-post-all" class="btn btn-primary">🔁 Publier Tous</button>
-            <button id="mk-repair-login" class="btn">🧭 Réparer Connexions</button>
-            <button id="mk-secrets" class="btn">🔑 Configurer Clés</button>
-            <button id="mk-anti-bot" class="btn">🛡️ Conseils Anti‑détection</button>
-            <button id="mk-preview-pro" class="btn btn-primary">🎬 Prévisualiser Montage Pro</button>
-            <button id="mk-trends" class="btn">📈 Tendances</button>
-            <button id="mk-publish-trend" class="btn btn-primary">🔥 Publier Trend</button>
-            <button id="mk-videos" class="btn">📦 Vidéos Générées</button>
+          <div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🚀 Actions Rapides</div>
+          </div>
+          <div class="grid-3">
+            <div>
+              <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">Publication</div>
+              <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                <button id="mk-fire" class="btn btn-primary" title="Publier sur les réseaux activés">⚡ Publier Maintenant</button>
+                <button id="mk-post-all" class="btn btn-primary" title="Choisir les réseaux à publier">� Publier Tous</button>
+                <button id="mk-publish-igtok" class="btn btn-primary" title="Publier un montage vidéo en Reels + TikTok">🎞️ Reels + TikTok</button>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">Robot</div>
+              <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                <button id="mk-start" class="btn btn-success" title="Démarrer la planification">▶ Démarrer</button>
+                <button id="mk-stop" class="btn btn-danger" title="Arrêter la planification">⏹ Arrêter</button>
+                <button id="mk-repair-login" class="btn" title="Réparer les connexions navigateur">🧭 Réparer Connexions</button>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">Outils</div>
+              <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                <button id="mk-preview-pro" class="btn" title="Générer un aperçu du montage pro">🎬 Prévisualiser Montage</button>
+                <button id="mk-videos" class="btn" title="Voir les vidéos générées">📦 Vidéos</button>
+                <button id="mk-trends" class="btn" title="Lister les tendances">📈 Tendances</button>
+                <button id="mk-publish-trend" class="btn" title="Publier une trend">🔥 Publier Trend</button>
+                <button id="mk-secrets" class="btn" title="Configurer les clés (.env)">🔑 Clés</button>
+                <button id="mk-anti-bot" class="btn" title="Conseils anti‑détection">🛡️ Anti‑détection</button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -556,6 +574,10 @@
                 <!-- Hidden legacy fields -->
                 <select id="mk-type" style="display:none;"><option value="story">Story</option></select>
             </div>
+            <div class="form-group">
+                <label>Poster en vidéo (Reels/TikTok) par défaut</label>
+                <label class="switch"><input type="checkbox" id="mk-autovideo"><span class="slider"></span></label>
+            </div>
             <div style="margin-top:20px; font-size:12px; color:#64748b;">
                 Email Support: <span id="mk-email-text" style="color:#94a3b8;">swellsync@outlook.fr</span>
                 <a id="mk-email-link" href="#" style="color:var(--accent); text-decoration:none; margin-left:8px;">Envoyer</a>
@@ -636,9 +658,9 @@
             else alert(`ℹ️ ${network} en reprise automatique`);
           } catch (e) { alert(`ℹ️ ${network} en reprise automatique`); }
         };
-        const postAll = async () => {
+        const postAll = async (nets) => {
           try {
-            const r = await fetch("/api/admin/social/post-all", { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ networks: ["instagram","threads","twitter","facebook","youtube","telegram","discord"] }) });
+            const r = await fetch("/api/admin/social/post-all", { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ networks: nets }) });
             const j = await r.json();
             if (r.ok && j.success) {
               const okList = j.results.filter(x=>x.ok).map(x=>x.network).join(", ");
@@ -650,6 +672,43 @@
           } catch (e) {
             alert("ℹ️ Publication en reprise automatique");
           }
+        };
+        const openPostAllModal = () => {
+          const preset = [
+            { id:"instagram", label:"Instagram", checked: q("mk-ch-instagram")?.checked },
+            { id:"threads", label:"Threads", checked: q("mk-ch-threads")?.checked },
+            { id:"twitter", label:"X/Twitter", checked: q("mk-ch-twitter")?.checked },
+            { id:"facebook", label:"Facebook", checked: q("mk-ch-facebook")?.checked },
+            { id:"youtube", label:"YouTube", checked: q("mk-ch-youtube")?.checked },
+            { id:"tiktok", label:"TikTok", checked: q("mk-ch-tiktok")?.checked },
+            { id:"telegram", label:"Telegram", checked: q("mk-ch-telegram")?.checked },
+            { id:"discord", label:"Discord", checked: q("mk-ch-discord")?.checked }
+          ];
+          const modal = document.createElement("div");
+          modal.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:10000; display:flex; align-items:center; justify-content:center;";
+          const items = preset.map(p => `
+            <label style="display:flex; align-items:center; gap:8px; padding:8px; border:1px solid #334155; border-radius:8px;">
+              <input type="checkbox" id="sel-${p.id}" ${p.checked ? "checked" : ""}/>
+              <span>${p.label}</span>
+            </label>
+          `).join("");
+          modal.innerHTML = `
+            <div style="background:#0f172a; color:#fff; padding:24px; border-radius:12px; width:520px; max-width:95%;">
+              <div style="font-weight:700; margin-bottom:12px;">Sélection des réseaux</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">${items}</div>
+              <div style="display:flex; gap:8px; justify-content:flex-end;">
+                <button id="close-postall" class="btn">Annuler</button>
+                <button id="do-postall" class="btn btn-primary">Publier</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(modal);
+          modal.querySelector("#close-postall").onclick = () => modal.remove();
+          modal.querySelector("#do-postall").onclick = async () => {
+            const nets = preset.filter(p => modal.querySelector("#sel-"+p.id).checked).map(p => p.id);
+            modal.remove();
+            await postAll(nets.length ? nets : preset.map(p=>p.id));
+          };
         };
         const openSecretsModal = () => {
           const modal = document.createElement("div");
@@ -875,6 +934,7 @@
             q("mk-template").value = c.template || "";
             q("mk-type").value = c.contentType || "story";
             if (q("mk-autopost")) q("mk-autopost").checked = !!c.autopostEnabled;
+            if (q("mk-autovideo")) q("mk-autovideo").checked = !!c.autopostVideoReelsTikTokDefault;
             if (q("mk-tags")) q("mk-tags").value = Array.isArray(c.hashtags) ? c.hashtags.join(" ") : "";
             const ivs = c.networkIntervals || {};
             const setIv = (id, v) => { const el=q(id); if(el) el.value = v || ""; };
@@ -1039,6 +1099,7 @@
                 template: q("mk-template").value,
                 contentType: q("mk-type").value,
                 autopostEnabled: !!q("mk-autopost").checked,
+                autopostVideoReelsTikTokDefault: !!q("mk-autovideo").checked,
                 hashtags,
                 networkIntervals,
                 connectors
@@ -1062,7 +1123,7 @@
         if (q("mk-post-fb")) q("mk-post-fb").onclick = () => postSingle("facebook");
         if (q("mk-post-yt")) q("mk-post-yt").onclick = () => postSingle("youtube");
         if (q("mk-post-th")) q("mk-post-th").onclick = () => postSingle("threads");
-        if (q("mk-post-all")) q("mk-post-all").onclick = () => postAll();
+        if (q("mk-post-all")) q("mk-post-all").onclick = () => openPostAllModal();
         if (q("mk-secrets")) q("mk-secrets").onclick = () => openSecretsModal();
         if (q("mk-repair-login")) q("mk-repair-login").onclick = async () => {
           try {
@@ -1211,6 +1272,23 @@
             document.body.appendChild(modal);
             modal.querySelector("#close-videos").onclick = () => modal.remove();
           } catch { alert("Erreur liste vidéos"); }
+        };
+        if (q("mk-publish-igtok")) q("mk-publish-igtok").onclick = async () => {
+          try {
+            const spot = prompt("Spot:", "Hossegor") || "Hossegor";
+            let style = prompt("Style (Dark/Neon/Sunset/Ocean/Forest/Retro):", "Neon") || "Neon";
+            let fx = prompt("FX (glitch/shake/fade/retro/none):", "fade") || "fade";
+            let subs = confirm("Activer sous-titres dynamiques ?");
+            let subtext = subs ? (prompt("Texte des sous-titres:", `${spot} • Conditions LIVE`) || `${spot} • Conditions LIVE`) : "";
+            let substyle = subs ? (prompt("Style sous-titres (light/neon/default):", "light") || "light") : "";
+            let subsize = subs ? (prompt("Taille sous-titre (16-64):", "34") || "34") : "";
+            let sfx = prompt("SFX audio (none/whoosh/hit):", "whoosh") || "whoosh";
+            let sfxi = prompt("Intensité SFX (0-100):", "70") || "70";
+            const body = { spot, style, fx, subtext, substyle, subsize, sfx, sfxi, wm: "1", cg: "tealorange" };
+            const r = await fetch("/api/admin/marketing/publish/igtok", { method: "POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify(body) });
+            const j = await r.json();
+            alert(j.success ? `Publié: ${j.posted.join(", ")}\nVidéo: ${j.video}` : "Échec: " + j.error);
+          } catch { alert("Erreur publication Reels/TikTok"); }
         };
         q("mk-start").onclick = async () => {
           const iv = parseInt(q("mk-interval").value, 10) || 60;
