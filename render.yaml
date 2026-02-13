@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: surfsense-api
+    runtime: node
+    autoDeploy: true
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PUPPETEER_CACHE_DIR
+        value: /opt/render/.cache/puppeteer
+      - key: PUPPETEER_PRODUCT
+        value: chrome
+      - key: AUTO_COLLECT_COOKIES
+        value: "1"
+      - key: INSTAGRAM_USERNAME
+        fromSecret: INSTAGRAM_USERNAME
+      - key: INSTAGRAM_PASSWORD
+        fromSecret: INSTAGRAM_PASSWORD
+      - key: INSTAGRAM_TOTP_SECRET
+        fromSecret: INSTAGRAM_TOTP_SECRET
+      - key: TWITTER_USERNAME
+        fromSecret: TWITTER_USERNAME
+      - key: TWITTER_PASSWORD
+        fromSecret: TWITTER_PASSWORD
+      - key: FACEBOOK_USERNAME
+        fromSecret: FACEBOOK_USERNAME
+      - key: FACEBOOK_PASSWORD
+        fromSecret: FACEBOOK_PASSWORD
+      - key: GOOGLE_LOGIN_EMAIL
+        fromSecret: GOOGLE_LOGIN_EMAIL
+      - key: GOOGLE_LOGIN_PASSWORD
+        fromSecret: GOOGLE_LOGIN_PASSWORD
+      - key: GOOGLE_TOTP_SECRET
+        fromSecret: GOOGLE_TOTP_SECRET
