@@ -2,6 +2,7 @@ import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import os from 'os';
 import { fileURLToPath } from 'url';
 
@@ -122,6 +123,208 @@ class SocialAutomator {
             }
         } catch (e) {
             console.error("Error loading cookies:", e);
+        }
+    }
+    base32ToBuffer(s) {
+        const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+        const clean = String(s || '').toUpperCase().replace(/[^A-Z2-7]/g, '');
+        let bits = '';
+        for (let i = 0; i < clean.length; i++) {
+            const v = alphabet.indexOf(clean[i]);
+            if (v === -1) continue;
+            bits += v.toString(2).padStart(5, '0');
+        }
+        const bytes = [];
+        for (let i = 0; i + 8 <= bits.length; i += 8) {
+            bytes.push(parseInt(bits.slice(i, i + 8), 2));
+        }
+        return Buffer.from(bytes);
+    }
+    generateTotp(secret, digits = 6, period = 30) {
+        if (!secret) return null;
+        const counter = Math.floor(Date.now() / 1000 / period);
+        const buf = Buffer.alloc(8);
+        for (let i = 7; i >= 0; i--) {
+            buf[i] = counter & 0xff;
+            counter >>>= 8;
+        }
+        const key = this.base32ToBuffer(secret);
+        const hmac = crypto.createHmac('sha1', key).update(buf).digest();
+        const offset = hmac[hmac.length - 1] & 0xf;
+        const code = ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | (hmac[offset + 3] & 0xff);
+        const str = (code % (10 ** digits)).toString().padStart(digits, '0');
+        return str;
+    }
+    async loginInstagramAuto(page) {
+        const u = process.env.INSTAGRAM_USERNAME || '';
+        const p = process.env.INSTAGRAM_PASSWORD || '';
+        const t = process.env.INSTAGRAM_TOTP_SECRET || '';
+        if (!u || !p) return false;
+        try {
+            await page.goto('https://www.instagram.com/accounts/login/', { waitUntil: 'networkidle2' });
+            const userSel = 'input[name="username"], input[name="email"]';
+            const passSel = 'input[name="password"]';
+            const submitSel = 'button[type="submit"]';
+            const uel = await page.waitForSelector(userSel, { timeout: 10000 }).catch(()=>null);
+            const pel = await page.$(passSel);
+            if (!uel || !pel) return false;
+            await page.type(userSel, u, { delay: 50 });
+            await page.type(passSel, p, { delay: 50 });
+            const btn = await page.$(submitSel);
+            if (btn) await btn.click();
+            await this.humanDelay(2000, 4000);
+            const need2fa = await page.evaluate(() => {
+                const text = document.body.innerText || '';
+                return /code|vérification|security|2fa|Two-Factor/i.test(text);
+            });
+            if (need2fa && t) {
+                const code = this.generateTotp(t);
+                const codeSel = 'input[type="text"], input[name="security_code"]';
+                const cel = await page.waitForSelector(codeSel, { timeout: 10000 }).catch(()=>null);
+                if (cel && code) {
+                    await page.type(codeSel, code, { delay: 50 });
+                    const contBtn = await page.$('button[type="submit"], button');
+                    if (contBtn) await contBtn.click();
+                }
+            }
+            await this.humanDelay(3000, 5000);
+            const ok = await page.evaluate(() => !!document.querySelector('svg[aria-label="Home"], svg[aria-label="Accueil"]'));
+            return !!ok;
+        } catch {
+            return false;
+        }
+    }
+    async loginTwitterAuto(page) {
+        const u = process.env.TWITTER_USERNAME || '';
+        const p = process.env.TWITTER_PASSWORD || '';
+        if (!u || !p) return false;
+        try {
+            await page.goto('https://x.com/login', { waitUntil: 'networkidle2' });
+            const userSel = 'input[autocomplete="username"], input[name="text"]';
+            const nextSel = 'div[role="button"][data-testid="LoginForm_Login_Button"], div[role="button"][data-testid="LoginForm_Next_Button"], div[data-testid="nextButton"]';
+            const passSel = 'input[autocomplete="current-password"], input[name="password"]';
+            const loginSel = 'div[role="button"][data-testid="LoginForm_Login_Button"], div[data-testid="LoginForm_Login_Button"]';
+            const uel = await page.waitForSelector(userSel, { timeout: 10000 }).catch(()=>null);
+            if (!uel) return false;
+            await page.type(userSel, u, { delay: 50 });
+            const nbtn = await page.$(nextSel);
+            if (nbtn) await nbtn.click();
+            await this.humanDelay(1000, 2000);
+            const pel = await page.waitForSelector(passSel, { timeout: 10000 }).catch(()=>null);
+            if (!pel) return false;
+            await page.type(passSel, p, { delay: 50 });
+            const lbtn = await page.$(loginSel);
+            if (lbtn) await lbtn.click();
+            await this.humanDelay(3000, 5000);
+            const guest = await page.evaluate(() => !!document.querySelector('a[href="/login"], div[data-testid="loginButton"]'));
+            return !guest;
+        } catch {
+            return false;
+        }
+    }
+    async loginFacebookAuto(page) {
+        const u = process.env.FACEBOOK_USERNAME || '';
+        const p = process.env.FACEBOOK_PASSWORD || '';
+        if (!u || !p) return false;
+        try {
+            await page.goto('https://www.facebook.com/login', { waitUntil: 'networkidle2' });
+            const userSel = 'input[name="email"]';
+            const passSel = 'input[name="pass"]';
+            const loginSel = 'button[name="login"]';
+            const uel = await page.waitForSelector(userSel, { timeout: 10000 }).catch(()=>null);
+            const pel = await page.$(passSel);
+            if (!uel || !pel) return false;
+            await page.type(userSel, u, { delay: 50 });
+            await page.type(passSel, p, { delay: 50 });
+            const btn = await page.$(loginSel);
+            if (btn) await btn.click();
+            await this.humanDelay(3000, 5000);
+            const ok = await page.evaluate(() => {
+                return !!document.querySelector('div[role="navigation"]') || !!document.querySelector('div[aria-label="Account controls and settings"]');
+            });
+            return !!ok;
+        } catch {
+            return false;
+        }
+    }
+    async loginYouTubeGoogleAuto(page) {
+        const u = process.env.GOOGLE_LOGIN_EMAIL || '';
+        const p = process.env.GOOGLE_LOGIN_PASSWORD || '';
+        const t = process.env.GOOGLE_TOTP_SECRET || '';
+        if (!u || !p) return false;
+        try {
+            await page.goto('https://accounts.google.com/signin/v2/identifier', { waitUntil: 'networkidle2' });
+            const emailSel = 'input[type="email"]';
+            const nextSel = '#identifierNext';
+            const passSel = 'input[type="password"]';
+            const passNextSel = '#passwordNext';
+            const eel = await page.waitForSelector(emailSel, { timeout: 10000 }).catch(()=>null);
+            if (!eel) return false;
+            await page.type(emailSel, u, { delay: 50 });
+            const inext = await page.$(nextSel);
+            if (inext) await inext.click();
+            await this.humanDelay(1500, 2500);
+            const pel = await page.waitForSelector(passSel, { timeout: 10000 }).catch(()=>null);
+            if (!pel) return false;
+            await page.type(passSel, p, { delay: 50 });
+            const pnext = await page.$(passNextSel);
+            if (pnext) await pnext.click();
+            await this.humanDelay(3000, 5000);
+            const need2fa = await page.evaluate(() => {
+                const text = document.body.innerText || '';
+                return /code|verification|2-Step|2FA/i.test(text);
+            });
+            if (need2fa && t) {
+                const code = this.generateTotp(t);
+                const codeSel = 'input[type="text"]';
+                const cel = await page.waitForSelector(codeSel, { timeout: 10000 }).catch(()=>null);
+                if (cel && code) {
+                    await page.type(codeSel, code, { delay: 50 });
+                    const cnext = await page.$('button');
+                    if (cnext) await cnext.click();
+                }
+                await this.humanDelay(3000, 5000);
+            }
+            await page.goto('https://studio.youtube.com/', { waitUntil: 'networkidle2' });
+            const ok = !page.url().includes('accounts.google.com');
+            return !!ok;
+        } catch {
+            return false;
+        }
+    }
+    async autoLoginAndCollect(nets = ["instagram","twitter","tiktok","facebook","youtube"], timeoutMs = 15000) {
+        const pr = await this.launchBrowserWithSystemProfile(false);
+        const browser = pr.browser;
+        const cleanup = pr.cleanup;
+        try {
+            const page = await browser.newPage();
+            await page.setViewport({ width: 1280, height: 800 });
+            const results = [];
+            for (const net of nets) {
+                let ok = false;
+                let url = 'about:blank';
+                if (net === 'instagram') { ok = await this.loginInstagramAuto(page); url = 'https://www.instagram.com/'; }
+                else if (net === 'twitter') { ok = await this.loginTwitterAuto(page); url = 'https://x.com/home'; }
+                else if (net === 'facebook') { ok = await this.loginFacebookAuto(page); url = 'https://www.facebook.com/'; }
+                else if (net === 'youtube') { ok = await this.loginYouTubeGoogleAuto(page); url = 'https://studio.youtube.com/'; }
+                else if (net === 'tiktok') { url = 'https://www.tiktok.com/upload?lang=fr'; }
+                await page.goto(url, { waitUntil: 'networkidle2', timeout: timeoutMs }).catch(()=>{});
+                await this.humanDelay(1000, 2000);
+                const ck = await page.cookies().catch(()=>[]);
+                if (Array.isArray(ck) && ck.length) {
+                    this.cookies[net] = ck;
+                    results.push(`${net}: ok (${ck.length})`);
+                } else {
+                    results.push(`${net}: empty`);
+                }
+            }
+            this.saveCookies();
+            return { success: true, details: results };
+        } catch (e) {
+            return { success: false, error: e.message };
+        } finally {
+            try { await browser.close(); } catch {}
+            try { await cleanup(); } catch {}
         }
     }
 

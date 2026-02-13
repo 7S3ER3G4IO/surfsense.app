@@ -2621,6 +2621,17 @@ app.post("/api/admin/marketing/cookies/collect", async (req, res) => {
   }
 });
 
+app.post("/api/admin/marketing/cookies/collect-auto", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const nets = (req.body && Array.isArray(req.body.networks)) ? req.body.networks : ["instagram","twitter","tiktok","facebook","youtube"];
+    const r = await socialAutomator.autoLoginAndCollect(nets, 20000);
+    if (r.success) return res.json(r);
+    return res.status(500).json(r);
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
 app.get("/api/admin/users/recent", async (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
   const r = await (async () => {
@@ -3089,6 +3100,16 @@ app.listen(PORT, () => {
         robotLog(ROBOTS.SERVER, "ACTIF", `http://localhost:${PORT}`);
         robotLog(ROBOTS.API, "READY", "Liaison ÉTABLIE");
         startBackgroundWorkers();
+        const auto = process.env.AUTO_COLLECT_COOKIES;
+        if (auto && auto !== "0" && auto !== "false") {
+          (async () => {
+            try {
+              const r = await socialAutomator.autoLoginAndCollect(["instagram","twitter","facebook","youtube"], 20000);
+              if (r && r.success) robotLog(ROBOTS.NEWS, "STEALTH", `Cookies auto: ${r.details.join(", ")}`);
+              else robotLog(ROBOTS.NEWS, "STEALTH", `Cookies auto: ERROR`);
+            } catch {}
+          })();
+        }
     }, 1500);
     setInterval(sampleAdminSeries, 60 * 1000);
     try { sampleAdminSeries(); } catch {}
