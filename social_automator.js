@@ -11,6 +11,22 @@ const __dirname = path.dirname(__filename);
 puppeteer.use(StealthPlugin());
 
 const COOKIES_PATH = path.join(__dirname, 'browser_cookies.json');
+const resolveChromeExecutable = () => {
+    const candidates = [
+        process.env.PUPPETEER_EXECUTABLE_PATH,
+        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+        '/Applications/Chromium.app/Contents/MacOS/Chromium',
+        '/usr/bin/google-chrome',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium',
+        '/opt/render/project/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome-linux64/chrome',
+        '/opt/render/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome-linux64/chrome'
+    ];
+    for (const p of candidates) {
+        if (p && fs.existsSync(p)) return p;
+    }
+    return null;
+};
 
 class SocialAutomator {
     constructor() {
@@ -78,18 +94,31 @@ class SocialAutomator {
     }
 
     async launchBrowser(headless = "new") {
-        return await puppeteer.launch({
-            headless: headless,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-infobars',
-                '--window-position=0,0',
-                '--ignore-certifcate-errors',
-                '--ignore-certifcate-errors-spki-list',
-                '--user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'
-            ]
-        });
+        const args = [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-infobars',
+            '--window-position=0,0',
+            '--ignore-certifcate-errors',
+            '--ignore-certifcate-errors-spki-list',
+            '--user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'
+        ];
+        try {
+            return await puppeteer.launch({ headless, channel: 'chrome', args });
+        } catch (e1) {
+            const exec = resolveChromeExecutable();
+            if (exec) {
+                try {
+                    return await puppeteer.launch({ headless, executablePath: exec, args });
+                } catch (e2) {}
+            }
+            if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+                try {
+                    return await puppeteer.launch({ headless, executablePath: process.env.PUPPETEER_EXECUTABLE_PATH, args });
+                } catch (e3) {}
+            }
+            return await puppeteer.launch({ headless, args });
+        }
     }
 
     async humanDelay(min = 1000, max = 3000) {
@@ -701,6 +730,7 @@ class SocialAutomator {
         } finally {
             await browser.close();
         }
+        if (!result.success && result.details.length === 0 && !result.error) result.error = "No changes applied";
         return result;
     }
 
@@ -773,6 +803,7 @@ class SocialAutomator {
         } finally {
             await browser.close();
         }
+        if (!result.success && result.details.length === 0 && !result.error) result.error = "No changes applied";
         return result;
     }
 
@@ -835,6 +866,7 @@ class SocialAutomator {
         } finally {
             await browser.close();
         }
+        if (!result.success && result.details.length === 0 && !result.error) result.error = "No changes applied";
         return result;
     }
 
