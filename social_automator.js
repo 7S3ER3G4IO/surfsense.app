@@ -1,5 +1,6 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import puppeteerLib from 'puppeteer';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
@@ -14,15 +15,40 @@ puppeteer.use(StealthPlugin());
 
 const COOKIES_PATH = path.join(__dirname, 'browser_cookies.json');
 const resolveChromeExecutable = () => {
+    const installed = (() => {
+        try { return puppeteerLib.executablePath?.() || null; } catch { return null; }
+    })();
+    const dynamicFromCacheRoots = (roots) => {
+        for (const root of roots) {
+            if (!root || !fs.existsSync(root)) continue;
+            const families = ['chrome', 'chromium'];
+            for (const fam of families) {
+                const famDir = path.join(root, fam);
+                if (!fs.existsSync(famDir)) continue;
+                try {
+                    const ents = fs.readdirSync(famDir, { withFileTypes: true });
+                    for (const e of ents) {
+                        const p = path.join(famDir, e.name, 'chrome-linux64', 'chrome');
+                        if (fs.existsSync(p)) return p;
+                    }
+                } catch {}
+            }
+        }
+        return null;
+    };
     const candidates = [
+        installed,
         process.env.PUPPETEER_EXECUTABLE_PATH,
         '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
         '/Applications/Chromium.app/Contents/MacOS/Chromium',
         '/usr/bin/google-chrome',
         '/usr/bin/chromium-browser',
         '/usr/bin/chromium',
-        '/opt/render/project/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome-linux64/chrome',
-        '/opt/render/.cache/puppeteer/chrome/linux-127.0.6533.88/chrome-linux64/chrome'
+        dynamicFromCacheRoots([
+            process.env.PUPPETEER_CACHE_DIR,
+            '/opt/render/project/.cache/puppeteer',
+            '/opt/render/.cache/puppeteer'
+        ])
     ];
     for (const p of candidates) {
         if (p && fs.existsSync(p)) return p;
@@ -353,22 +379,15 @@ class SocialAutomator {
             '--ignore-certifcate-errors-spki-list',
             '--user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'
         ];
-        try {
-            return await puppeteer.launch({ headless, channel: 'chrome', args });
-        } catch (e1) {
-            const exec = resolveChromeExecutable();
-            if (exec) {
-                try {
-                    return await puppeteer.launch({ headless, executablePath: exec, args });
-                } catch (e2) {}
-            }
-            if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-                try {
-                    return await puppeteer.launch({ headless, executablePath: process.env.PUPPETEER_EXECUTABLE_PATH, args });
-                } catch (e3) {}
-            }
-            return await puppeteer.launch({ headless, args });
+        const exec = resolveChromeExecutable();
+        if (exec) {
+            try { return await puppeteer.launch({ headless, executablePath: exec, args }); } catch {}
         }
+        try { return await puppeteer.launch({ headless, channel: 'chrome', args }); } catch {}
+        if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+            try { return await puppeteer.launch({ headless, executablePath: process.env.PUPPETEER_EXECUTABLE_PATH, args }); } catch {}
+        }
+        return await puppeteer.launch({ headless, args });
     }
     async launchBrowserWithSystemProfile(headless = "new") {
         const args = [
@@ -389,22 +408,22 @@ class SocialAutomator {
                 userDataDir = tmp;
             } catch {}
         }
+        const exec = resolveChromeExecutable();
+        if (exec) {
+            try {
+                const b = await puppeteer.launch({ headless, executablePath: exec, args, userDataDir });
+                const cleanup = async () => { if (userDataDir) { try { fs.rmSync(userDataDir, { recursive: true, force: true }); } catch {} } };
+                return { browser: b, cleanup };
+            } catch {}
+        }
         try {
             const b = await puppeteer.launch({ headless, channel: 'chrome', args, userDataDir });
             const cleanup = async () => { if (userDataDir) { try { fs.rmSync(userDataDir, { recursive: true, force: true }); } catch {} } };
             return { browser: b, cleanup };
-        } catch {
-            const exec = resolveChromeExecutable();
-            try {
-                const b = await puppeteer.launch({ headless, executablePath: exec || undefined, args, userDataDir });
-                const cleanup = async () => { if (userDataDir) { try { fs.rmSync(userDataDir, { recursive: true, force: true }); } catch {} } };
-                return { browser: b, cleanup };
-            } catch {
-                const b = await puppeteer.launch({ headless, args });
-                const cleanup = async () => { if (userDataDir) { try { fs.rmSync(userDataDir, { recursive: true, force: true }); } catch {} } };
-                return { browser: b, cleanup };
-            }
-        }
+        } catch {}
+        const b = await puppeteer.launch({ headless, args, userDataDir });
+        const cleanup = async () => { if (userDataDir) { try { fs.rmSync(userDataDir, { recursive: true, force: true }); } catch {} } };
+        return { browser: b, cleanup };
     }
 
     async humanDelay(min = 1000, max = 3000) {

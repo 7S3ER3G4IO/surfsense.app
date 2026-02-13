@@ -2585,7 +2585,7 @@ app.post("/api/admin/marketing/cookies/collect", async (req, res) => {
   const results = [];
   let browser = null, cleanup = null;
   try {
-    const pr = await socialAutomator.launchBrowserWithSystemProfile(false);
+    const pr = await socialAutomator.launchBrowserWithSystemProfile("new");
     browser = pr.browser;
     cleanup = pr.cleanup;
     const page = await browser.newPage();
