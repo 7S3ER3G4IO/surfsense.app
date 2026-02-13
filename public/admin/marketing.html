@@ -278,6 +278,7 @@
                 <button id="mk-videos" class="btn" title="Voir les vidéos générées">📦 Vidéos</button>
                 <button id="mk-trends" class="btn" title="Lister les tendances">📈 Tendances</button>
                 <button id="mk-publish-trend" class="btn" title="Publier une trend">🔥 Publier Trend</button>
+                <button id="mk-auto-publish" class="btn btn-primary" title="Découvrir source, composer et publier automatiquement">🤖 Publier Auto</button>
                 <button id="mk-secrets" class="btn" title="Configurer les clés (.env)">🔑 Clés</button>
                 <button id="mk-anti-bot" class="btn" title="Conseils anti‑détection">🛡️ Anti‑détection</button>
               </div>
@@ -1229,6 +1230,20 @@
         if (q("mk-post-th")) q("mk-post-th").onclick = () => postSingle("threads");
         if (q("mk-post-all")) q("mk-post-all").onclick = () => openPostAllModal();
         if (q("mk-secrets")) q("mk-secrets").onclick = () => openSecretsModal();
+        if (q("mk-auto-publish")) q("mk-auto-publish").onclick = async () => {
+          const btn = q("mk-auto-publish");
+          const t = btn.textContent;
+          btn.textContent = "⏳ Robot...";
+          btn.disabled = true;
+          try {
+            const r = await fetch("/api/admin/marketing/auto-compose-publish", { method: "POST", headers });
+            const j = await r.json();
+            if (!r.ok || !j.success) { alert("Erreur robot auto"); return; }
+            const succ = (j.results || []).filter(x=>x.ok).map(x=>x.network).join(", ");
+            alert("Publié: " + (succ || "aucun"));
+          } catch { alert("Erreur robot auto"); }
+          finally { btn.textContent = t; btn.disabled = false; }
+        };
         if (q("mk-repair-login")) q("mk-repair-login").onclick = async () => {
           try {
             const nets = ["instagram","twitter","facebook","youtube","tiktok"];
@@ -1340,6 +1355,8 @@
                   <a href="${v.url}" target="_blank" class="btn">Ouvrir</a>
                   <a href="${v.url}" download class="btn">Télécharger</a>
                   <button class="btn btn-primary" data-name="${v.name}" data-url="${v.url}" onclick="publishVideoFromList(event)">Publier</button>
+                  <button class="btn" data-name="${v.name}" data-url="${v.url}" onclick="composeVideoFromList(event)">Composer</button>
+                  <button class="btn" data-name="${v.name}" data-url="${v.url}" onclick="composeProFromList(event)">Composer Pro</button>
                 </div>
               </div>
             `).join("");
@@ -1404,7 +1421,7 @@
         if (!document.getElementById("mk-upload-file")) {
           const f = document.createElement("input");
           f.type = "file";
-          f.accept = "video/*";
+          f.accept = "video/*,image/*,audio/*";
           f.id = "mk-upload-file";
           f.style.display = "none";
           document.body.appendChild(f);
@@ -1432,6 +1449,130 @@
         if (q("mk-upload-video")) q("mk-upload-video").onclick = () => {
           const f = document.getElementById("mk-upload-file");
           if (f) f.click();
+        };
+        window.composeVideoFromList = async (ev) => {
+          const btn = ev.currentTarget;
+          const name = btn.getAttribute("data-name");
+          const m = document.createElement("div");
+          m.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10001; display:flex; align-items:center; justify-content:center;";
+          m.innerHTML = `
+            <div style="background:#0b1020; color:#fff; padding:24px; border-radius:12px; width:520px; max-width:95%;">
+              <h3 style="margin-top:0;">Composer ${name}</h3>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <label style="display:flex; align-items:center; gap:8px;"><span>Format</span>
+                  <select id="comp-format" class="input-premium">
+                    <option value="vertical" selected>Vertical 9:16</option>
+                    <option value="horizontal">Horizontal 16:9</option>
+                  </select>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="comp-blur" checked/> Fond flou</label>
+                <label style="display:flex; align-items:center; gap:8px;"><span>Color grade</span>
+                  <select id="comp-grade" class="input-premium">
+                    <option value="">Aucun</option>
+                    <option value="tealorange">Teal & Orange</option>
+                    <option value="cinematic">Cinematic</option>
+                  </select>
+                </label>
+              </div>
+              <div style="margin-top:12px;">
+                <label style="font-size:12px; color:#94a3b8;">CTA (texte)</label>
+                <input id="comp-cta" class="input-premium" placeholder="Ex: LIEN EN BIO 🔗"/>
+              </div>
+              <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
+                <button id="comp-cancel" class="btn">Annuler</button>
+                <button id="comp-send" class="btn btn-primary">Composer</button>
+              </div>
+            </div>`;
+          document.body.appendChild(m);
+          m.querySelector("#comp-cancel").onclick = () => m.remove();
+          m.querySelector("#comp-send").onclick = async () => {
+            const format = document.getElementById("comp-format")?.value || "vertical";
+            const blurBg = document.getElementById("comp-blur")?.checked || false;
+            const colorGrade = document.getElementById("comp-grade")?.value || "";
+            const ctaText = document.getElementById("comp-cta")?.value || "";
+            try {
+              const r = await fetch("/api/admin/marketing/montage/compose", { method:"POST", headers:{ ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ video: name, options: { format, blurBg, colorGrade, ctaText } }) });
+              const j = await r.json();
+              if (r.ok && j.success) {
+                const url = j.url;
+                const res = document.createElement("div");
+                res.style.cssText = "margin-top:14px; font-size:14px;";
+                res.innerHTML = `<a href="${url}" target="_blank" class="btn">Ouvrir</a> <a href="${url}" download class="btn">Télécharger</a>`;
+                m.querySelector("div").appendChild(res);
+              } else {
+                alert("❌ Composition échouée");
+              }
+            } catch { alert("❌ Composition échouée"); }
+          };
+        };
+        window.composeProFromList = async (ev) => {
+          const btn = ev.currentTarget;
+          const name = btn.getAttribute("data-name");
+          const m = document.createElement("div");
+          m.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10001; display:flex; align-items:center; justify-content:center;";
+          m.innerHTML = `
+            <div style="background:#0b1020; color:#fff; padding:24px; border-radius:12px; width:560px; max-width:95%;">
+              <h3 style="margin-top:0;">Composer Pro ${name}</h3>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <label style="display:flex; align-items:center; gap:8px;"><span>Format</span>
+                  <select id="comp2-format" class="input-premium">
+                    <option value="vertical" selected>Vertical 9:16</option>
+                    <option value="horizontal">Horizontal 16:9</option>
+                  </select>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="comp2-blur" checked/> Fond flou</label>
+                <label style="display:flex; align-items:center; gap:8px;"><span>Color grade</span>
+                  <select id="comp2-grade" class="input-premium">
+                    <option value="">Aucun</option>
+                    <option value="tealorange">Teal & Orange</option>
+                    <option value="cinematic">Cinematic</option>
+                  </select>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px;"><span>Vitesse</span>
+                  <input id="comp2-speed" class="input-premium" type="number" step="0.05" min="0.5" max="2" value="1.25"/>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px;"><span>Ralentir</span>
+                  <input id="comp2-slow" class="input-premium" type="number" step="0.05" min="0.5" max="2" value="1"/>
+                </label>
+              </div>
+              <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="comp2-silence" checked/> Couper silences</label>
+                <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="comp2-progress" checked/> Barre de progression</label>
+              </div>
+              <div style="margin-top:12px;">
+                <label style="font-size:12px; color:#94a3b8;">CTA (texte)</label>
+                <input id="comp2-cta" class="input-premium" placeholder="Ex: LIEN EN BIO 🔗"/>
+              </div>
+              <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
+                <button id="comp2-cancel" class="btn">Annuler</button>
+                <button id="comp2-send" class="btn btn-primary">Composer Pro</button>
+              </div>
+            </div>`;
+          document.body.appendChild(m);
+          m.querySelector("#comp2-cancel").onclick = () => m.remove();
+          m.querySelector("#comp2-send").onclick = async () => {
+            const format = document.getElementById("comp2-format")?.value || "vertical";
+            const blurBg = document.getElementById("comp2-blur")?.checked || false;
+            const colorGrade = document.getElementById("comp2-grade")?.value || "";
+            const speedFactor = parseFloat(document.getElementById("comp2-speed")?.value || "1");
+            const slowFactor = parseFloat(document.getElementById("comp2-slow")?.value || "1");
+            const cutSilence = document.getElementById("comp2-silence")?.checked || false;
+            const progressBar = document.getElementById("comp2-progress")?.checked || false;
+            const ctaText = document.getElementById("comp2-cta")?.value || "";
+            try {
+              const r = await fetch("/api/admin/marketing/montage/compose-pro", { method:"POST", headers:{ ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ video: name, options: { format, blurBg, colorGrade, speedFactor, slowFactor, cutSilence, progressBar, ctaText } }) });
+              const j = await r.json();
+              if (r.ok && j.success) {
+                const url = j.url;
+                const res = document.createElement("div");
+                res.style.cssText = "margin-top:14px; font-size:14px;";
+                res.innerHTML = `<a href="${url}" target="_blank" class="btn">Ouvrir</a> <a href="${url}" download class="btn">Télécharger</a>`;
+                m.querySelector("div").appendChild(res);
+              } else {
+                alert("❌ Composition Pro échouée");
+              }
+            } catch { alert("❌ Composition Pro échouée"); }
+          };
         };
         if (q("mk-publish-igtok")) q("mk-publish-igtok").onclick = async () => {
           try {

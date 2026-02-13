@@ -330,6 +330,38 @@ const ROBOTS = {
 };
 
 const HEADLESS_ONLY = !!(process.env.PUPPETEER_DISABLE || process.env.NO_BROWSER);
+const resolveChromeExecutable = () => {
+  const candidates = [
+    (() => { try { return (puppeteer.executablePath && puppeteer.executablePath()) || null; } catch { return null; } })(),
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    (() => {
+      const roots = [process.env.PUPPETEER_CACHE_DIR, '/opt/render/project/.cache/puppeteer', '/opt/render/.cache/puppeteer'];
+      for (const root of roots) {
+        if (!root || !fs.existsSync(root)) continue;
+        const families = ['chrome', 'chromium'];
+        for (const fam of families) {
+          const famDir = path.join(root, fam);
+          if (!fs.existsSync(famDir)) continue;
+          try {
+            const ents = fs.readdirSync(famDir, { withFileTypes: true });
+            for (const e of ents) {
+              const p = path.join(famDir, e.name, 'chrome-linux64', 'chrome');
+              if (fs.existsSync(p)) return p;
+            }
+          } catch {}
+        }
+      }
+      return null;
+    })()
+  ];
+  for (const p of candidates) { if (p && fs.existsSync(p)) return p; }
+  return null;
+};
 
 const robotLog = (robot, status = "OK", details = "") => {
     const timestamp = new Date().toLocaleTimeString();
@@ -933,6 +965,31 @@ const toPublicUrl = (fp) => {
     return null;
   } catch { return null; }
 };
+const listMediaFiles = (dir, exts) => {
+  try {
+    if (!fs.existsSync(dir)) return [];
+    return fs.readdirSync(dir).filter(f => exts.some(e => f.toLowerCase().endsWith(e))).map(name => {
+      const p = path.join(dir, name);
+      const st = fs.statSync(p);
+      return { name, path: p, mtime: st.mtimeMs, size: st.size };
+    }).sort((a,b)=>b.mtime-a.mtime);
+  } catch { return []; }
+};
+const findAutoSourceVideo = async () => {
+  const libDirs = [
+    path.join(__dirname, 'public', 'assets', 'library', 'videos'),
+    path.join(__dirname, 'public', 'generated')
+  ];
+  const exts = ['.mp4','.mov','.avi','.mkv'];
+  for (const d of libDirs) {
+    const files = listMediaFiles(d, exts);
+    if (files.length) return files[0].path;
+  }
+  const kw = Array.isArray(marketing.hashtags) && marketing.hashtags.length ? marketing.hashtags.slice(0, 3).map(x => x.replace(/^#/,'')).join(",") : "surf,wave,ocean";
+  const image = `https://source.unsplash.com/1080x1920/?${kw}`;
+  const vid = await createVideoFromImage(image, "auto");
+  return vid;
+};
 const emitMarketingEvent = (ev) => {
   try {
     const e = { ...ev, time: Date.now() };
@@ -1407,10 +1464,15 @@ const createVideoFromImage = async (imageUrl, spotName = "Spot") => {
 // --- ADVANCED VIDEO MONTAGE GENERATOR ---
 const generateVideoMontage = async (spotName, opts = {}) => {
     robotLog(ROBOTS.NEWS, "VIDEO", `Génération montage vidéo intelligent pour ${spotName}...`);
-    const browser = await puppeteer.launch({
-        headless: "new",
-        args: ["--no-sandbox", "--disable-setuid-sandbox"]
-    });
+    const browser = await (async () => {
+        const exec = resolveChromeExecutable();
+        const args = ["--no-sandbox", "--disable-setuid-sandbox"];
+        if (exec) {
+            try { return await puppeteer.launch({ headless: "new", executablePath: exec, args }); } catch {}
+        }
+        try { return await puppeteer.launch({ headless: "new", channel: "chrome", args }); } catch {}
+        return await puppeteer.launch({ headless: "new", args });
+    })();
     
     const slidePaths = [];
     const slug = String(spotName || "video").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "video";
@@ -3408,7 +3470,28 @@ app.post("/api/admin/marketing/upload-video", express.json({ limit: "50mb" }), a
     const b64 = String(req.body?.base64 || "");
     if (!nameRaw && !url && !b64) return res.status(400).json({ success: false, error: "données manquantes" });
     let baseName = nameRaw ? nameRaw.replace(/[^a-zA-Z0-9_\-\.]/g, "") : `upload_${Date.now()}.mp4`;
-    if (!/\.(mp4)$/i.test(baseName)) baseName = baseName + ".mp4";
+    let ext = (baseName.match(/\.\w+$/)?.[0] || "").toLowerCase();
+    if (b64) {
+      const m = b64.match(/^data:([^;]+);base64,/);
+      if (m) {
+        const mime = m[1];
+        if (mime.includes("video/mp4")) ext = ".mp4";
+        else if (mime.includes("video/quicktime")) ext = ".mov";
+        else if (mime.includes("video/x-msvideo")) ext = ".avi";
+        else if (mime.includes("video/x-matroska")) ext = ".mkv";
+        else if (mime.includes("image/jpeg")) ext = ".jpg";
+        else if (mime.includes("image/png")) ext = ".png";
+        else if (mime.includes("image/webp")) ext = ".webp";
+        else if (mime.includes("audio/mpeg")) ext = ".mp3";
+        else if (mime.includes("audio/wav")) ext = ".wav";
+        else if (mime.includes("audio/aac")) ext = ".aac";
+      }
+    } else if (url) {
+      const uext = (url.split("?")[0].split("#")[0].match(/\.\w+$/)?.[0] || "").toLowerCase();
+      if (uext) ext = uext;
+    }
+    if (!ext) ext = ".mp4";
+    if (!baseName.endsWith(ext)) baseName = baseName.replace(/\.\w+$/, "") + ext;
     const dest = path.join(GENERATED_VIDEOS_DIR, baseName);
     if (b64) {
       const idx = b64.indexOf("base64,");
@@ -3498,6 +3581,216 @@ app.post("/api/admin/marketing/publish-video", express.json({ limit: "2mb" }), a
     }
     res.json({ success: results.every(r => r.ok), results });
   } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+app.get("/api/admin/marketing/auto-source", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const fp = await findAutoSourceVideo();
+    res.json({ success: true, file: path.basename(fp), url: toPublicUrl(fp) });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+app.post("/api/admin/marketing/auto-compose-publish", express.json({ limit: "2mb" }), async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const fp = await findAutoSourceVideo();
+    const baseName = path.basename(fp);
+    emitMarketingEvent({ type: "media", network: "compose", url: toPublicUrl(fp) });
+    const netsAll = Object.keys(marketing.connectors).filter(n => marketing.connectors[n]?.enabled);
+    const netsVertical = netsAll.filter(n => ["instagram","tiktok"].includes(n));
+    const netsHorizontal = netsAll.filter(n => ["youtube","facebook","twitter"].includes(n));
+    const caption = marketing.template.replace("{spot}", "site").replace("{desc}", "Vidéo").replace("{hook}", "LIVE").replace("{tags}", (marketing.hashtags || []).map(h=>"#"+h).join(" "));
+    const r1 = await (async () => {
+      const r = await axios.post(`${baseUrlForReq(req)}/api/admin/marketing/montage/compose-pro`, { video: baseName, options: { format: "vertical", blurBg: true, colorGrade: "tealorange", speedFactor: 1.2, cutSilence: true, progressBar: true, ctaText: "Lien en bio 🔗" } }, { headers: { "x-admin-token": ADMIN_TOKEN } }).catch(()=>({ data: { success: false }}));
+      return r.data;
+    })();
+    const nameV = r1 && r1.success ? path.basename(r1.file || "") : baseName;
+    const p1 = await axios.post(`${baseUrlForReq(req)}/api/admin/marketing/publish-video`, { video: nameV, networks: netsVertical, caption }, { headers: { "x-admin-token": ADMIN_TOKEN } }).catch(()=>({ data: { success: false }}));
+    const r2 = await (async () => {
+      const r = await axios.post(`${baseUrlForReq(req)}/api/admin/marketing/montage/compose-pro`, { video: baseName, options: { format: "horizontal", blurBg: false, colorGrade: "cinematic", speedFactor: 1.0, cutSilence: true, progressBar: false, ctaText: "" } }, { headers: { "x-admin-token": ADMIN_TOKEN } }).catch(()=>({ data: { success: false }}));
+      return r.data;
+    })();
+    const nameH = r2 && r2.success ? path.basename(r2.file || "") : baseName;
+    const p2 = await axios.post(`${baseUrlForReq(req)}/api/admin/marketing/publish-video`, { video: nameH, networks: netsHorizontal, caption }, { headers: { "x-admin-token": ADMIN_TOKEN } }).catch(()=>({ data: { success: false }}));
+    const combined = [].concat((p1.data?.results || []), (p2.data?.results || []));
+    const ok = combined.filter(x=>x && x.ok).length;
+    res.json({ success: ok > 0, results: combined });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+app.post("/api/admin/marketing/montage/compose", express.json({ limit: "4mb" }), async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const video = String(req.body?.video || "");
+    const options = req.body?.options || {};
+    const basename = video.startsWith("/generated/") ? decodeURIComponent(video.split("/").pop()) : video;
+    const full = path.join(GENERATED_VIDEOS_DIR, basename);
+    if (!fs.existsSync(full)) return res.status(404).json({ success: false, error: "fichier introuvable" });
+    const outName = `compose_${Date.now()}.mp4`;
+    const outPath = path.join(GENERATED_VIDEOS_DIR, outName);
+    const format = String(options.format || "vertical").toLowerCase();
+    const ctaText = String(options.ctaText || "");
+    const colorGrade = String(options.colorGrade || "");
+    const blurBg = !!options.blurBg;
+    let musicPath = "";
+    if (options.musicName) {
+      const musicDir = path.join(__dirname, 'public', 'assets', 'music');
+      const m = path.join(musicDir, String(options.musicName));
+      if (fs.existsSync(m)) musicPath = m;
+    }
+    emitMarketingEvent({ type: "start", network: "compose", mode: format });
+    await new Promise((resolve, reject) => {
+      const cmd = ffmpeg();
+      cmd.input(full);
+      if (musicPath) cmd.input(musicPath);
+      const vfParts = [];
+      const afParts = [];
+      if (format === "vertical") {
+        vfParts.push("[0:v]split=2[v0][v1]");
+        let bg = "[v0]scale=1080:1920";
+        if (blurBg) bg += ",boxblur=luma_radius=20:luma_power=1:chroma_radius=10:chroma_power=1";
+        bg += "[b]";
+        let fg = "[v1]scale=1080:-2,setsar=1[fg]";
+        let overlay = "[b][fg]overlay=(W-w)/2:(H-h)/2";
+        if (colorGrade === "tealorange") overlay += ",eq=contrast=1.05:saturation=1.1:brightness=0.02";
+        else if (colorGrade === "cinematic") overlay += ",eq=contrast=1.1:saturation=1.05:brightness=-0.01";
+        if (ctaText) overlay += `,drawtext=text='${ctaText.replace(/:/g,"\\:").replace(/'/g,"\\'")}':fontcolor=white:fontsize=36:x=(w-tw)/2:y=h-120:box=1:boxcolor=black@0.4:boxborderw=8`;
+        overlay += "[vout]";
+        vfParts.push(bg, fg, overlay);
+      } else {
+        let chain = "[0:v]scale=1280:720,setsar=1";
+        if (colorGrade === "tealorange") chain += ",eq=contrast=1.05:saturation=1.1:brightness=0.02";
+        else if (colorGrade === "cinematic") chain += ",eq=contrast=1.1:saturation=1.05:brightness=-0.01";
+        if (ctaText) chain += `,drawtext=text='${ctaText.replace(/:/g,"\\:").replace(/'/g,"\\'")}':fontcolor=white:fontsize=28:x=w-tw-40:y=h-80:box=1:boxcolor=black@0.4:boxborderw=8`;
+        chain += "[vout]";
+        vfParts.push(chain);
+      }
+      if (musicPath) {
+        afParts.push("[0:a]loudnorm=I=-16:LRA=11:TP=-1.5[va]");
+        afParts.push("[1:a]volume=0.85[ma]");
+        afParts.push("[va][ma]sidechaincompress=threshold=0.05:ratio=12:attack=20:release=200[outa]");
+      } else {
+        afParts.push("[0:a]loudnorm=I=-16:LRA=11:TP=-1.5[outa]");
+      }
+      const complex = vfParts.concat(afParts).join(";");
+      cmd.complexFilter(complex);
+      cmd.outputOptions(["-map [vout]", "-map [outa]", "-pix_fmt yuv420p", "-r 30"]);
+      cmd.videoCodec("libx264").audioCodec("aac");
+      cmd.save(outPath)
+      .on("end", () => resolve(null))
+      .on("error", (err) => reject(err));
+    });
+    emitMarketingEvent({ type: "success", network: "compose", mode: format, url: `/generated/${encodeURIComponent(outName)}` });
+    addToHistory({ spot: "compose", type: "video", network: "compose", url: `/generated/${encodeURIComponent(outName)}` });
+    res.json({ success: true, file: outName, url: `/generated/${encodeURIComponent(outName)}` });
+  } catch (e) {
+    emitMarketingEvent({ type: "error", network: "compose", mode: "compose", error: e.message });
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+app.post("/api/admin/marketing/montage/compose-pro", express.json({ limit: "4mb" }), async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const video = String(req.body?.video || "");
+    const options = req.body?.options || {};
+    const basename = video.startsWith("/generated/") ? decodeURIComponent(video.split("/").pop()) : video;
+    const full = path.join(GENERATED_VIDEOS_DIR, basename);
+    if (!fs.existsSync(full)) return res.status(404).json({ success: false, error: "fichier introuvable" });
+    const outName = `compose_pro_${Date.now()}.mp4`;
+    const outPath = path.join(GENERATED_VIDEOS_DIR, outName);
+    const format = String(options.format || "vertical").toLowerCase();
+    const blurBg = !!options.blurBg;
+    const colorGrade = String(options.colorGrade || "");
+    const ctaText = String(options.ctaText || "");
+    const speedFactor = Math.max(0.5, Math.min(2.0, parseFloat(String(options.speedFactor || "1"))));
+    const slowFactor = Math.max(0.5, Math.min(2.0, parseFloat(String(options.slowFactor || "1"))));
+    const cutSilence = !!options.cutSilence;
+    const progressBar = !!options.progressBar;
+    let musicPath = "";
+    if (options.musicName) {
+      const musicDir = path.join(__dirname, 'public', 'assets', 'music');
+      const m = path.join(musicDir, String(options.musicName));
+      if (fs.existsSync(m)) musicPath = m;
+    }
+    emitMarketingEvent({ type: "start", network: "compose-pro", mode: format });
+    await new Promise((resolve, reject) => {
+      const cmd = ffmpeg();
+      cmd.input(full);
+      if (musicPath) cmd.input(musicPath);
+      const vfParts = [];
+      const afParts = [];
+      if (format === "vertical") {
+        vfParts.push("[0:v]split=2[v0][v1]");
+        let bg = "[v0]scale=1080:1920";
+        if (blurBg) bg += ",boxblur=luma_radius=20:luma_power=1:chroma_radius=10:chroma_power=1";
+        bg += "[b]";
+        let fg = "[v1]scale=1080:-2,setsar=1";
+        if (speedFactor !== 1 || slowFactor !== 1) {
+          const sp = speedFactor !== 1 ? (1/speedFactor).toFixed(3) : (slowFactor).toFixed(3);
+          fg += `,setpts=PTS*${sp}`;
+        }
+        fg += "[fg]";
+        let overlay = "[b][fg]overlay=(W-w)/2:(H-h)/2";
+        if (colorGrade === "tealorange") overlay += ",eq=contrast=1.05:saturation=1.1:brightness=0.02";
+        else if (colorGrade === "cinematic") overlay += ",eq=contrast=1.1:saturation=1.05:brightness=-0.01";
+        if (ctaText) overlay += `,drawtext=text='${ctaText.replace(/:/g,"\\:").replace(/'/g,"\\'")}':fontcolor=white:fontsize=36:x=(w-tw)/2:y=h-120:box=1:boxcolor=black@0.4:boxborderw=8`;
+        if (progressBar) overlay += `,drawbox=x=0:y=h-10:w=min(w, t*120):h=6:color=white@0.75:t=fill`;
+        overlay += "[vout]";
+        vfParts.push(bg, fg, overlay);
+      } else {
+        let chain = "[0:v]scale=1280:720,setsar=1";
+        if (speedFactor !== 1 || slowFactor !== 1) {
+          const sp = speedFactor !== 1 ? (1/speedFactor).toFixed(3) : (slowFactor).toFixed(3);
+          chain += `,setpts=PTS*${sp}`;
+        }
+        if (colorGrade === "tealorange") chain += ",eq=contrast=1.05:saturation=1.1:brightness=0.02";
+        else if (colorGrade === "cinematic") chain += ",eq=contrast=1.1:saturation=1.05:brightness=-0.01";
+        if (ctaText) chain += `,drawtext=text='${ctaText.replace(/:/g,"\\:").replace(/'/g,"\\'")}':fontcolor=white:fontsize=28:x=w-tw-40:y=h-80:box=1:boxcolor=black@0.4:boxborderw=8`;
+        if (progressBar) chain += `,drawbox=x=0:y=h-10:w=min(w, t*200):h=6:color=white@0.75:t=fill`;
+        chain += "[vout]";
+        vfParts.push(chain);
+      }
+      if (musicPath) {
+        let aChain = "[0:a]";
+        if (cutSilence) aChain += "silenceremove=start_periods=1:start_duration=0.4:start_threshold=-35dB:detection=peak";
+        aChain += "loudnorm=I=-16:LRA=11:TP=-1.5[va]";
+        afParts.push(`${aChain}`);
+        afParts.push("[1:a]volume=0.85[ma]");
+        afParts.push("[va][ma]sidechaincompress=threshold=0.05:ratio=12:attack=20:release=200[outa]");
+        if (speedFactor !== 1 || slowFactor !== 1) {
+          const factor = speedFactor !== 1 ? speedFactor : (1/slowFactor);
+          const clamped = Math.max(0.5, Math.min(2.0, factor));
+          afParts.push(`[outa]atempo=${clamped}[outa2]`);
+        }
+      } else {
+        let aChain = "[0:a]";
+        if (cutSilence) aChain += "silenceremove=start_periods=1:start_duration=0.4:start_threshold=-35dB:detection=peak";
+        aChain += "loudnorm=I=-16:LRA=11:TP=-1.5[outa]";
+        afParts.push(aChain);
+        if (speedFactor !== 1 || slowFactor !== 1) {
+          const factor = speedFactor !== 1 ? speedFactor : (1/slowFactor);
+          const clamped = Math.max(0.5, Math.min(2.0, factor));
+          afParts.push(`[outa]atempo=${clamped}[outa2]`);
+        }
+      }
+      const complex = vfParts.concat(afParts).join(";");
+      cmd.complexFilter(complex);
+      const aMap = (speedFactor !== 1 || slowFactor !== 1) ? "[outa2]" : "[outa]";
+      cmd.outputOptions(["-map [vout]", `-map ${aMap}`, "-pix_fmt yuv420p", "-r 30"]);
+      cmd.videoCodec("libx264").audioCodec("aac");
+      cmd.save(outPath)
+      .on("end", () => resolve(null))
+      .on("error", (err) => reject(err));
+    });
+    emitMarketingEvent({ type: "success", network: "compose-pro", mode: format, url: `/generated/${encodeURIComponent(outName)}` });
+    addToHistory({ spot: "compose-pro", type: "video", network: "compose-pro", url: `/generated/${encodeURIComponent(outName)}` });
+    res.json({ success: true, file: outName, url: `/generated/${encodeURIComponent(outName)}` });
+  } catch (e) {
+    emitMarketingEvent({ type: "error", network: "compose-pro", mode: "compose-pro", error: e.message });
     res.status(500).json({ success: false, error: e.message });
   }
 });
