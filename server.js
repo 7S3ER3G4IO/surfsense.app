@@ -2577,6 +2577,50 @@ app.post("/api/admin/marketing/cookies", express.json({limit: '10mb'}), async (r
     }
 });
 
+app.post("/api/admin/marketing/cookies/collect", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const body = req.body || {};
+  const nets = Array.isArray(body.networks) && body.networks.length ? body.networks : ["instagram","twitter","tiktok","facebook","youtube"];
+  const timeoutMs = Math.max(5000, parseInt(body.timeoutMs || "15000", 10));
+  const results = [];
+  let browser = null, cleanup = null;
+  try {
+    const pr = await socialAutomator.launchBrowserWithSystemProfile(false);
+    browser = pr.browser;
+    cleanup = pr.cleanup;
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1280, height: 800 });
+    for (const net of nets) {
+      try {
+        let url = "about:blank";
+        if (net === "instagram") url = "https://www.instagram.com/";
+        else if (net === "twitter") url = "https://x.com/home";
+        else if (net === "tiktok") url = "https://www.tiktok.com/upload?lang=fr";
+        else if (net === "facebook") url = "https://www.facebook.com/";
+        else if (net === "youtube") url = "https://studio.youtube.com/";
+        await page.goto(url, { waitUntil: "networkidle2", timeout: timeoutMs }).catch(()=>{});
+        await new Promise(r => setTimeout(r, 2000));
+        const ck = await page.cookies().catch(()=>[]);
+        if (Array.isArray(ck) && ck.length) {
+          socialAutomator.cookies[net] = ck;
+          results.push(`${net}: ok (${ck.length})`);
+        } else {
+          results.push(`${net}: empty`);
+        }
+      } catch (e) {
+        results.push(`${net}: error (${e.message})`);
+      }
+    }
+    socialAutomator.saveCookies();
+    res.json({ success: true, details: results });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  } finally {
+    try { if (browser) await browser.close(); } catch {}
+    try { if (cleanup) await cleanup(); } catch {}
+  }
+});
+
 app.get("/api/admin/users/recent", async (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
   const r = await (async () => {

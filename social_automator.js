@@ -2,6 +2,7 @@ import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -27,6 +28,55 @@ const resolveChromeExecutable = () => {
     }
     return null;
 };
+<<<<<<< HEAD
+=======
+const detectChromeProfileDir = () => {
+    if (process.env.CHROME_PROFILE_DIR && fs.existsSync(process.env.CHROME_PROFILE_DIR)) return process.env.CHROME_PROFILE_DIR;
+    const home = os.homedir();
+    if (process.platform === 'darwin') {
+        const p = path.join(home, 'Library', 'Application Support', 'Google', 'Chrome', 'Default');
+        if (fs.existsSync(p)) return p;
+    } else if (process.platform === 'win32') {
+        const base = process.env.LOCALAPPDATA || path.join(home, 'AppData', 'Local');
+        const p = path.join(base, 'Google', 'Chrome', 'User Data', 'Default');
+        if (fs.existsSync(p)) return p;
+    } else {
+        const p1 = path.join(home, '.config', 'google-chrome', 'Default');
+        const p2 = path.join(home, '.config', 'chromium', 'Default');
+        if (fs.existsSync(p1)) return p1;
+        if (fs.existsSync(p2)) return p2;
+    }
+    return null;
+};
+const copyDirSync = (src, dest) => {
+    try { fs.mkdirSync(dest, { recursive: true }); } catch {}
+    try {
+        if (fs.cpSync) {
+            fs.cpSync(src, dest, { recursive: true });
+            return true;
+        }
+    } catch {}
+    const stack = [src];
+    while (stack.length) {
+        const cur = stack.pop();
+        const rel = path.relative(src, cur);
+        const out = path.join(dest, rel);
+        try { fs.mkdirSync(out, { recursive: true }); } catch {}
+        const ents = fs.readdirSync(cur, { withFileTypes: true });
+        for (const e of ents) {
+            const sp = path.join(cur, e.name);
+            const dp = path.join(out, e.name);
+            if (e.isDirectory()) stack.push(sp);
+            else {
+                try {
+                    fs.copyFileSync(sp, dp);
+                } catch {}
+            }
+        }
+    }
+    return true;
+};
+>>>>>>> 7f89403 (Update main version)
 
 class SocialAutomator {
     constructor() {
@@ -119,6 +169,45 @@ class SocialAutomator {
             }
             return await puppeteer.launch({ headless, args });
         }
+<<<<<<< HEAD
+=======
+    }
+    async launchBrowserWithSystemProfile(headless = "new") {
+        const args = [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-infobars',
+            '--window-position=0,0',
+            '--ignore-certifcate-errors',
+            '--ignore-certifcate-errors-spki-list',
+            '--user-agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"'
+        ];
+        const profile = detectChromeProfileDir();
+        let userDataDir = null;
+        if (profile) {
+            const tmp = path.join(__dirname, '.cache', `chrome-profile-${Date.now()}`);
+            try {
+                copyDirSync(profile, tmp);
+                userDataDir = tmp;
+            } catch {}
+        }
+        try {
+            const b = await puppeteer.launch({ headless, channel: 'chrome', args, userDataDir });
+            const cleanup = async () => { if (userDataDir) { try { fs.rmSync(userDataDir, { recursive: true, force: true }); } catch {} } };
+            return { browser: b, cleanup };
+        } catch {
+            const exec = resolveChromeExecutable();
+            try {
+                const b = await puppeteer.launch({ headless, executablePath: exec || undefined, args, userDataDir });
+                const cleanup = async () => { if (userDataDir) { try { fs.rmSync(userDataDir, { recursive: true, force: true }); } catch {} } };
+                return { browser: b, cleanup };
+            } catch {
+                const b = await puppeteer.launch({ headless, args });
+                const cleanup = async () => { if (userDataDir) { try { fs.rmSync(userDataDir, { recursive: true, force: true }); } catch {} } };
+                return { browser: b, cleanup };
+            }
+        }
+>>>>>>> 7f89403 (Update main version)
     }
 
     async humanDelay(min = 1000, max = 3000) {

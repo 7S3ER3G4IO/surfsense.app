@@ -524,6 +524,7 @@
                     <button id="mk-share-native" class="btn">↗️ Partager</button>
                     <button id="btn-preview-video" class="btn">🎥 Aperçu Vidéo</button>
                     <button id="mk-modal-help" class="btn">❓ Aide</button>
+                    <button id="btn-collect-cookies" class="btn">🕵️ Collecter Cookies</button>
                 </div>
             </div>
             <div class="grid-3">
@@ -625,6 +626,25 @@
                 input.click();
               };
           }
+        
+        if (q("btn-collect-cookies")) {
+            q("btn-collect-cookies").onclick = async () => {
+                try {
+                    const r = await fetch("/api/admin/marketing/cookies/collect", {
+                        method: "POST",
+                        headers: { ...headers, "Content-Type": "application/json" },
+                        body: JSON.stringify({ networks: ["instagram","twitter","tiktok","facebook","youtube"], timeoutMs: 20000 })
+                    });
+                    const j = await r.json();
+                    if (r.ok && j.success) {
+                        alert("✅ Cookies collectés\n\n" + (j.details || []).join("\n"));
+                        loadMarketing();
+                    } else {
+                        alert("Erreur collecte: " + (j.error || "inconnue"));
+                    }
+                } catch (e) { alert("Erreur collecte: " + e.message); }
+            };
+        }
         
         // Profile Update
         if (q("btn-update-profile")) {
