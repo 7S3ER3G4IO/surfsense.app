@@ -265,6 +265,9 @@
                 <button id="mk-start" class="btn btn-success" title="Démarrer la planification">▶ Démarrer</button>
                 <button id="mk-stop" class="btn btn-danger" title="Arrêter la planification">⏹ Arrêter</button>
                 <button id="mk-repair-login" class="btn" title="Réparer les connexions navigateur">🧭 Réparer Connexions</button>
+                <button id="mk-pause-5" class="btn" title="Pause 5 minutes">⏸️ Pause 5 min</button>
+                <button id="mk-clear-cookies" class="btn" title="Purger cookies robots">🗑️ Purger Cookies</button>
+                <button id="mk-retry-errors" class="btn" title="Relancer erreurs">🔁 Relancer Erreurs</button>
               </div>
             </div>
             <div>
@@ -286,7 +289,31 @@
            <div style="width:10px; height:10px; background:var(--success); border-radius:50%; box-shadow:0 0 10px var(--success);"></div>
            <span id="mk-status" style="font-weight:600; color:#4ade80;">Status: CHARGEMENT...</span>
            <div style="flex:1;"></div>
+           <span id="mk-countdown" style="font-size:12px; color:#94a3b8;"></span>
            <button id="btn-import-cookies" class="btn" style="padding:6px 12px; font-size:12px;">🍪 Importer Cookies</button>
+        </div>
+        
+        <!-- Moniteur Temps Réel -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📡 Moniteur Temps Réel</div>
+          </div>
+          <div class="grid-2">
+            <div>
+              <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">Aperçu Robot</div>
+              <div style="background:#0b1020; border:1px solid var(--border-color); border-radius:12px; overflow:hidden;">
+                <img id="mk-robot-shot" src="/admin/robot.png" alt="Robot" style="width:100%; max-height:280px; object-fit:cover"/>
+              </div>
+              <div id="mk-latest-media" style="margin-top:8px; font-size:12px; color:#94a3b8;"></div>
+            </div>
+            <div>
+              <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">Événements</div>
+              <div id="mk-events" style="background:#0b1020; border:1px solid var(--border-color); border-radius:12px; padding:8px; max-height:280px; overflow:auto; font-size:12px;"></div>
+            </div>
+          </div>
+          <div style="margin-top:12px;">
+            <div id="mk-timeline" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+          </div>
         </div>
 
         <!-- Identity Manager -->
@@ -649,6 +676,52 @@
         if (tParam) { try { localStorage.setItem("surfAdminToken", tParam); history.replaceState({}, "", window.location.pathname); } catch {} }
         const tok = localStorage.getItem("surfAdminToken") || "";
         const headers = tok ? { "x-admin-token": tok } : {};
+        const networks = ["instagram","threads","twitter","facebook","youtube","tiktok","telegram","discord"];
+        let connectors = {};
+        let lastInfoByNet = {};
+        let countdownTimer = null;
+        function initLiveMonitor() {
+          const tl = document.getElementById("mk-timeline");
+          if (tl) {
+            tl.innerHTML = networks.map(n => `<span data-net="${n}" style="padding:6px 10px; border:1px solid var(--border-color); border-radius:999px; font-size:12px; color:#94a3b8;">${n}</span>`).join(" ");
+          }
+          const evDiv = document.getElementById("mk-events");
+          const shot = document.getElementById("mk-robot-shot");
+          const latest = document.getElementById("mk-latest-media");
+          try {
+            const es = new EventSource("/api/admin/marketing/events");
+            es.onmessage = (msg) => {
+              try {
+                const e = JSON.parse(msg.data || "{}");
+                if (evDiv) {
+                  const line = `[${new Date(e.time).toLocaleTimeString()}] ${e.type} • ${e.network || "-"} ${e.mode ? "("+e.mode+")" : ""} ${e.error ? "• "+e.error : ""}`;
+                  const el = document.createElement("div");
+                  el.textContent = line;
+                  evDiv.prepend(el);
+                  while (evDiv.childElementCount > 80) evDiv.removeChild(evDiv.lastChild);
+                }
+                if ((e.type === "start" || e.type === "media") && shot) {
+                  shot.src = "/admin/robot.png?ts=" + Date.now();
+                }
+                if (e.type === "media" && e.url && latest) {
+                  latest.innerHTML = `<a href="${e.url}" target="_blank" class="btn">Ouvrir dernier média</a>`;
+                }
+                const tlItem = tl ? tl.querySelector(`[data-net="${e.network}"]`) : null;
+                if (tlItem) {
+                  if (e.type === "success") { tlItem.style.background = "rgba(34,197,94,0.2)"; tlItem.style.color = "#22c55e"; }
+                  if (e.type === "error") { tlItem.style.background = "rgba(239,68,68,0.2)"; tlItem.style.color = "#ef4444"; }
+                  if (e.type === "start") { tlItem.style.background = "rgba(59,130,246,0.15)"; tlItem.style.color = "#60a5fa"; }
+                  tlItem.title = `${e.type} • ${new Date(e.time).toLocaleTimeString()}`;
+                  const link = e.url || (connectors[e.network]?.profileUrl || "");
+                  if (link) {
+                    tlItem.style.cursor = "pointer";
+                    tlItem.onclick = () => window.open(link, "_blank");
+                  }
+                }
+              } catch {}
+            };
+          } catch {}
+        }
         const q = (id) => document.getElementById(id);
         const postSingle = async (network) => {
           try {
@@ -1155,44 +1228,21 @@
           } catch { alert("Conseils indisponibles"); }
         };
         if (q("mk-preview-pro")) q("mk-preview-pro").onclick = async (ev) => {
-          const spot = prompt("Spot pour le montage:", "Biarritz") || "Spot";
-          const ref = prompt("URL de référence (optionnel):", "") || "";
-          let style = prompt("Style (Dark/Neon/Sunset/Ocean/Forest/Retro):", "Neon") || "Neon";
-          let fx = prompt("FX (glitch/shake/fade/retro/none):", "fade") || "fade";
-          let hook = prompt("Hook (none/medium/strong):", "strong") || "strong";
-          let loop = confirm("Boucle invisible (seamless) ?") ? "1" : "0";
-          let wm = confirm("Ajouter watermark swellsync.fr ?") ? "1" : "0";
-          let cg = prompt("Color Grading (none/tealorange/cinematic/retro):", "tealorange") || "tealorange";
-          let variability = prompt("Variabilité (0-10):", "5") || "5";
-          let subs = confirm("Activer sous-titres dynamiques ?");
-          let subtext = subs ? (prompt("Texte des sous-titres:", `${spot} • Conditions LIVE`) || `${spot} • Conditions LIVE`) : "";
-          let substyle = subs ? (prompt("Style sous-titres (light/neon/default):", "light") || "light") : "";
-          let sfx = prompt("SFX audio (none/whoosh/hit):", "whoosh") || "whoosh";
-          let sfxi = prompt("Intensité SFX (0-100):", "70") || "70";
-          let subsize = prompt("Taille sous-titre (16-64):", "34") || "34";
           try {
-            if (ref && ref.startsWith("http")) {
-              const rs = await fetch("/api/admin/marketing/style-suggest", { method: "POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ referenceUrl: ref }) });
-              const js = await rs.json();
-              if (rs.ok && js.success) { style = js.styleName || style; fx = js.fxPreset || fx; }
-            }
             const btn = ev.currentTarget;
-            const originalText = btn.textContent;
             btn.textContent = "⏳ Génération...";
             btn.disabled = true;
-            const params = new URLSearchParams({ spot, style, fx, hook, loop, wm, cg, var: variability, subtext, substyle, sfx, sfxi, subsize });
-            const res = await fetch(`/api/admin/marketing/montage/preview?${params.toString()}`, { headers });
-            if (!res.ok) throw new Error("Erreur génération");
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
+            const r = await fetch("/api/admin/marketing/montage/final", { headers });
+            const j = await r.json();
+            if (!r.ok || !j.success || !j.url) throw new Error(j.error || "Erreur génération");
             const modal = document.createElement("div");
             modal.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:10000; display:flex; flex-direction:column; justify-content:center; align-items:center;";
             modal.innerHTML = `
               <div style="position:relative; width:300px; height:533px; background:#000;">
-                 <video src="${url}" controls autoplay style="width:100%; height:100%; object-fit:cover;"></video>
+                 <video src="${j.url}" controls autoplay style="width:100%; height:100%; object-fit:cover;"></video>
                  <button id="close-vid" style="position:absolute; top:-40px; right:0; color:white; background:none; border:none; font-size:24px;">&times;</button>
               </div>
-              <a href="${url}" download="montage_preview.mp4" style="margin-top:20px; color:#3b82f6; text-decoration:none;">⬇️ Télécharger la vidéo</a>
+              <a href="${j.url}" download="${j.file || 'montage_final.mp4'}" style="margin-top:20px; color:#3b82f6; text-decoration:none;">⬇️ Télécharger la vidéo</a>
             `;
             document.body.appendChild(modal);
             modal.querySelector("#close-vid").onclick = () => modal.remove();
@@ -1200,7 +1250,7 @@
             alert("Erreur: " + e.message);
           } finally {
             const btn = ev.currentTarget;
-            btn.textContent = "🎬 Prévisualiser Montage Pro";
+            btn.textContent = "🎬 Prévisualiser Montage";
             btn.disabled = false;
           }
         };
@@ -1311,7 +1361,64 @@
             loadMarketing();
           } catch { alert("Erreur stop"); }
         };
+        initLiveMonitor();
+        async function refreshStatus() {
+          try {
+            const rr = await fetch("/api/admin/marketing/status", { headers });
+            const st = await rr.json();
+            if (rr.ok) {
+              lastInfoByNet = st.lastInfoByNet || {};
+              const next = st.nextRunAt || 0;
+              if (countdownTimer) clearInterval(countdownTimer);
+              if (next > Date.now()) {
+                countdownTimer = setInterval(() => {
+                  const d = Math.max(0, next - Date.now());
+                  const m = Math.floor(d / 60000);
+                  const s = Math.floor((d % 60000) / 1000);
+                  const el = document.getElementById("mk-countdown");
+                  if (el) el.textContent = `Prochaine exécution dans ${m}m ${s}s`;
+                }, 1000);
+              } else {
+                const el = document.getElementById("mk-countdown");
+                if (el) el.textContent = "";
+              }
+            }
+          } catch {}
+        }
+        setInterval(refreshStatus, 5000);
         loadMarketing();
+        refreshStatus();
+
+        if (q("mk-pause-5")) q("mk-pause-5").onclick = async () => {
+          try {
+            const r = await fetch("/api/admin/marketing/pause", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ minutes: 5 }) });
+            const j = await r.json();
+            if (!r.ok || !j.success) { alert("Pause impossible"); return; }
+            refreshStatus();
+          } catch { alert("Pause impossible"); }
+        };
+        if (q("mk-clear-cookies")) q("mk-clear-cookies").onclick = async () => {
+          try {
+            const r = await fetch("/api/admin/marketing/cookies/clear", { method:"POST", headers });
+            const j = await r.json();
+            if (!r.ok || !j.success) { alert("Purge cookies échouée"); return; }
+            alert("Cookies purgés");
+            refreshStatus();
+          } catch { alert("Purge cookies échouée"); }
+        };
+        if (q("mk-retry-errors")) q("mk-retry-errors").onclick = async () => {
+          try {
+            const rr = await fetch("/api/admin/marketing/status", { headers });
+            const st = await rr.json();
+            if (!rr.ok) { alert("Statut indisponible"); return; }
+            const fails = Object.entries(st.lastInfoByNet || {}).filter(([net, info]) => info.type === "error").map(([net]) => net);
+            if (!fails.length) { alert("Aucune erreur à relancer"); return; }
+            const r = await fetch("/api/admin/social/post-all", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ networks: fails }) });
+            const j = await r.json();
+            if (!r.ok) { alert("Relance échouée"); return; }
+            alert(`Relance: ${fails.join(", ")}`);
+          } catch { alert("Relance échouée"); }
+        };
       })();
     </script>
   </body>

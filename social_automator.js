@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const ROBOT_SHOT_PATH = path.join(__dirname, 'public', 'admin', 'robot.png');
 
 // Enable stealth plugin
 puppeteer.use(StealthPlugin());
@@ -107,6 +108,13 @@ class SocialAutomator {
     constructor() {
         this.cookies = {};
         this.loadCookies();
+    }
+    async capturePagePreview(page) {
+        try {
+            const dir = path.dirname(ROBOT_SHOT_PATH);
+            try { fs.mkdirSync(dir, { recursive: true }); } catch {}
+            await page.screenshot({ path: ROBOT_SHOT_PATH, type: 'png', fullPage: true });
+        } catch (e) {}
     }
 
     loadCookies() {
@@ -369,6 +377,15 @@ class SocialAutomator {
             youtube: !!this.cookies.youtube && this.cookies.youtube.length > 0
         };
     }
+    clearCookies() {
+        try {
+            this.cookies = {};
+            fs.writeFileSync(COOKIES_PATH, JSON.stringify(this.cookies, null, 2));
+            return { success: true };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    }
 
     async launchBrowser(headless = "new") {
         if (HEADLESS_ONLY) throw new Error("Browser disabled by environment");
@@ -616,6 +633,7 @@ class SocialAutomator {
 
             console.log("📱 Navigating to TikTok...");
             await page.goto('https://www.tiktok.com/upload?lang=fr', { waitUntil: 'networkidle2' });
+            await this.capturePagePreview(page);
             await this.humanDelay(2000, 4000);
 
             // Check Login (Robust)
@@ -657,6 +675,7 @@ class SocialAutomator {
                 // Wait for upload to complete
                 await page.waitForSelector('.upload-progress', { hidden: true, timeout: 60000 }); // Wait until progress bar gone
                 await this.humanDelay(2000, 5000);
+                await this.capturePagePreview(page);
             }
 
             // CAPTION
@@ -669,6 +688,7 @@ class SocialAutomator {
             // POST
             // Click Post button
             // ...
+            await this.capturePagePreview(page);
 
             // SAVE COOKIES (Refresh session)
             const currentCookies = await page.cookies();
@@ -700,6 +720,7 @@ class SocialAutomator {
 
             console.log("🐦 Navigating to Twitter/X...");
             await page.goto('https://twitter.com/compose/tweet', { waitUntil: 'networkidle2' });
+            await this.capturePagePreview(page);
             await this.humanDelay(3000, 5000);
 
             // Check Login
@@ -718,6 +739,7 @@ class SocialAutomator {
                 console.log("📤 Uploading media to Twitter...");
                 await fileInput.uploadFile(mediaPath);
                 await this.humanDelay(2000, 4000);
+                await this.capturePagePreview(page);
             }
 
             // Caption
@@ -737,6 +759,7 @@ class SocialAutomator {
                 await tweetBtn.click();
                 await this.humanDelay(3000, 6000);
                 console.log("✅ Twitter Posted!");
+                await this.capturePagePreview(page);
                 
                 // Save Cookies
                 const currentCookies = await page.cookies();
@@ -768,6 +791,7 @@ class SocialAutomator {
 
             console.log("📸 Navigating to Instagram...");
             await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2' });
+            await this.capturePagePreview(page);
             await this.humanDelay(2000, 4000);
 
             // Check Login
@@ -810,6 +834,7 @@ class SocialAutomator {
                 // Wait for preview/crop modal
                 // Usually "Next" button appears
                 await this.humanDelay(5000, 8000); // Wait for upload
+                await this.capturePagePreview(page);
                 
                 // Click Next (Suivant) - usually top right of modal
                 // We need to click "Next" twice (Crop -> Filter -> Caption)
@@ -850,6 +875,7 @@ class SocialAutomator {
                 await this.humanDelay(5000, 10000); // "Your post has been shared"
                 
                 console.log("✅ Instagram Posted!");
+                await this.capturePagePreview(page);
             }
 
         } catch (e) {
@@ -873,6 +899,7 @@ class SocialAutomator {
 
              console.log("📘 Navigating to Facebook...");
              await page.goto('https://www.facebook.com/', { waitUntil: 'networkidle2' });
+             await this.capturePagePreview(page);
              await this.humanDelay(2000, 4000);
 
              // Check Login by looking for common logged-in elements
@@ -928,6 +955,7 @@ class SocialAutomator {
                  console.log("📤 Uploading media to Facebook...");
                  await fileInput.uploadFile(mediaPath);
                  await this.humanDelay(3000, 6000); // Wait for upload
+                 await this.capturePagePreview(page);
              }
 
              // 3. Caption
@@ -953,6 +981,7 @@ class SocialAutomator {
                  await postBtn.click();
                  await this.humanDelay(5000, 10000); // Wait for post to process
                  console.log("✅ Facebook Posted!");
+                 await this.capturePagePreview(page);
                  
                  // Save Cookies
                  const currentCookies = await page.cookies();
@@ -983,6 +1012,7 @@ class SocialAutomator {
 
              console.log("📹 Navigating to YouTube Studio...");
              await page.goto('https://studio.youtube.com/channel/UD/videos/upload?d=ud', { waitUntil: 'networkidle2' });
+             await this.capturePagePreview(page);
              await this.humanDelay(3000, 5000);
 
              // Check Login
@@ -998,6 +1028,7 @@ class SocialAutomator {
              if (fileInput) {
                  console.log("📤 Uploading video to YouTube...");
                  await fileInput.uploadFile(videoPath);
+                 await this.capturePagePreview(page);
                  
                  // Wait for processing
                  await this.humanDelay(5000, 10000);
@@ -1058,6 +1089,7 @@ class SocialAutomator {
                      await publishBtn.click();
                      await this.humanDelay(5000, 8000);
                      console.log("✅ YouTube Posted!");
+                     await this.capturePagePreview(page);
                  }
              }
 

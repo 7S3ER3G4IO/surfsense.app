@@ -895,6 +895,7 @@ let marketing = {
   hashtags: [],
   networkIntervals: {},
   lastByNet: {},
+  lastInfoByNet: {},
   connectors: {
     instagram: { enabled: false, webhook: "", profileUrl: "https://www.instagram.com/swellsyncfr/", format: "story" },
     facebook: { enabled: false, webhook: "", profileUrl: "https://www.facebook.com/profile.php?id=61588121698712", format: "post" },
@@ -910,7 +911,46 @@ let marketing = {
   lastError: "",
   stoppedByAdmin: false,
   failureCount: 0,
-  lastErrorAt: 0
+  lastErrorAt: 0,
+  pausedUntil: 0
+};
+
+// --- ÉVÉNEMENTS TEMPS RÉEL (SSE) ---
+const marketingEventClients = new Set();
+const marketingEventBuffer = [];
+const toPublicUrl = (fp) => {
+  try {
+    if (!fp) return null;
+    const pubRoot = path.join(__dirname, "public");
+    const norm = fp.replace(/\\/g, "/");
+    const normPub = pubRoot.replace(/\\/g, "/");
+    if (norm.startsWith(normPub)) {
+      const rel = norm.slice(normPub.length);
+      return rel.startsWith("/") ? rel : `/${rel}`;
+    }
+    return null;
+  } catch { return null; }
+};
+const emitMarketingEvent = (ev) => {
+  try {
+    const e = { ...ev, time: Date.now() };
+    try {
+      if (e.network) {
+        marketing.lastInfoByNet[e.network] = {
+          type: e.type,
+          mode: e.mode || "",
+          error: e.error || "",
+          url: e.url || "",
+          time: e.time
+        };
+      }
+    } catch {}
+    marketingEventBuffer.push(e);
+    if (marketingEventBuffer.length > 200) marketingEventBuffer.shift();
+    for (const res of marketingEventClients) {
+      try { res.write(`data: ${JSON.stringify(e)}\n\n`); } catch {}
+    }
+  } catch {}
 };
 
 // --- CAPABILITÉS ENV (Direct vs Stealth) ---
@@ -1787,6 +1827,7 @@ const fireMarketing = async (req) => {
         try {
           // Customize payload per channel format
           const channelPayload = { ...payload, channel: name, format: conf.format || "post" };
+          emitMarketingEvent({ type: "start", network: name });
           
           // Adjust image based on detailed format specs
           let imagePath = "/og/post.png"; // Default landscape/horizontal
@@ -1812,6 +1853,7 @@ const fireMarketing = async (req) => {
              if (socialAutomator.hasBrowser() && !HEADLESS_ONLY && marketing.autopostVideoReelsTikTokDefault) {
                 try {
                    const videoPath = await generateVideoMontage(payload.spot || "Spot");
+                   emitMarketingEvent({ type: "media", network: name, video: videoPath });
                    console.log("👣 Ensuring human-like login for Instagram before Reels post...");
                    await socialAutomator.ensureHumanLoginIfNeeded("instagram");
                    await socialAutomator.postToInstagramVideo(videoPath, channelPayload.text);
@@ -1819,6 +1861,7 @@ const fireMarketing = async (req) => {
                    robotLog(ROBOTS.NEWS, "ERROR", `IG Reels Post Fail: ${err.message}`);
                 }
                 marketing.lastByNet[name] = Date.now();
+                emitMarketingEvent({ type: "success", network: name, mode: "stealth_or_direct" });
                 continue;
              }
              if (hasEnvForNetwork("instagram")) {
@@ -1826,6 +1869,7 @@ const fireMarketing = async (req) => {
                if (!ok && socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
                   try {
                       const videoPath = await generateVideoMontage(payload.spot || "Spot");
+                      emitMarketingEvent({ type: "media", network: name, video: videoPath });
                       console.log("👣 Ensuring human-like login for Instagram before stealth post...");
                       await socialAutomator.ensureHumanLoginIfNeeded("instagram");
                       await socialAutomator.postToInstagramVideo(videoPath, channelPayload.text);
@@ -1834,6 +1878,7 @@ const fireMarketing = async (req) => {
                   }
                }
                marketing.lastByNet[name] = Date.now();
+               emitMarketingEvent({ type: "success", network: name, mode: (socialAutomator.hasBrowser() && !HEADLESS_ONLY) ? "stealth_or_direct" : "direct" });
                continue; // Skip webhook fetch
              }
           }
@@ -1853,6 +1898,7 @@ const fireMarketing = async (req) => {
                 }
              }
              marketing.lastByNet[name] = Date.now();
+             emitMarketingEvent({ type: "success", network: name, mode: (socialAutomator.hasBrowser() && !HEADLESS_ONLY) ? "stealth_or_direct" : "direct" });
              continue;
           }
 
@@ -1865,6 +1911,7 @@ const fireMarketing = async (req) => {
                robotLog(ROBOTS.NEWS, "WARN", "Threads Direct fail or creds missing; skipping");
              }
              marketing.lastByNet[name] = Date.now();
+             emitMarketingEvent({ type: "success", network: name, mode: "direct" });
              continue;
           }
 
@@ -1872,6 +1919,7 @@ const fireMarketing = async (req) => {
           if (name === "telegram" && hasEnvForNetwork("telegram")) {
              await postToTelegram(channelPayload.image, channelPayload.text);
              marketing.lastByNet[name] = Date.now();
+             emitMarketingEvent({ type: "success", network: name, mode: "direct" });
              continue;
           }
 
@@ -1882,6 +1930,7 @@ const fireMarketing = async (req) => {
                 if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
                     try {
                        const videoPath = await generateVideoMontage(payload.spot || "Spot");
+                       emitMarketingEvent({ type: "media", network: name, video: videoPath });
                        console.log("👣 Ensuring human-like login for Facebook before stealth post...");
                        await socialAutomator.ensureHumanLoginIfNeeded("facebook");
                        await socialAutomator.postToFacebook(videoPath, channelPayload.text);
@@ -1894,6 +1943,7 @@ const fireMarketing = async (req) => {
                 }
              }
              marketing.lastByNet[name] = Date.now();
+             emitMarketingEvent({ type: "success", network: name, mode: (socialAutomator.hasBrowser() && !HEADLESS_ONLY) ? "stealth_or_direct" : "direct" });
              continue;
           }
 
@@ -1905,6 +1955,7 @@ const fireMarketing = async (req) => {
                       if (!videoToPost.endsWith(".mp4")) {
                           videoToPost = await generateVideoMontage(payload.spot || "Spot");
                       }
+                      emitMarketingEvent({ type: "media", network: name, video: videoToPost });
                       console.log("👣 Ensuring human-like login for TikTok before stealth post...");
                       await socialAutomator.ensureHumanLoginIfNeeded("tiktok");
                       await socialAutomator.postToTikTok(videoToPost, channelPayload.text);
@@ -1918,6 +1969,7 @@ const fireMarketing = async (req) => {
                   robotLog(ROBOTS.NEWS, "WARN", "TikTok Direct disabled (no browser)");
               }
               marketing.lastByNet[name] = Date.now();
+              emitMarketingEvent({ type: "success", network: name, mode: "stealth" });
               continue;
           }
 
@@ -1928,6 +1980,7 @@ const fireMarketing = async (req) => {
                 if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
                     try {
                         const videoPath = await generateVideoMontage(payload.spot || "Spot");
+                        emitMarketingEvent({ type: "media", network: name, video: videoPath });
                         const title = channelPayload.text.split('\n')[0].substring(0, 100);
                         console.log("👣 Ensuring human-like login for YouTube before stealth post...");
                         await socialAutomator.ensureHumanLoginIfNeeded("youtube");
@@ -1941,6 +1994,7 @@ const fireMarketing = async (req) => {
                 }
              }
              marketing.lastByNet[name] = Date.now();
+             emitMarketingEvent({ type: "success", network: name, mode: (socialAutomator.hasBrowser() && !HEADLESS_ONLY) ? "stealth_or_direct" : "direct" });
              continue;
           }
 
@@ -1960,6 +2014,7 @@ const fireMarketing = async (req) => {
              await fetch(conf.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(discordBody) });
              robotLog(ROBOTS.NEWS, "PROMO", `Discord Webhook envoyé`);
              marketing.lastByNet[name] = Date.now();
+             emitMarketingEvent({ type: "success", network: name, mode: "webhook" });
              continue;
           }
           
@@ -1968,8 +2023,10 @@ const fireMarketing = async (req) => {
           await fetch(conf.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(channelPayload) });
           robotLog(ROBOTS.NEWS, "PROMO", `Payload ${name} (${conf.format})`);
           marketing.lastByNet[name] = Date.now();
+          emitMarketingEvent({ type: "success", network: name, mode: "webhook" });
         } catch (e) {
           robotLog(ROBOTS.NEWS, "ERROR", `Promo ${name}: ${e.message}`);
+          emitMarketingEvent({ type: "error", network: name, mode: "failed", error: e.message });
         }
       }
     }
@@ -2089,9 +2146,25 @@ app.get("/api/admin/marketing/status", (req, res) => {
     reason,
     failureCount: marketing.failureCount,
     lastErrorAt: marketing.lastErrorAt,
+    pausedUntil: marketing.pausedUntil || 0,
+    lastInfoByNet: marketing.lastInfoByNet || {},
     cookieStatus: socialAutomator.hasBrowser() ? socialAutomator.getCookieStatus() : { instagram: false, facebook: false, tiktok: false, youtube: false, twitter: false },
     browserAvailable: socialAutomator.hasBrowser() && !HEADLESS_ONLY
   });
+});
+app.post("/api/admin/marketing/pause", (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const { minutes } = req.body || {};
+  const mins = Math.max(1, parseInt(minutes, 10) || 5);
+  stopMarketingTimer();
+  marketing.pausedUntil = Date.now() + mins * 60 * 1000;
+  res.json({ success: true, pausedUntil: marketing.pausedUntil });
+});
+app.post("/api/admin/marketing/resume", (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  marketing.pausedUntil = 0;
+  startMarketingTimer(req, marketing.intervalMs);
+  res.json({ success: true, running: marketing.running, intervalMinutes: Math.round(marketing.intervalMs / 60000) });
 });
 app.post("/api/admin/marketing/start", (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
@@ -2110,10 +2183,29 @@ app.post("/api/admin/marketing/stop", (req, res) => {
   stopMarketingTimer();
   res.json({ success: true, running: marketing.running });
 });
+app.post("/api/admin/marketing/cookies/clear", (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const r = socialAutomator.clearCookies();
+    res.json(r.success ? { success: true } : { success: false, error: r.error || "unknown" });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
 app.post("/api/admin/marketing/fire", async (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
   const ok = await fireMarketing(req);
   res.json({ success: ok });
+});
+app.get("/api/admin/marketing/events", (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  try { res.write(":ok\n\n"); } catch {}
+  marketingEventClients.add(res);
+  try { marketingEventBuffer.forEach(e => res.write(`data: ${JSON.stringify(e)}\n\n`)); } catch {}
+  req.on("close", () => { marketingEventClients.delete(res); });
 });
 app.post("/api/admin/social/post-all", async (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
@@ -2124,11 +2216,14 @@ app.post("/api/admin/social/post-all", async (req, res) => {
   const results = [];
   for (const net of requested) {
     try {
+      emitMarketingEvent({ type: "start", network: net });
       const conf = marketing.connectors[net] || { enabled: true, webhook: "" };
       const p = { ...payload, channel: net };
       if (conf.webhook && conf.webhook !== "DIRECT") {
         await fetch(conf.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
-        results.push({ network: net, ok: true, mode: "webhook" });
+        const r = { network: net, ok: true, mode: "webhook" };
+        results.push(r);
+        emitMarketingEvent({ type: "success", network: net, mode: r.mode });
         continue;
       }
       if (net === "instagram") {
@@ -2139,32 +2234,43 @@ app.post("/api/admin/social/post-all", async (req, res) => {
         if (!ok && socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
           try {
             const videoPath = await generateVideoMontage(p.spot || "Spot");
+            emitMarketingEvent({ type: "media", network: net, video: videoPath, url: toPublicUrl(videoPath) });
             await socialAutomator.ensureHumanLoginIfNeeded("instagram");
             await socialAutomator.postToInstagramVideo(videoPath, p.text);
             safeCleanupVideo(videoPath, 60000);
             ok = true;
           } catch (e) { ok = false; }
         }
-        results.push({ network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" });
+        const r = { network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" };
+        results.push(r);
+        emitMarketingEvent({ type: ok ? "success" : "error", network: net, mode: r.mode });
         continue;
       }
       if (net === "threads") {
         const ok = await postToThreads(p.image, p.text);
-        results.push({ network: net, ok, mode: "direct" });
+        const r = { network: net, ok, mode: "direct" };
+        results.push(r);
+        emitMarketingEvent({ type: ok ? "success" : "error", network: net, mode: r.mode });
         continue;
       }
       if (net === "telegram") {
         const ok = await postToTelegram(p.image, p.text);
-        results.push({ network: net, ok, mode: "direct" });
+        const r = { network: net, ok, mode: "direct" };
+        results.push(r);
+        emitMarketingEvent({ type: ok ? "success" : "error", network: net, mode: r.mode });
         continue;
       }
       if (net === "discord") {
         if (marketing.connectors.discord?.webhook) {
           const body = { content: `${p.text}\n${p.image}`, username: "SwellSync Bot", avatar_url: `${payload.base}/logo-og.png` };
           await fetch(marketing.connectors.discord.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-          results.push({ network: net, ok: true, mode: "webhook" });
+          const r = { network: net, ok: true, mode: "webhook" };
+          results.push(r);
+          emitMarketingEvent({ type: "success", network: net, mode: r.mode });
         } else {
-          results.push({ network: net, ok: false, error: "discord webhook manquant" });
+          const r = { network: net, ok: false, error: "discord webhook manquant" };
+          results.push(r);
+          emitMarketingEvent({ type: "error", network: net, mode: "failed", error: r.error });
         }
         continue;
       }
@@ -2177,7 +2283,9 @@ app.post("/api/admin/social/post-all", async (req, res) => {
             await socialAutomator.postToTwitter(p.image, p.text); ok = true;
           } catch (e) { ok = false; }
         }
-        results.push({ network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" });
+        const r = { network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" };
+        results.push(r);
+        emitMarketingEvent({ type: ok ? "success" : "error", network: net, mode: r.mode });
         continue;
       }
       if (net === "facebook") {
@@ -2185,6 +2293,7 @@ app.post("/api/admin/social/post-all", async (req, res) => {
         if (!ok && socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
           try {
             const videoPath = await generateVideoMontage(p.spot || "Spot");
+            emitMarketingEvent({ type: "media", network: net, video: videoPath, url: toPublicUrl(videoPath) });
             console.log("👣 Ensuring human-like login for Facebook (post-all)...");
             await socialAutomator.ensureHumanLoginIfNeeded("facebook");
             await socialAutomator.postToFacebook(videoPath, p.text);
@@ -2192,7 +2301,9 @@ app.post("/api/admin/social/post-all", async (req, res) => {
             ok = true;
           } catch (e) { ok = false; }
         }
-        results.push({ network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" });
+        const r = { network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" };
+        results.push(r);
+        emitMarketingEvent({ type: ok ? "success" : "error", network: net, mode: r.mode });
         continue;
       }
       if (net === "youtube") {
@@ -2200,6 +2311,7 @@ app.post("/api/admin/social/post-all", async (req, res) => {
         if (!ok && socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
           try {
             const videoPath = await generateVideoMontage(p.spot || "Spot");
+            emitMarketingEvent({ type: "media", network: net, video: videoPath, url: toPublicUrl(videoPath) });
             const title = p.text.split('\n')[0].substring(0, 100);
             console.log("👣 Ensuring human-like login for YouTube (post-all)...");
             await socialAutomator.ensureHumanLoginIfNeeded("youtube");
@@ -2208,25 +2320,36 @@ app.post("/api/admin/social/post-all", async (req, res) => {
             ok = true;
           } catch (e) { ok = false; }
         }
-        results.push({ network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" });
+        const r = { network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" };
+        results.push(r);
+        emitMarketingEvent({ type: ok ? "success" : "error", network: net, mode: r.mode });
         continue;
       }
       if (net === "tiktok") {
         if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
           let videoToPost = p.image;
           if (!videoToPost.endsWith(".mp4")) videoToPost = await generateVideoMontage(p.spot || "Spot");
+          emitMarketingEvent({ type: "media", network: net, video: videoToPost, url: toPublicUrl(videoToPost) });
           console.log("👣 Ensuring human-like login for TikTok (post-all)...");
           await socialAutomator.ensureHumanLoginIfNeeded("tiktok");
           await socialAutomator.postToTikTok(videoToPost, p.text);
-          results.push({ network: net, ok: true, mode: "stealth" });
+          const r = { network: net, ok: true, mode: "stealth" };
+          results.push(r);
+          emitMarketingEvent({ type: "success", network: net, mode: r.mode });
         } else {
-          results.push({ network: net, ok: false, error: "tiktok nécessite webhook ou navigateur" });
+          const r = { network: net, ok: false, error: "tiktok nécessite webhook ou navigateur" };
+          results.push(r);
+          emitMarketingEvent({ type: "error", network: net, mode: "failed", error: r.error });
         }
         continue;
       }
-      results.push({ network: net, ok: false, error: "network inconnu" });
+      const r = { network: net, ok: false, error: "network inconnu" };
+      results.push(r);
+      emitMarketingEvent({ type: "error", network: net, mode: "failed", error: r.error });
     } catch (e) {
-      results.push({ network: net, ok: false, error: e.message });
+      const r = { network: net, ok: false, error: e.message };
+      results.push(r);
+      emitMarketingEvent({ type: "error", network: net, mode: "failed", error: r.error });
     }
   }
   res.json({ success: results.every(r => r.ok), results });
@@ -2491,6 +2614,28 @@ app.get("/api/admin/marketing/montage/preview", async (req, res) => {
     s.on("close", () => { try { const isStored = String(p).startsWith(GENERATED_VIDEOS_DIR); if (!isStored && fs.existsSync(p)) fs.unlinkSync(p); } catch {} });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+app.get("/api/admin/marketing/montage/final", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    let spot = String(req.query.spot || "");
+    if (!spot) spot = pickSpotForMarketing() || "Spot";
+    const videoPath = await generateVideoMontage(spot, {
+      fxPreset: "fade",
+      watermark: true,
+      colorGrade: "tealorange",
+      sfxPreset: "whoosh",
+      sfxIntensity: "70",
+      subtitleText: `${spot} • Conditions LIVE`,
+      subtitleStyle: "light",
+      subtitleSize: "34"
+    });
+    const url = toPublicUrl(videoPath);
+    emitMarketingEvent({ type: "media", network: "preview", video: videoPath, url });
+    res.json({ success: true, spot, file: path.basename(videoPath), url });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 app.post("/api/admin/marketing/trends/post", async (req, res) => {
