@@ -673,7 +673,9 @@
             const r = await fetch("/api/admin/marketing/status", { headers });
             const s = await r.json();
             const statusEl = q("mk-status");
-            statusEl.textContent = "Status: "+(s.running ? "RUNNING" : "STOPPED")+" • "+(s.intervalMinutes||"-")+" min";
+            const lastRun = s.lastRunAt ? new Date(s.lastRunAt).toLocaleTimeString("fr-FR") : "-";
+            const reason = s.reason || (s.running ? "running" : "paused");
+            statusEl.textContent = "Status: "+(s.running ? "RUNNING" : "STOPPED")+" • "+(s.intervalMinutes||"-")+" min • "+reason+" • last: "+lastRun;
             statusEl.style.color = s.running ? "#4ade80" : "#f87171";
             
             if (s.cookieStatus) {

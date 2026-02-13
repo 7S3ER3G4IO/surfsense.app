@@ -70,10 +70,12 @@ app.use(helmet({
 }));
 
 const baseUrlForReq = (req) => {
-  const h = req.get("host");
-  const proto = (req.headers["x-forwarded-proto"] || req.protocol || "http").split(",")[0];
   const envUrl = process.env.BASE_URL;
-  return envUrl || `${proto}://${h}`;
+  if (envUrl) return envUrl;
+  const h = req && typeof req.get === "function" ? req.get("host") : "localhost:3001";
+  const rawProto = req && req.headers ? (req.headers["x-forwarded-proto"] || req.protocol || "http") : "http";
+  const proto = String(rawProto).split(",")[0];
+  return `${proto}://${h}`;
 };
 
 const buildSpotOg = async (spotName) => {
@@ -881,7 +883,12 @@ let marketing = {
     telegram: { enabled: false, webhook: "", profileUrl: "https://web.telegram.org/k/", format: "post" },
     discord: { enabled: false, webhook: "", profileUrl: "https://discord.com/channels/@me", format: "message" }
   },
-  email: MARKETING_EMAIL
+  email: MARKETING_EMAIL,
+  lastRunAt: 0,
+  lastError: "",
+  stoppedByAdmin: false,
+  failureCount: 0,
+  lastErrorAt: 0
 };
 
 // --- PERSISTENCE CONFIGURATION MARKETING ---
@@ -932,6 +939,15 @@ const loadMarketingConfig = () => {
   }
 };
 loadMarketingConfig();
+if (marketing.intervalMs >= 60000 && marketing.webhookUrl) {
+  try { startMarketingTimer(undefined, marketing.intervalMs); } catch {}
+}
+setInterval(() => {
+  const okCfg = marketing.intervalMs >= 60000 && !!marketing.webhookUrl;
+  if (!marketing.running && okCfg && !marketing.stoppedByAdmin) {
+    try { startMarketingTimer(undefined, marketing.intervalMs); } catch {}
+  }
+}, 60 * 1000);
 
 const aggregator = {
   deliveries: [],
@@ -1695,8 +1711,10 @@ const fireMarketing = async (req) => {
         }
       }
     }
+    marketing.lastRunAt = Date.now();
     return true;
   } catch (e) {
+    marketing.lastError = e.message || String(e);
     robotLog(ROBOTS.NEWS, "ERROR", `Promo: ${e.message}`);
     return false;
   }
@@ -1735,8 +1753,23 @@ const startMarketingTimer = (req, intervalMs) => {
   marketing.intervalMs = intervalMs;
   marketing.running = true;
   marketing.nextRunAt = Date.now() + intervalMs;
+  marketing.stoppedByAdmin = false;
   marketing.timer = setInterval(async () => {
-    await fireMarketing(req);
+    const ok = await fireMarketing(req);
+    if (!ok) {
+      marketing.failureCount++;
+      marketing.lastErrorAt = Date.now();
+      if (marketing.failureCount >= 3) {
+        try {
+          if (marketing.webhookUrl && marketing.webhookUrl !== ":internal") {
+            await fetch(marketing.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "alert", service: "marketing", message: "fireMarketing failures threshold reached", time: Date.now() }) });
+          }
+        } catch {}
+        marketing.failureCount = 0;
+      }
+    } else {
+      marketing.failureCount = 0;
+    }
     marketing.nextRunAt = Date.now() + marketing.intervalMs;
   }, intervalMs);
 };
@@ -1745,15 +1778,28 @@ const stopMarketingTimer = () => {
   marketing.running = false;
   marketing.timer = null;
   marketing.nextRunAt = 0;
+  marketing.stoppedByAdmin = true;
 };
 app.get("/api/admin/marketing/status", (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const iv = Math.round(marketing.intervalMs / 60000);
+  let reason = "running";
+  if (!marketing.running) {
+    if (marketing.stoppedByAdmin) reason = "stopped_by_admin";
+    else if (!marketing.webhookUrl || iv < 1) reason = "not_configured";
+    else reason = "paused";
+  }
   res.json({
     running: marketing.running,
-    intervalMinutes: Math.round(marketing.intervalMs / 60000),
+    intervalMinutes: iv,
     channels: marketing.channels,
     webhookSet: !!marketing.webhookUrl,
     nextRunAt: marketing.nextRunAt,
+    lastRunAt: marketing.lastRunAt,
+    lastError: marketing.lastError || "",
+    reason,
+    failureCount: marketing.failureCount,
+    lastErrorAt: marketing.lastErrorAt,
     cookieStatus: socialAutomator.getCookieStatus()
   });
 });
