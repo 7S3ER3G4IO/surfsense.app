@@ -613,7 +613,7 @@ class SocialAutomator {
     }
 
     // --- TIKTOK AUTOMATION ---
-    async postToTikTok(videoPath, caption, credentials = {}) {
+    async postToTikTok(videoPath, caption, opts = {}) {
         console.log("🚀 Launching Stealth Browser for TikTok...");
         const browser = await this.launchBrowser(false); // Headful for TikTok to avoid instant ban/captcha if possible
         // Note: Headless mode often triggers strict captchas on TikTok.
@@ -698,6 +698,20 @@ class SocialAutomator {
             console.log("✅ TikTok Posted (Simulation)!");
             // In a real scenario, we need precise selectors.
             // For now, this is the architecture.
+            try {
+                const profile = opts.profileUrl || '';
+                if (profile) {
+                    await page.goto(profile, { waitUntil: 'networkidle2' });
+                    await this.humanDelay(2000, 4000);
+                }
+                const url = await page.evaluate(() => {
+                    const a = document.querySelector('a[href*="/video/"]');
+                    return a ? a.href : '';
+                });
+                return url || profile || '';
+            } catch {
+                return opts.profileUrl || '';
+            }
             
         } catch (e) {
             console.error("❌ TikTok Error:", e);
@@ -707,7 +721,7 @@ class SocialAutomator {
     }
 
     // --- TWITTER AUTOMATION (STEALTH) ---
-    async postToTwitter(mediaPath, caption) {
+    async postToTwitter(mediaPath, caption, opts = {}) {
         console.log("🚀 Launching Stealth Browser for Twitter...");
         const browser = await this.launchBrowser(false); // Headful for max stealth
         const page = await browser.newPage();
@@ -765,6 +779,20 @@ class SocialAutomator {
                 const currentCookies = await page.cookies();
                 this.cookies.twitter = currentCookies;
                 this.saveCookies();
+                try {
+                    const profile = opts.profileUrl || '';
+                    if (profile) {
+                        await page.goto(profile, { waitUntil: 'networkidle2' });
+                        await this.humanDelay(2000, 4000);
+                    }
+                    const url = await page.evaluate(() => {
+                        const a = document.querySelector('a[href*="/status/"]');
+                        return a ? a.href : '';
+                    });
+                    return url || profile || '';
+                } catch {
+                    return opts.profileUrl || '';
+                }
             }
 
         } catch (e) {
@@ -775,7 +803,7 @@ class SocialAutomator {
     }
 
     // --- INSTAGRAM AUTOMATION (STEALTH VIDEO) ---
-    async postToInstagramVideo(videoPath, caption) {
+    async postToInstagramVideo(videoPath, caption, opts = {}) {
         console.log("🚀 Launching Stealth Browser for Instagram...");
         // Instagram allows desktop posting now.
         const browser = await this.launchBrowser(false); // Headful for max stealth
@@ -876,6 +904,20 @@ class SocialAutomator {
                 
                 console.log("✅ Instagram Posted!");
                 await this.capturePagePreview(page);
+                try {
+                    const profile = opts.profileUrl || 'https://www.instagram.com/';
+                    await page.goto(profile, { waitUntil: 'networkidle2' });
+                    await this.humanDelay(2000, 4000);
+                    const url = await page.evaluate(() => {
+                        const a1 = document.querySelector('a[href*="/reel/"]');
+                        const a2 = document.querySelector('a[href*="/p/"]');
+                        const a = a1 || a2;
+                        return a ? (a.href || '') : '';
+                    });
+                    return url || profile || '';
+                } catch {
+                    return opts.profileUrl || '';
+                }
             }
 
         } catch (e) {
@@ -886,7 +928,7 @@ class SocialAutomator {
     }
 
     // --- FACEBOOK AUTOMATION (STEALTH) ---
-    async postToFacebook(mediaPath, caption) {
+    async postToFacebook(mediaPath, caption, opts = {}) {
          console.log("🚀 Launching Stealth Browser for Facebook...");
          const browser = await this.launchBrowser(false); // Headful for max stealth
          const page = await browser.newPage();
@@ -987,6 +1029,19 @@ class SocialAutomator {
                  const currentCookies = await page.cookies();
                  this.cookies.facebook = currentCookies;
                  this.saveCookies();
+                 try {
+                     const profile = opts.profileUrl || 'https://www.facebook.com/';
+                     await page.goto(profile, { waitUntil: 'networkidle2' });
+                     await this.humanDelay(2000, 4000);
+                     const url = await page.evaluate(() => {
+                         const anchors = Array.from(document.querySelectorAll('a'));
+                         const a = anchors.find(a => (a.href || '').includes('/posts/') || (a.href || '').includes('/photos/'));
+                         return a ? a.href : '';
+                     });
+                     return url || profile || '';
+                 } catch {
+                     return opts.profileUrl || '';
+                 }
              } else {
                  console.log("⚠️ Could not find Post button.");
              }
@@ -999,7 +1054,7 @@ class SocialAutomator {
     }
 
     // --- YOUTUBE AUTOMATION (STEALTH) ---
-    async postToYouTube(videoPath, title, description) {
+    async postToYouTube(videoPath, title, description, opts = {}) {
         console.log("🚀 Launching Stealth Browser for YouTube...");
         const browser = await this.launchBrowser(false);
         const page = await browser.newPage();
@@ -1090,6 +1145,20 @@ class SocialAutomator {
                      await this.humanDelay(5000, 8000);
                      console.log("✅ YouTube Posted!");
                      await this.capturePagePreview(page);
+                     try {
+                         const profile = opts.profileUrl || '';
+                         if (profile) {
+                             await page.goto(profile, { waitUntil: 'networkidle2' });
+                             await this.humanDelay(2000, 4000);
+                         }
+                         const url = await page.evaluate(() => {
+                             const a = document.querySelector('a#thumbnail[href*="watch?v="]');
+                             return a ? a.href : '';
+                         });
+                         return url || profile || '';
+                     } catch {
+                         return opts.profileUrl || '';
+                     }
                  }
              }
 

@@ -896,6 +896,8 @@ let marketing = {
   networkIntervals: {},
   lastByNet: {},
   lastInfoByNet: {},
+  forcedSpotNext: null,
+  antiBot: { jitterMin: 1, jitterMax: 3 },
   connectors: {
     instagram: { enabled: false, webhook: "", profileUrl: "https://www.instagram.com/swellsyncfr/", format: "story" },
     facebook: { enabled: false, webhook: "", profileUrl: "https://www.facebook.com/profile.php?id=61588121698712", format: "post" },
@@ -1064,19 +1066,24 @@ const aggregator = {
   queue: []
 };
 const pickSpotForMarketing = () => {
-  // Use History to avoid repetition
   const lastSpots = marketingHistory.slice(0, 5).map(h => h.spot);
-  
-  let candidates = [];
-  if (epicSpots && epicSpots.length) {
-      candidates = epicSpots.filter(s => !lastSpots.includes(s.name));
-      if(candidates.length === 0) candidates = epicSpots; // Fallback if all recent
-  } else {
-      candidates = spots.filter(s => !lastSpots.includes(s.name));
-      if(candidates.length === 0) candidates = spots;
+  if (marketing.forcedSpotNext) {
+    const s = marketing.forcedSpotNext;
+    marketing.forcedSpotNext = null;
+    return s;
   }
-
-  if(!candidates.length) return null;
+  let candidates = [];
+  if (prioritySpots && prioritySpots.size > 0) {
+    candidates = Array.from(prioritySpots).filter(n => !lastSpots.includes(n)).map(n => ({ name: n }));
+    if (candidates.length === 0) candidates = Array.from(prioritySpots).map(n => ({ name: n }));
+  } else if (epicSpots && epicSpots.length) {
+    candidates = epicSpots.filter(s => !lastSpots.includes(s.name));
+    if (candidates.length === 0) candidates = epicSpots;
+  } else {
+    candidates = spots.filter(s => !lastSpots.includes(s.name));
+    if (candidates.length === 0) candidates = spots;
+  }
+  if (!candidates.length) return null;
   const idx = Math.floor(Math.random() * candidates.length);
   return candidates[idx]?.name || null;
 };
@@ -1856,12 +1863,14 @@ const fireMarketing = async (req) => {
                    emitMarketingEvent({ type: "media", network: name, video: videoPath });
                    console.log("👣 Ensuring human-like login for Instagram before Reels post...");
                    await socialAutomator.ensureHumanLoginIfNeeded("instagram");
-                   await socialAutomator.postToInstagramVideo(videoPath, channelPayload.text);
+                   const u = await socialAutomator.postToInstagramVideo(videoPath, channelPayload.text, { profileUrl: payload.profiles?.[name] });
                 } catch (err) {
                    robotLog(ROBOTS.NEWS, "ERROR", `IG Reels Post Fail: ${err.message}`);
                 }
                 marketing.lastByNet[name] = Date.now();
-                emitMarketingEvent({ type: "success", network: name, mode: "stealth_or_direct" });
+                const successUrl = (typeof u === "string" && u) ? u : (payload.profiles?.[name] || "");
+                emitMarketingEvent({ type: "success", network: name, mode: "stealth_or_direct", url: successUrl });
+                addToHistory({ spot: payload.spot, type: payload.type, network: name, url: successUrl });
                 continue;
              }
              if (hasEnvForNetwork("instagram")) {
@@ -1872,13 +1881,15 @@ const fireMarketing = async (req) => {
                       emitMarketingEvent({ type: "media", network: name, video: videoPath });
                       console.log("👣 Ensuring human-like login for Instagram before stealth post...");
                       await socialAutomator.ensureHumanLoginIfNeeded("instagram");
-                      await socialAutomator.postToInstagramVideo(videoPath, channelPayload.text);
+                      const u = await socialAutomator.postToInstagramVideo(videoPath, channelPayload.text, { profileUrl: payload.profiles?.[name] });
                   } catch (err) {
                       robotLog(ROBOTS.NEWS, "ERROR", `IG Stealth Fail: ${err.message}`);
                   }
                }
                marketing.lastByNet[name] = Date.now();
-               emitMarketingEvent({ type: "success", network: name, mode: (socialAutomator.hasBrowser() && !HEADLESS_ONLY) ? "stealth_or_direct" : "direct" });
+               const successUrl = (typeof u === "string" && u) ? u : (payload.profiles?.[name] || "");
+               emitMarketingEvent({ type: "success", network: name, mode: (socialAutomator.hasBrowser() && !HEADLESS_ONLY) ? "stealth_or_direct" : "direct", url: successUrl });
+               addToHistory({ spot: payload.spot, type: payload.type, network: name, url: successUrl });
                continue; // Skip webhook fetch
              }
           }
@@ -1891,14 +1902,16 @@ const fireMarketing = async (req) => {
                     try {
                         console.log("👣 Ensuring human-like login for Twitter before stealth post...");
                         await socialAutomator.ensureHumanLoginIfNeeded("twitter");
-                        await socialAutomator.postToTwitter(channelPayload.image, channelPayload.text);
+                        const u = await socialAutomator.postToTwitter(channelPayload.image, channelPayload.text, { profileUrl: payload.profiles?.[name] });
                     } catch (err) { robotLog(ROBOTS.NEWS, "ERROR", `Twitter Stealth Fail: ${err.message}`); }
                 } else {
                     robotLog(ROBOTS.NEWS, "WARN", "Twitter Stealth disabled (no browser)");
                 }
              }
              marketing.lastByNet[name] = Date.now();
-             emitMarketingEvent({ type: "success", network: name, mode: (socialAutomator.hasBrowser() && !HEADLESS_ONLY) ? "stealth_or_direct" : "direct" });
+             const successUrl = (typeof u === "string" && u) ? u : (payload.profiles?.[name] || "");
+             emitMarketingEvent({ type: "success", network: name, mode: (socialAutomator.hasBrowser() && !HEADLESS_ONLY) ? "stealth_or_direct" : "direct", url: successUrl });
+             addToHistory({ spot: payload.spot, type: payload.type, network: name, url: successUrl });
              continue;
           }
 
@@ -1933,7 +1946,7 @@ const fireMarketing = async (req) => {
                        emitMarketingEvent({ type: "media", network: name, video: videoPath });
                        console.log("👣 Ensuring human-like login for Facebook before stealth post...");
                        await socialAutomator.ensureHumanLoginIfNeeded("facebook");
-                       await socialAutomator.postToFacebook(videoPath, channelPayload.text);
+                       const u = await socialAutomator.postToFacebook(videoPath, channelPayload.text, { profileUrl: payload.profiles?.[name] });
                        safeCleanupVideo(videoPath, 60000);
                     } catch (err) {
                        robotLog(ROBOTS.NEWS, "ERROR", `Facebook Stealth Fail: ${err.message}`);
@@ -1943,7 +1956,9 @@ const fireMarketing = async (req) => {
                 }
              }
              marketing.lastByNet[name] = Date.now();
-             emitMarketingEvent({ type: "success", network: name, mode: (socialAutomator.hasBrowser() && !HEADLESS_ONLY) ? "stealth_or_direct" : "direct" });
+             const successUrl = (typeof u === "string" && u) ? u : (payload.profiles?.[name] || "");
+             emitMarketingEvent({ type: "success", network: name, mode: (socialAutomator.hasBrowser() && !HEADLESS_ONLY) ? "stealth_or_direct" : "direct", url: successUrl });
+             addToHistory({ spot: payload.spot, type: payload.type, network: name, url: successUrl });
              continue;
           }
 
@@ -1958,7 +1973,7 @@ const fireMarketing = async (req) => {
                       emitMarketingEvent({ type: "media", network: name, video: videoToPost });
                       console.log("👣 Ensuring human-like login for TikTok before stealth post...");
                       await socialAutomator.ensureHumanLoginIfNeeded("tiktok");
-                      await socialAutomator.postToTikTok(videoToPost, channelPayload.text);
+                      const u = await socialAutomator.postToTikTok(videoToPost, channelPayload.text, { profileUrl: payload.profiles?.[name] });
                       if (videoToPost.endsWith(".mp4") && !channelPayload.image.endsWith(".mp4")) {
                           safeCleanupVideo(videoToPost, 60000);
                       }
@@ -1969,7 +1984,9 @@ const fireMarketing = async (req) => {
                   robotLog(ROBOTS.NEWS, "WARN", "TikTok Direct disabled (no browser)");
               }
               marketing.lastByNet[name] = Date.now();
-              emitMarketingEvent({ type: "success", network: name, mode: "stealth" });
+              const successUrl = (typeof u === "string" && u) ? u : (payload.profiles?.[name] || "");
+              emitMarketingEvent({ type: "success", network: name, mode: "stealth", url: successUrl });
+              addToHistory({ spot: payload.spot, type: payload.type, network: name, url: successUrl });
               continue;
           }
 
@@ -1984,7 +2001,7 @@ const fireMarketing = async (req) => {
                         const title = channelPayload.text.split('\n')[0].substring(0, 100);
                         console.log("👣 Ensuring human-like login for YouTube before stealth post...");
                         await socialAutomator.ensureHumanLoginIfNeeded("youtube");
-                        await socialAutomator.postToYouTube(videoPath, title, channelPayload.text);
+                        const u = await socialAutomator.postToYouTube(videoPath, title, channelPayload.text, { profileUrl: payload.profiles?.[name] });
                         safeCleanupVideo(videoPath, 60000);
                     } catch (err) {
                         robotLog(ROBOTS.NEWS, "ERROR", `YouTube Stealth Fail: ${err.message}`);
@@ -1994,7 +2011,9 @@ const fireMarketing = async (req) => {
                 }
              }
              marketing.lastByNet[name] = Date.now();
-             emitMarketingEvent({ type: "success", network: name, mode: (socialAutomator.hasBrowser() && !HEADLESS_ONLY) ? "stealth_or_direct" : "direct" });
+             const successUrl = (typeof u === "string" && u) ? u : (payload.profiles?.[name] || "");
+             emitMarketingEvent({ type: "success", network: name, mode: (socialAutomator.hasBrowser() && !HEADLESS_ONLY) ? "stealth_or_direct" : "direct", url: successUrl });
+             addToHistory({ spot: payload.spot, type: payload.type, network: name, url: successUrl });
              continue;
           }
 
@@ -2023,7 +2042,9 @@ const fireMarketing = async (req) => {
           await fetch(conf.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(channelPayload) });
           robotLog(ROBOTS.NEWS, "PROMO", `Payload ${name} (${conf.format})`);
           marketing.lastByNet[name] = Date.now();
-          emitMarketingEvent({ type: "success", network: name, mode: "webhook" });
+          const successUrl = payload.profiles?.[name] || "";
+          emitMarketingEvent({ type: "success", network: name, mode: "webhook", url: successUrl });
+          addToHistory({ spot: payload.spot, type: payload.type, network: name, url: successUrl });
         } catch (e) {
           robotLog(ROBOTS.NEWS, "ERROR", `Promo ${name}: ${e.message}`);
           emitMarketingEvent({ type: "error", network: name, mode: "failed", error: e.message });
@@ -2089,11 +2110,12 @@ const startMarketingTimer = (req, intervalMs) => {
     } else {
       marketing.failureCount = 0;
     }
-    // Compute jittered delay for next run
-    const base = marketing.intervalMs;
-    const minJ = Math.max(60_000, Math.floor(base * 0.10)); // >=1 min or 10%
-    const maxJ = Math.max(180_000, Math.floor(base * 0.25)); // >=3 min or 25%
-    const jitter = Math.floor(minJ + Math.random() * (maxJ - minJ));
+  const base = marketing.intervalMs;
+  const cfgMin = Math.max(1, parseInt(marketing.antiBot?.jitterMin || 1, 10)) * 60_000;
+  const cfgMax = Math.max(cfgMin + 60_000, parseInt(marketing.antiBot?.jitterMax || 3, 10) * 60_000);
+  const minJ = cfgMin;
+  const maxJ = cfgMax;
+  const jitter = Math.floor(minJ + Math.random() * (maxJ - minJ));
     const nextDelay = base + jitter; // always offset forward to avoid mêmes heures/minutes
     marketing.nextRunAt = Date.now() + nextDelay;
     marketing.timer = setTimeout(scheduleNext, nextDelay);
@@ -2151,6 +2173,17 @@ app.get("/api/admin/marketing/status", (req, res) => {
     cookieStatus: socialAutomator.hasBrowser() ? socialAutomator.getCookieStatus() : { instagram: false, facebook: false, tiktok: false, youtube: false, twitter: false },
     browserAvailable: socialAutomator.hasBrowser() && !HEADLESS_ONLY
   });
+});
+app.get("/api/admin/marketing/history", (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  res.json(marketingHistory.slice(0, 20));
+});
+app.post("/api/admin/marketing/next-spot", (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const { spot } = req.body || {};
+  if (!spot) return res.status(400).json({ success: false, error: "spot manquant" });
+  marketing.forcedSpotNext = String(spot);
+  res.json({ success: true, spot: marketing.forcedSpotNext });
 });
 app.post("/api/admin/marketing/pause", (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
@@ -2236,14 +2269,15 @@ app.post("/api/admin/social/post-all", async (req, res) => {
             const videoPath = await generateVideoMontage(p.spot || "Spot");
             emitMarketingEvent({ type: "media", network: net, video: videoPath, url: toPublicUrl(videoPath) });
             await socialAutomator.ensureHumanLoginIfNeeded("instagram");
-            await socialAutomator.postToInstagramVideo(videoPath, p.text);
+            const u = await socialAutomator.postToInstagramVideo(videoPath, p.text, { profileUrl: marketing.connectors.instagram?.profileUrl });
             safeCleanupVideo(videoPath, 60000);
             ok = true;
+            if (u) { emitMarketingEvent({ type: "success", network: net, mode: "stealth_or_direct", url: u }); addToHistory({ spot: p.spot, type: p.type, network: net, url: u }); }
           } catch (e) { ok = false; }
         }
         const r = { network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" };
         results.push(r);
-        emitMarketingEvent({ type: ok ? "success" : "error", network: net, mode: r.mode });
+        if (!ok) emitMarketingEvent({ type: "error", network: net, mode: r.mode });
         continue;
       }
       if (net === "threads") {
@@ -2280,12 +2314,13 @@ app.post("/api/admin/social/post-all", async (req, res) => {
           try {
             console.log("👣 Ensuring human-like login for Twitter (post-all)...");
             await socialAutomator.ensureHumanLoginIfNeeded("twitter");
-            await socialAutomator.postToTwitter(p.image, p.text); ok = true;
+            const u = await socialAutomator.postToTwitter(p.image, p.text, { profileUrl: marketing.connectors.twitter?.profileUrl }); ok = true;
+            if (u) { emitMarketingEvent({ type: "success", network: net, mode: "stealth_or_direct", url: u }); addToHistory({ spot: p.spot, type: p.type, network: net, url: u }); }
           } catch (e) { ok = false; }
         }
         const r = { network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" };
         results.push(r);
-        emitMarketingEvent({ type: ok ? "success" : "error", network: net, mode: r.mode });
+        if (!ok) emitMarketingEvent({ type: "error", network: net, mode: r.mode });
         continue;
       }
       if (net === "facebook") {
@@ -2296,14 +2331,15 @@ app.post("/api/admin/social/post-all", async (req, res) => {
             emitMarketingEvent({ type: "media", network: net, video: videoPath, url: toPublicUrl(videoPath) });
             console.log("👣 Ensuring human-like login for Facebook (post-all)...");
             await socialAutomator.ensureHumanLoginIfNeeded("facebook");
-            await socialAutomator.postToFacebook(videoPath, p.text);
+            const u = await socialAutomator.postToFacebook(videoPath, p.text, { profileUrl: marketing.connectors.facebook?.profileUrl });
             safeCleanupVideo(videoPath, 60000);
             ok = true;
+            if (u) { emitMarketingEvent({ type: "success", network: net, mode: "stealth_or_direct", url: u }); addToHistory({ spot: p.spot, type: p.type, network: net, url: u }); }
           } catch (e) { ok = false; }
         }
         const r = { network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" };
         results.push(r);
-        emitMarketingEvent({ type: ok ? "success" : "error", network: net, mode: r.mode });
+        if (!ok) emitMarketingEvent({ type: "error", network: net, mode: r.mode });
         continue;
       }
       if (net === "youtube") {
@@ -2315,14 +2351,15 @@ app.post("/api/admin/social/post-all", async (req, res) => {
             const title = p.text.split('\n')[0].substring(0, 100);
             console.log("👣 Ensuring human-like login for YouTube (post-all)...");
             await socialAutomator.ensureHumanLoginIfNeeded("youtube");
-            await socialAutomator.postToYouTube(videoPath, title, p.text);
+            const u = await socialAutomator.postToYouTube(videoPath, title, p.text, { profileUrl: marketing.connectors.youtube?.profileUrl });
             safeCleanupVideo(videoPath, 60000);
             ok = true;
+            if (u) { emitMarketingEvent({ type: "success", network: net, mode: "stealth_or_direct", url: u }); addToHistory({ spot: p.spot, type: p.type, network: net, url: u }); }
           } catch (e) { ok = false; }
         }
         const r = { network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" };
         results.push(r);
-        emitMarketingEvent({ type: ok ? "success" : "error", network: net, mode: r.mode });
+        if (!ok) emitMarketingEvent({ type: "error", network: net, mode: r.mode });
         continue;
       }
       if (net === "tiktok") {
@@ -2332,10 +2369,11 @@ app.post("/api/admin/social/post-all", async (req, res) => {
           emitMarketingEvent({ type: "media", network: net, video: videoToPost, url: toPublicUrl(videoToPost) });
           console.log("👣 Ensuring human-like login for TikTok (post-all)...");
           await socialAutomator.ensureHumanLoginIfNeeded("tiktok");
-          await socialAutomator.postToTikTok(videoToPost, p.text);
+          const u = await socialAutomator.postToTikTok(videoToPost, p.text, { profileUrl: marketing.connectors.tiktok?.profileUrl });
           const r = { network: net, ok: true, mode: "stealth" };
           results.push(r);
-          emitMarketingEvent({ type: "success", network: net, mode: r.mode });
+          emitMarketingEvent({ type: "success", network: net, mode: r.mode, url: u });
+          addToHistory({ spot: p.spot, type: p.type, network: net, url: u });
         } else {
           const r = { network: net, ok: false, error: "tiktok nécessite webhook ou navigateur" };
           results.push(r);
@@ -2512,13 +2550,14 @@ app.get("/api/admin/marketing/config", (req, res) => {
     autopostVideoReelsTikTokDefault: marketing.autopostVideoReelsTikTokDefault,
     hashtags: marketing.hashtags,
     networkIntervals: marketing.networkIntervals,
+    antiBot: marketing.antiBot,
     connectors: marketing.connectors,
     email: marketing.email
   });
 });
 app.post("/api/admin/marketing/config", (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
-  const { channels, webhookUrl, intervalMinutes, template, contentType, connectors, autopostEnabled, autopostVideoReelsTikTokDefault, hashtags, networkIntervals } = req.body || {};
+  const { channels, webhookUrl, intervalMinutes, template, contentType, connectors, autopostEnabled, autopostVideoReelsTikTokDefault, hashtags, networkIntervals, antiBot } = req.body || {};
   if (Array.isArray(channels)) marketing.channels = channels.map(s => String(s)).filter(Boolean);
   if (typeof webhookUrl === "string") marketing.webhookUrl = webhookUrl;
   if (template) marketing.template = String(template);
@@ -2544,6 +2583,14 @@ app.post("/api/admin/marketing/config", (req, res) => {
       if (!isNaN(v) && v >= 1) ni[k] = v;
     });
     marketing.networkIntervals = ni;
+  }
+  if (antiBot && typeof antiBot === "object") {
+    const jm = parseInt(antiBot.jitterMin, 10);
+    const jM = parseInt(antiBot.jitterMax, 10);
+    marketing.antiBot = {
+      jitterMin: isNaN(jm) ? marketing.antiBot.jitterMin : Math.max(1, jm),
+      jitterMax: isNaN(jM) ? marketing.antiBot.jitterMax : Math.max(1, jM)
+    };
   }
   if (intervalMinutes) {
     const iv = parseInt(intervalMinutes, 10);
@@ -3349,6 +3396,107 @@ app.get("/api/admin/marketing/videos", (req, res) => {
       };
     }).sort((a, b) => b.mtime - a.mtime);
     res.json({ success: true, videos: list });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+app.post("/api/admin/marketing/upload-video", express.json({ limit: "50mb" }), async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const nameRaw = String(req.body?.name || "");
+    const url = String(req.body?.url || "");
+    const b64 = String(req.body?.base64 || "");
+    if (!nameRaw && !url && !b64) return res.status(400).json({ success: false, error: "données manquantes" });
+    let baseName = nameRaw ? nameRaw.replace(/[^a-zA-Z0-9_\-\.]/g, "") : `upload_${Date.now()}.mp4`;
+    if (!/\.(mp4)$/i.test(baseName)) baseName = baseName + ".mp4";
+    const dest = path.join(GENERATED_VIDEOS_DIR, baseName);
+    if (b64) {
+      const idx = b64.indexOf("base64,");
+      const data = idx >= 0 ? b64.slice(idx + 7) : b64;
+      const buf = Buffer.from(data, "base64");
+      fs.writeFileSync(dest, buf);
+    } else if (url && url.startsWith("http")) {
+      const r = await axios.get(url, { responseType: "arraybuffer", timeout: 20000 });
+      fs.writeFileSync(dest, Buffer.from(r.data));
+    } else {
+      return res.status(400).json({ success: false, error: "format invalide" });
+    }
+    res.json({ success: true, file: baseName, url: `/generated/${encodeURIComponent(baseName)}` });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+app.post("/api/admin/marketing/publish-video", express.json({ limit: "2mb" }), async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const video = String(req.body?.video || "");
+    const caption = String(req.body?.caption || "");
+    let networks = Array.isArray(req.body?.networks) ? req.body.networks.map(s => String(s).toLowerCase()) : [];
+    if (!networks.length) networks = Object.keys(marketing.connectors).filter(n => marketing.connectors[n]?.enabled);
+    if (!video) return res.status(400).json({ success: false, error: "video manquante" });
+    const isUrl = video.startsWith("/generated/");
+    const basename = isUrl ? decodeURIComponent(video.split("/").pop()) : video;
+    const full = path.join(GENERATED_VIDEOS_DIR, basename);
+    if (!fs.existsSync(full)) return res.status(404).json({ success: false, error: "fichier introuvable" });
+    const results = [];
+    for (const net of networks) {
+      try {
+        emitMarketingEvent({ type: "start", network: net });
+        const prof = marketing.connectors[net]?.profileUrl || "";
+        if (net === "instagram") {
+          await socialAutomator.ensureHumanLoginIfNeeded("instagram");
+          const u = await socialAutomator.postToInstagramVideo(full, caption || marketing.template.replace("{spot}", "site").replace("{desc}", "Vidéo").replace("{hook}", "LIVE").replace("{tags}", (marketing.hashtags || []).map(h=>"#"+h).join(" ")), { profileUrl: prof });
+          marketing.lastByNet[net] = Date.now();
+          emitMarketingEvent({ type: "success", network: net, mode: "stealth", url: u || prof });
+          addToHistory({ spot: "site", type: "video", network: net, url: u || prof });
+          results.push({ network: net, ok: true, url: u || prof });
+          continue;
+        }
+        if (net === "twitter") {
+          await socialAutomator.ensureHumanLoginIfNeeded("twitter");
+          const u = await socialAutomator.postToTwitter(full, caption, { profileUrl: prof });
+          marketing.lastByNet[net] = Date.now();
+          emitMarketingEvent({ type: "success", network: net, mode: "stealth", url: u || prof });
+          addToHistory({ spot: "site", type: "video", network: net, url: u || prof });
+          results.push({ network: net, ok: true, url: u || prof });
+          continue;
+        }
+        if (net === "facebook") {
+          await socialAutomator.ensureHumanLoginIfNeeded("facebook");
+          const u = await socialAutomator.postToFacebook(full, caption, { profileUrl: prof });
+          marketing.lastByNet[net] = Date.now();
+          emitMarketingEvent({ type: "success", network: net, mode: "stealth", url: u || prof });
+          addToHistory({ spot: "site", type: "video", network: net, url: u || prof });
+          results.push({ network: net, ok: true, url: u || prof });
+          continue;
+        }
+        if (net === "tiktok") {
+          await socialAutomator.ensureHumanLoginIfNeeded("tiktok");
+          const u = await socialAutomator.postToTikTok(full, caption, { profileUrl: prof });
+          marketing.lastByNet[net] = Date.now();
+          emitMarketingEvent({ type: "success", network: net, mode: "stealth", url: u || prof });
+          addToHistory({ spot: "site", type: "video", network: net, url: u || prof });
+          results.push({ network: net, ok: true, url: u || prof });
+          continue;
+        }
+        if (net === "youtube") {
+          await socialAutomator.ensureHumanLoginIfNeeded("youtube");
+          const title = (caption || "Vidéo courte").split("\n")[0].substring(0, 100);
+          const u = await socialAutomator.postToYouTube(full, title, caption || "", { profileUrl: prof });
+          marketing.lastByNet[net] = Date.now();
+          emitMarketingEvent({ type: "success", network: net, mode: "stealth", url: u || prof });
+          addToHistory({ spot: "site", type: "video", network: net, url: u || prof });
+          results.push({ network: net, ok: true, url: u || prof });
+          continue;
+        }
+        results.push({ network: net, ok: false, error: "réseau non pris en charge pour vidéo" });
+        emitMarketingEvent({ type: "error", network: net, mode: "failed", error: "unsupported" });
+      } catch (e) {
+        results.push({ network: net, ok: false, error: e.message });
+        emitMarketingEvent({ type: "error", network: net, mode: "failed", error: e.message });
+      }
+    }
+    res.json({ success: results.every(r => r.ok), results });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }

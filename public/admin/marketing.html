@@ -274,6 +274,7 @@
               <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">Outils</div>
               <div style="display:flex; flex-wrap:wrap; gap:8px;">
                 <button id="mk-preview-pro" class="btn" title="Générer un aperçu du montage pro">🎬 Prévisualiser Montage</button>
+                <button id="mk-upload-video" class="btn" title="Uploader une vidéo depuis ton ordinateur">📤 Uploader</button>
                 <button id="mk-videos" class="btn" title="Voir les vidéos générées">📦 Vidéos</button>
                 <button id="mk-trends" class="btn" title="Lister les tendances">📈 Tendances</button>
                 <button id="mk-publish-trend" class="btn" title="Publier une trend">🔥 Publier Trend</button>
@@ -578,9 +579,10 @@
         <div class="card">
             <div class="card-header">
                 <div class="card-title">⚙️ Configuration Générale</div>
-                <div style="display:flex; gap:10px;">
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
                     <button id="mk-share-native" class="btn">↗️ Partager</button>
                     <button id="btn-preview-video" class="btn">🎥 Aperçu Vidéo</button>
+                    <button id="mk-history" class="btn">🗂️ Historique</button>
                     <button id="mk-modal-help" class="btn">❓ Aide</button>
                     <button id="btn-collect-cookies" class="btn">🕵️ Collecter Cookies</button>
                 </div>
@@ -600,6 +602,16 @@
                 </div>
                 <!-- Hidden legacy fields -->
                 <select id="mk-type" style="display:none;"><option value="story">Story</option></select>
+            </div>
+            <div class="grid-3" style="margin-top:12px;">
+                <div class="form-group">
+                    <label>Spot prioritaire (prochaine exécution)</label>
+                    <input id="mk-force-spot" class="input-premium" list="mk-spots-list" placeholder="Ex: Hossegor" />
+                    <datalist id="mk-spots-list"></datalist>
+                </div>
+                <div class="form-group" style="display:flex; align-items:flex-end;">
+                    <button id="mk-force-spot-btn" class="btn btn-primary">🎯 Forcer le prochain spot</button>
+                </div>
             </div>
             <div class="form-group">
                 <label>Poster en vidéo (Reels/TikTok) par défaut</label>
@@ -638,6 +650,14 @@
                         <input id="mk-iv-discord" class="input-premium" type="number" min="1" placeholder="Discord"/>
                         <input id="mk-iv-tiktok" class="input-premium" type="number" min="1" placeholder="TikTok"/>
                     </div>
+                </div>
+                <div class="form-group">
+                    <label>Anti-bot: Jitter min/max (minutes)</label>
+                    <div style="display:flex; gap:8px;">
+                        <input id="mk-jitter-min" class="input-premium" type="number" min="1" placeholder="Min (ex: 2)"/>
+                        <input id="mk-jitter-max" class="input-premium" type="number" min="1" placeholder="Max (ex: 7)"/>
+                    </div>
+                    <div style="font-size:12px; color:#94a3b8; margin-top:6px;">Le robot ajoutera un décalage aléatoire pour éviter les patterns fixes.</div>
                 </div>
             </div>
             <div style="padding:8px 0 0;">
@@ -1009,6 +1029,12 @@
             if (q("mk-autopost")) q("mk-autopost").checked = !!c.autopostEnabled;
             if (q("mk-autovideo")) q("mk-autovideo").checked = !!c.autopostVideoReelsTikTokDefault;
             if (q("mk-tags")) q("mk-tags").value = Array.isArray(c.hashtags) ? c.hashtags.join(" ") : "";
+            if (c.antiBot) {
+              const jmin = parseInt(c.antiBot.jitterMin, 10);
+              const jmax = parseInt(c.antiBot.jitterMax, 10);
+              if (q("mk-jitter-min")) q("mk-jitter-min").value = isNaN(jmin) ? "" : jmin;
+              if (q("mk-jitter-max")) q("mk-jitter-max").value = isNaN(jmax) ? "" : jmax;
+            }
             const ivs = c.networkIntervals || {};
             const setIv = (id, v) => { const el=q(id); if(el) el.value = v || ""; };
             setIv("mk-iv-instagram", ivs.instagram);
@@ -1152,6 +1178,10 @@
           };
           Object.keys(networkIntervals).forEach(k => { if (!networkIntervals[k]) delete networkIntervals[k]; });
           const hashtags = (q("mk-tags").value || "").split(/\s+/).map(x=>x.trim()).filter(Boolean);
+          const antiBot = {
+            jitterMin: parseInt(q("mk-jitter-min").value,10) || undefined,
+            jitterMax: parseInt(q("mk-jitter-max").value,10) || undefined
+          };
           const connectors = {
             instagram: { enabled: q("mk-ch-instagram").checked, webhook: q("mk-wh-instagram").value.trim(), profileUrl: q("mk-pf-instagram").value.trim(), format: q("mk-fmt-instagram").value },
             facebook: { enabled: q("mk-ch-facebook").checked, webhook: q("mk-wh-facebook").value.trim(), profileUrl: q("mk-pf-facebook").value.trim(), format: q("mk-fmt-facebook").value },
@@ -1175,7 +1205,8 @@
                 autopostVideoReelsTikTokDefault: !!q("mk-autovideo").checked,
                 hashtags,
                 networkIntervals,
-                connectors
+                connectors,
+                antiBot
               })
             });
             const dj = await rr.json();
@@ -1307,7 +1338,8 @@
                 </div>
                 <div style="display:flex; gap:12px;">
                   <a href="${v.url}" target="_blank" class="btn">Ouvrir</a>
-                  <a href="${v.url}" download class="btn btn-primary">Télécharger</a>
+                  <a href="${v.url}" download class="btn">Télécharger</a>
+                  <button class="btn btn-primary" data-name="${v.name}" data-url="${v.url}" onclick="publishVideoFromList(event)">Publier</button>
                 </div>
               </div>
             `).join("");
@@ -1322,6 +1354,84 @@
             document.body.appendChild(modal);
             modal.querySelector("#close-videos").onclick = () => modal.remove();
           } catch { alert("Erreur liste vidéos"); }
+        };
+        window.publishVideoFromList = async (ev) => {
+          const btn = ev.currentTarget;
+          const name = btn.getAttribute("data-name");
+          const url = btn.getAttribute("data-url");
+          const preset = [
+            { id:"instagram", label:"Instagram", checked: q("mk-ch-instagram")?.checked },
+            { id:"twitter", label:"X/Twitter", checked: q("mk-ch-twitter")?.checked },
+            { id:"facebook", label:"Facebook", checked: q("mk-ch-facebook")?.checked },
+            { id:"youtube", label:"YouTube", checked: q("mk-ch-youtube")?.checked },
+            { id:"tiktok", label:"TikTok", checked: q("mk-ch-tiktok")?.checked }
+          ];
+          const m = document.createElement("div");
+          m.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10001; display:flex; align-items:center; justify-content:center;";
+          const checks = preset.map(p => `<label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="pub-${p.id}" ${p.checked ? "checked" : ""}/> ${p.label}</label>`).join("");
+          m.innerHTML = `
+            <div style="background:#0b1020; color:#fff; padding:24px; border-radius:12px; width:500px; max-width:95%;">
+              <h3 style="margin-top:0;">Publier ${name}</h3>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">${checks}</div>
+              <div style="margin-top:12px;">
+                <label style="font-size:12px; color:#94a3b8;">Caption</label>
+                <textarea id="pub-caption" class="input-premium" rows="3" placeholder="Texte du post"></textarea>
+              </div>
+              <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
+                <button id="pub-cancel" class="btn">Annuler</button>
+                <button id="pub-send" class="btn btn-primary">Publier</button>
+              </div>
+            </div>`;
+          document.body.appendChild(m);
+          m.querySelector("#pub-cancel").onclick = () => m.remove();
+          m.querySelector("#pub-send").onclick = async () => {
+            const nets = preset.filter(p => document.getElementById(`pub-${p.id}`)?.checked).map(p => p.id);
+            const cap = document.getElementById("pub-caption")?.value || "";
+            try {
+              const r = await fetch("/api/admin/marketing/publish-video", { method:"POST", headers:{ ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ video: name, networks: nets, caption: cap }) });
+              const j = await r.json();
+              if (r.ok && j.success) {
+                const okList = j.results.filter(x=>x.ok).map(x=>x.network).join(", ");
+                const koList = j.results.filter(x=>!x.ok).map(x=>x.network).join(", ");
+                alert(`✅ Publi: ${okList}\n❌ Échec: ${koList || "aucun"}`);
+                m.remove();
+              } else {
+                alert("❌ Échec publication");
+              }
+            } catch { alert("❌ Échec publication"); }
+          };
+        };
+        if (!document.getElementById("mk-upload-file")) {
+          const f = document.createElement("input");
+          f.type = "file";
+          f.accept = "video/*";
+          f.id = "mk-upload-file";
+          f.style.display = "none";
+          document.body.appendChild(f);
+          f.onchange = async () => {
+            const file = f.files && f.files[0];
+            if (!file) return;
+            try {
+              const reader = new FileReader();
+              reader.onload = async () => {
+                try {
+                  const b64 = reader.result;
+                  const r = await fetch("/api/admin/marketing/upload-video", { method:"POST", headers:{ ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ name: file.name, base64: b64 }) });
+                  const j = await r.json();
+                  if (r.ok && j.success) {
+                    alert("✅ Vidéo uploadée");
+                  } else {
+                    alert("❌ Upload échoué");
+                  }
+                } catch { alert("❌ Upload échoué"); }
+              };
+              reader.readAsDataURL(file);
+            } catch { alert("❌ Upload échoué"); }
+          };
+        }
+        if (q("mk-upload-video")) q("mk-upload-video").onclick = () => {
+          const f = document.getElementById("mk-upload-file");
+          if (f) f.click();
         };
         if (q("mk-publish-igtok")) q("mk-publish-igtok").onclick = async () => {
           try {
@@ -1388,6 +1498,60 @@
         setInterval(refreshStatus, 5000);
         loadMarketing();
         refreshStatus();
+
+        // Populate spots list for datalist
+        (async function populateSpots() {
+          try {
+            const r = await fetch("/api/admin/spots", { headers });
+            const arr = await r.json();
+            const dl = document.getElementById("mk-spots-list");
+            if (dl && Array.isArray(arr)) {
+              dl.innerHTML = arr.map(s => `<option value="${s.name}">${s.region || ""}</option>`).join("");
+            }
+          } catch {}
+        })();
+
+        // Force next spot
+        if (q("mk-force-spot-btn")) q("mk-force-spot-btn").onclick = async () => {
+          const name = (q("mk-force-spot")?.value || "").trim();
+          if (!name) { alert("Veuillez saisir un spot"); return; }
+          try {
+            const r = await fetch("/api/admin/marketing/next-spot", { method:"POST", headers:{ ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ spot: name }) });
+            const j = await r.json();
+            if (!r.ok || !j.success) { alert("Impossible de forcer le spot"); return; }
+            alert(`Prochain spot forcé: ${j.spot}`);
+            refreshStatus();
+          } catch { alert("Impossible de forcer le spot"); }
+        };
+
+        // History modal
+        if (q("mk-history")) q("mk-history").onclick = async () => {
+          try {
+            const r = await fetch("/api/admin/marketing/history", { headers });
+            const arr = await r.json();
+            const rows = (arr || []).map(h => {
+              const t = new Date(h.timestamp).toLocaleString();
+              const u = h.url ? `<a href="${h.url}" target="_blank" style="color:#3b82f6; text-decoration:none;">Ouvrir</a>` : "";
+              return `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #1e293b;">
+                        <div><div style="font-weight:600;">${h.network || "-"}</div>
+                             <div style="font-size:12px; color:#94a3b8;">${h.spot || "-"} • ${h.type || "-"} • ${t}</div></div>
+                        <div style="display:flex; gap:12px;">${u}</div>
+                      </div>`;
+            }).join("");
+            const modal = document.createElement("div");
+            modal.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10000; display:flex; align-items:center; justify-content:center;";
+            modal.innerHTML = `
+              <div style="background:#0b1020; color:#fff; padding:24px; border-radius:12px; width:800px; max-width:95%; max-height:90vh; overflow:auto;">
+                <h3 style="margin-top:0;">Historique des Diffusions</h3>
+                <div>${rows || "Aucun historique"}</div>
+                <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
+                  <button id="mk-close-history" class="btn">Fermer</button>
+                </div>
+              </div>`;
+            document.body.appendChild(modal);
+            modal.querySelector("#mk-close-history").onclick = () => modal.remove();
+          } catch { alert("Historique indisponible"); }
+        };
 
         if (q("mk-pause-5")) q("mk-pause-5").onclick = async () => {
           try {
