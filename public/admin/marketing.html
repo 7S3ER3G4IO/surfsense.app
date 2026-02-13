@@ -247,6 +247,19 @@
             <button id="mk-start" class="btn btn-success">▶ Démarrer</button>
             <button id="mk-stop" class="btn btn-danger">⏹ Arrêter</button>
             <button id="mk-fire" class="btn btn-primary">⚡ Publier Maintenant</button>
+            <button id="mk-post-ig" class="btn">📸 IG</button>
+            <button id="mk-post-x" class="btn">✖️ X</button>
+            <button id="mk-post-fb" class="btn">📘 FB</button>
+            <button id="mk-post-yt" class="btn">📺 YT</button>
+            <button id="mk-post-th" class="btn">🧵 TH</button>
+            <button id="mk-post-all" class="btn btn-primary">🔁 Publier Tous</button>
+            <button id="mk-repair-login" class="btn">🧭 Réparer Connexions</button>
+            <button id="mk-secrets" class="btn">🔑 Configurer Clés</button>
+            <button id="mk-anti-bot" class="btn">🛡️ Conseils Anti‑détection</button>
+            <button id="mk-preview-pro" class="btn btn-primary">🎬 Prévisualiser Montage Pro</button>
+            <button id="mk-trends" class="btn">📈 Tendances</button>
+            <button id="mk-publish-trend" class="btn btn-primary">🔥 Publier Trend</button>
+            <button id="mk-videos" class="btn">📦 Vidéos Générées</button>
           </div>
         </div>
 
@@ -550,6 +563,41 @@
             </div>
         </div>
 
+        <!-- Planification Avancée -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">⏱️ Planification Avancée</div>
+            </div>
+            <div class="grid-3">
+                <div class="form-group">
+                    <label>Autopost (Robot)</label>
+                    <label class="switch"><input type="checkbox" id="mk-autopost"><span class="slider"></span></label>
+                </div>
+                <div class="form-group">
+                    <label>Hashtags (séparés par espaces)</label>
+                    <textarea id="mk-tags" class="input-premium" style="height:78px;" placeholder="#surf #vagues #ocean #report"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Intervalles par réseau (minutes)</label>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <input id="mk-iv-instagram" class="input-premium" type="number" min="1" placeholder="Instagram"/>
+                        <input id="mk-iv-threads" class="input-premium" type="number" min="1" placeholder="Threads"/>
+                        <input id="mk-iv-twitter" class="input-premium" type="number" min="1" placeholder="X"/>
+                        <input id="mk-iv-facebook" class="input-premium" type="number" min="1" placeholder="Facebook"/>
+                        <input id="mk-iv-youtube" class="input-premium" type="number" min="1" placeholder="YouTube"/>
+                        <input id="mk-iv-telegram" class="input-premium" type="number" min="1" placeholder="Telegram"/>
+                        <input id="mk-iv-discord" class="input-premium" type="number" min="1" placeholder="Discord"/>
+                        <input id="mk-iv-tiktok" class="input-premium" type="number" min="1" placeholder="TikTok"/>
+                    </div>
+                </div>
+            </div>
+            <div style="padding:8px 0 0;">
+                <button id="mk-save" class="btn btn-primary">💾 Sauvegarder Config</button>
+                <button id="mk-start" class="btn">▶️ Démarrer</button>
+                <button id="mk-stop" class="btn">⏸️ Stop</button>
+            </div>
+        </div>
+
       </main>
     </div>
 
@@ -580,6 +628,102 @@
         const tok = localStorage.getItem("surfAdminToken") || "";
         const headers = tok ? { "x-admin-token": tok } : {};
         const q = (id) => document.getElementById(id);
+        const postSingle = async (network) => {
+          try {
+            const r = await fetch("/api/admin/social/post", { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ network }) });
+            const j = await r.json();
+            if (r.ok && j.success) alert(`✅ ${network} publié (${j.mode})`);
+            else alert(`ℹ️ ${network} en reprise automatique`);
+          } catch (e) { alert(`ℹ️ ${network} en reprise automatique`); }
+        };
+        const postAll = async () => {
+          try {
+            const r = await fetch("/api/admin/social/post-all", { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ networks: ["instagram","threads","twitter","facebook","youtube","telegram","discord"] }) });
+            const j = await r.json();
+            if (r.ok && j.success) {
+              const okList = j.results.filter(x=>x.ok).map(x=>x.network).join(", ");
+              const koList = j.results.filter(x=>!x.ok).map(x=>x.network).join(", ");
+              alert(`✅ Publi réussie: ${okList}\nℹ️ Reprise automatique: ${koList || "aucune"}`);
+            } else {
+              alert("ℹ️ Publication en reprise automatique");
+            }
+          } catch (e) {
+            alert("ℹ️ Publication en reprise automatique");
+          }
+        };
+        const openSecretsModal = () => {
+          const modal = document.createElement("div");
+          modal.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; display:flex; justify-content:center; align-items:center;";
+          modal.innerHTML = `
+            <div style="background:#0f172a; padding:24px; border-radius:12px; width:90%; max-width:720px; border:1px solid #334155; color:#e5e7eb; font-family:sans-serif;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div style="font-weight:700;">Configurer les clés</div>
+                <button id="mk-close-secrets" class="btn">Fermer</button>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; max-height:60vh; overflow:auto;">
+                <input id="INSTAGRAM_USERNAME" placeholder="INSTAGRAM_USERNAME" class="input-premium"/>
+                <input id="INSTAGRAM_PASSWORD" placeholder="INSTAGRAM_PASSWORD" type="password" class="input-premium"/>
+                <input id="INSTAGRAM_TOTP_SECRET" placeholder="INSTAGRAM_TOTP_SECRET" class="input-premium"/>
+                <input id="THREADS_USERNAME" placeholder="THREADS_USERNAME" class="input-premium"/>
+                <input id="THREADS_PASSWORD" placeholder="THREADS_PASSWORD" type="password" class="input-premium"/>
+                <input id="TWITTER_API_KEY" placeholder="TWITTER_API_KEY" class="input-premium"/>
+                <input id="TWITTER_API_SECRET" placeholder="TWITTER_API_SECRET" class="input-premium"/>
+                <input id="TWITTER_ACCESS_TOKEN" placeholder="TWITTER_ACCESS_TOKEN" class="input-premium"/>
+                <input id="TWITTER_ACCESS_SECRET" placeholder="TWITTER_ACCESS_SECRET" class="input-premium"/>
+                <input id="TWITTER_USERNAME" placeholder="TWITTER_USERNAME" class="input-premium"/>
+                <input id="TWITTER_PASSWORD" placeholder="TWITTER_PASSWORD" type="password" class="input-premium"/>
+                <input id="TELEGRAM_BOT_TOKEN" placeholder="TELEGRAM_BOT_TOKEN" class="input-premium"/>
+                <input id="TELEGRAM_CHAT_ID" placeholder="TELEGRAM_CHAT_ID" class="input-premium"/>
+                <input id="FACEBOOK_PAGE_ACCESS_TOKEN" placeholder="FACEBOOK_PAGE_ACCESS_TOKEN" class="input-premium"/>
+                <input id="FACEBOOK_PAGE_ID" placeholder="FACEBOOK_PAGE_ID" class="input-premium"/>
+                <input id="FACEBOOK_USERNAME" placeholder="FACEBOOK_USERNAME" class="input-premium"/>
+                <input id="FACEBOOK_PASSWORD" placeholder="FACEBOOK_PASSWORD" type="password" class="input-premium"/>
+                <input id="YOUTUBE_CLIENT_ID" placeholder="YOUTUBE_CLIENT_ID" class="input-premium"/>
+                <input id="YOUTUBE_CLIENT_SECRET" placeholder="YOUTUBE_CLIENT_SECRET" class="input-premium"/>
+                <input id="YOUTUBE_REFRESH_TOKEN" placeholder="YOUTUBE_REFRESH_TOKEN" class="input-premium"/>
+                <input id="GOOGLE_LOGIN_EMAIL" placeholder="GOOGLE_LOGIN_EMAIL" class="input-premium"/>
+                <input id="GOOGLE_LOGIN_PASSWORD" placeholder="GOOGLE_LOGIN_PASSWORD" type="password" class="input-premium"/>
+                <input id="GOOGLE_TOTP_SECRET" placeholder="GOOGLE_TOTP_SECRET" class="input-premium"/>
+                <input id="SMTP_FROM" placeholder="SMTP_FROM" class="input-premium"/>
+                <input id="SMTP_HOST" placeholder="SMTP_HOST" class="input-premium"/>
+                <input id="SMTP_PORT" placeholder="SMTP_PORT" class="input-premium"/>
+                <input id="SMTP_USER" placeholder="SMTP_USER" class="input-premium"/>
+                <input id="SMTP_PASS" placeholder="SMTP_PASS" type="password" class="input-premium"/>
+                <input id="BASE_URL" placeholder="BASE_URL" class="input-premium"/>
+                <input id="ADMIN_EMAIL" placeholder="ADMIN_EMAIL" class="input-premium"/>
+                <input id="ADMIN_TOKEN" placeholder="ADMIN_TOKEN" class="input-premium"/>
+                <select id="PUPPETEER_DISABLE" class="input-premium"><option value="">PUPPETEER_DISABLE</option><option value="1">1</option><option value="0">0</option></select>
+                <select id="NO_BROWSER" class="input-premium"><option value="">NO_BROWSER</option><option value="1">1</option><option value="0">0</option></select>
+              </div>
+              <div style="margin-top:12px; display:flex; justify-content:flex-end; gap:12px;">
+                <button id="mk-save-secrets" class="btn btn-primary">Enregistrer .env</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(modal);
+          modal.querySelector("#mk-close-secrets").onclick = () => modal.remove();
+          modal.querySelector("#mk-save-secrets").onclick = async () => {
+            const ids = ["INSTAGRAM_USERNAME","INSTAGRAM_PASSWORD","INSTAGRAM_TOTP_SECRET","THREADS_USERNAME","THREADS_PASSWORD","TWITTER_API_KEY","TWITTER_API_SECRET","TWITTER_ACCESS_TOKEN","TWITTER_ACCESS_SECRET","TWITTER_USERNAME","TWITTER_PASSWORD","TELEGRAM_BOT_TOKEN","TELEGRAM_CHAT_ID","FACEBOOK_PAGE_ACCESS_TOKEN","FACEBOOK_PAGE_ID","FACEBOOK_USERNAME","FACEBOOK_PASSWORD","YOUTUBE_CLIENT_ID","YOUTUBE_CLIENT_SECRET","YOUTUBE_REFRESH_TOKEN","GOOGLE_LOGIN_EMAIL","GOOGLE_LOGIN_PASSWORD","GOOGLE_TOTP_SECRET","SMTP_FROM","SMTP_HOST","SMTP_PORT","SMTP_USER","SMTP_PASS","BASE_URL","ADMIN_EMAIL","ADMIN_TOKEN","PUPPETEER_DISABLE","NO_BROWSER"];
+            const env = {};
+            ids.forEach(id => {
+              const el = modal.querySelector("#"+id);
+              if (el && el.value) env[id] = el.value;
+            });
+            try {
+              const r = await fetch("/api/admin/secrets/save", { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ env }) });
+              const j = await r.json();
+              if (r.ok && j.success) {
+                alert("✅ Clés enregistrées. Redémarre le serveur pour prise en compte.");
+                modal.remove();
+              } else {
+                alert("Erreur: " + (j.error || "inconnue"));
+              }
+            } catch (e) {
+              alert("Erreur: " + e.message);
+            }
+          };
+          modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+        };
         
         // Native Share
         if (q("mk-share-native")) {
@@ -697,6 +841,10 @@
             const reason = s.reason || (s.running ? "running" : "paused");
             statusEl.textContent = "Status: "+(s.running ? "RUNNING" : "STOPPED")+" • "+(s.intervalMinutes||"-")+" min • "+reason+" • last: "+lastRun;
             statusEl.style.color = s.running ? "#4ade80" : "#f87171";
+            if (!s.browserAvailable) {
+              const el1 = q("btn-collect-cookies"); if (el1) el1.style.display = "none";
+              const el2 = q("btn-import-cookies"); if (el2) el2.style.display = "none";
+            }
             
             if (s.cookieStatus) {
                 const updateBadge = (id, active) => {
@@ -726,6 +874,18 @@
             q("mk-interval").value = c.intervalMinutes || "";
             q("mk-template").value = c.template || "";
             q("mk-type").value = c.contentType || "story";
+            if (q("mk-autopost")) q("mk-autopost").checked = !!c.autopostEnabled;
+            if (q("mk-tags")) q("mk-tags").value = Array.isArray(c.hashtags) ? c.hashtags.join(" ") : "";
+            const ivs = c.networkIntervals || {};
+            const setIv = (id, v) => { const el=q(id); if(el) el.value = v || ""; };
+            setIv("mk-iv-instagram", ivs.instagram);
+            setIv("mk-iv-threads", ivs.threads);
+            setIv("mk-iv-twitter", ivs.twitter);
+            setIv("mk-iv-facebook", ivs.facebook);
+            setIv("mk-iv-youtube", ivs.youtube);
+            setIv("mk-iv-telegram", ivs.telegram);
+            setIv("mk-iv-discord", ivs.discord);
+            setIv("mk-iv-tiktok", ivs.tiktok);
             const chs = new Set(c.channels || []);
             q("mk-ch-instagram").checked = chs.has("instagram");
             q("mk-ch-facebook").checked = chs.has("facebook");
@@ -847,6 +1007,18 @@
           if (q("mk-ch-twitter").checked) channels.push("twitter");
           if (q("mk-ch-telegram").checked) channels.push("telegram");
           if (q("mk-ch-discord").checked) channels.push("discord");
+          const networkIntervals = {
+            instagram: parseInt(q("mk-iv-instagram").value,10) || undefined,
+            threads: parseInt(q("mk-iv-threads").value,10) || undefined,
+            twitter: parseInt(q("mk-iv-twitter").value,10) || undefined,
+            facebook: parseInt(q("mk-iv-facebook").value,10) || undefined,
+            youtube: parseInt(q("mk-iv-youtube").value,10) || undefined,
+            telegram: parseInt(q("mk-iv-telegram").value,10) || undefined,
+            discord: parseInt(q("mk-iv-discord").value,10) || undefined,
+            tiktok: parseInt(q("mk-iv-tiktok").value,10) || undefined
+          };
+          Object.keys(networkIntervals).forEach(k => { if (!networkIntervals[k]) delete networkIntervals[k]; });
+          const hashtags = (q("mk-tags").value || "").split(/\s+/).map(x=>x.trim()).filter(Boolean);
           const connectors = {
             instagram: { enabled: q("mk-ch-instagram").checked, webhook: q("mk-wh-instagram").value.trim(), profileUrl: q("mk-pf-instagram").value.trim(), format: q("mk-fmt-instagram").value },
             facebook: { enabled: q("mk-ch-facebook").checked, webhook: q("mk-wh-facebook").value.trim(), profileUrl: q("mk-pf-facebook").value.trim(), format: q("mk-fmt-facebook").value },
@@ -866,6 +1038,9 @@
                 webhookUrl: q("mk-webhook").value.trim(),
                 template: q("mk-template").value,
                 contentType: q("mk-type").value,
+                autopostEnabled: !!q("mk-autopost").checked,
+                hashtags,
+                networkIntervals,
                 connectors
               })
             });
@@ -881,6 +1056,161 @@
             if (!rr.ok || !dj.success) { alert("Erreur publication"); return; }
             alert("Publication envoyée");
           } catch { alert("Erreur publication"); }
+        };
+        if (q("mk-post-ig")) q("mk-post-ig").onclick = () => postSingle("instagram");
+        if (q("mk-post-x")) q("mk-post-x").onclick = () => postSingle("twitter");
+        if (q("mk-post-fb")) q("mk-post-fb").onclick = () => postSingle("facebook");
+        if (q("mk-post-yt")) q("mk-post-yt").onclick = () => postSingle("youtube");
+        if (q("mk-post-th")) q("mk-post-th").onclick = () => postSingle("threads");
+        if (q("mk-post-all")) q("mk-post-all").onclick = () => postAll();
+        if (q("mk-secrets")) q("mk-secrets").onclick = () => openSecretsModal();
+        if (q("mk-repair-login")) q("mk-repair-login").onclick = async () => {
+          try {
+            const nets = ["instagram","twitter","facebook","youtube","tiktok"];
+            const r = await fetch("/api/admin/marketing/human-login", { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ networks: nets }) });
+            const j = await r.json();
+            if (r.ok) {
+              const okList = j.results.filter(x=>x.ok).map(x=>x.network).join(", ");
+              const koList = j.results.filter(x=>!x.ok).map(x=>x.network).join(", ");
+              alert(`✔️ Connexions réparées: ${okList || "aucune"}\n❌ Échecs: ${koList || "aucun"}`);
+              loadMarketing();
+            } else {
+              alert("Erreur réparation: " + (j.error || "inconnue"));
+            }
+          } catch (e) {
+            alert("Erreur réparation: " + e.message);
+          }
+        };
+        if (q("mk-anti-bot")) q("mk-anti-bot").onclick = async () => {
+          try {
+            const r = await fetch("/api/admin/marketing/advice", { method: "POST", headers });
+            const j = await r.json();
+            if (!r.ok || !j.success) { alert("Conseils indisponibles"); return; }
+            const lines = Object.entries(j.advice).map(([net, adv]) => {
+              const hrs = (adv.bestHours || []).map(h => `${h}h`).join(", ");
+              return `${net}: hashtags≤${adv.hashtagsMax||adv.tagsMax||6}, caption ${adv.captionMin||"-"}–${adv.captionMax||"-"}, heures ${hrs}, jitter ${adv.jitterMin}-${adv.jitterMax}min`;
+            });
+            alert(lines.join("\n"));
+          } catch { alert("Conseils indisponibles"); }
+        };
+        if (q("mk-preview-pro")) q("mk-preview-pro").onclick = async (ev) => {
+          const spot = prompt("Spot pour le montage:", "Biarritz") || "Spot";
+          const ref = prompt("URL de référence (optionnel):", "") || "";
+          let style = prompt("Style (Dark/Neon/Sunset/Ocean/Forest/Retro):", "Neon") || "Neon";
+          let fx = prompt("FX (glitch/shake/fade/retro/none):", "fade") || "fade";
+          let hook = prompt("Hook (none/medium/strong):", "strong") || "strong";
+          let loop = confirm("Boucle invisible (seamless) ?") ? "1" : "0";
+          let wm = confirm("Ajouter watermark swellsync.fr ?") ? "1" : "0";
+          let cg = prompt("Color Grading (none/tealorange/cinematic/retro):", "tealorange") || "tealorange";
+          let variability = prompt("Variabilité (0-10):", "5") || "5";
+          let subs = confirm("Activer sous-titres dynamiques ?");
+          let subtext = subs ? (prompt("Texte des sous-titres:", `${spot} • Conditions LIVE`) || `${spot} • Conditions LIVE`) : "";
+          let substyle = subs ? (prompt("Style sous-titres (light/neon/default):", "light") || "light") : "";
+          let sfx = prompt("SFX audio (none/whoosh/hit):", "whoosh") || "whoosh";
+          let sfxi = prompt("Intensité SFX (0-100):", "70") || "70";
+          let subsize = prompt("Taille sous-titre (16-64):", "34") || "34";
+          try {
+            if (ref && ref.startsWith("http")) {
+              const rs = await fetch("/api/admin/marketing/style-suggest", { method: "POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ referenceUrl: ref }) });
+              const js = await rs.json();
+              if (rs.ok && js.success) { style = js.styleName || style; fx = js.fxPreset || fx; }
+            }
+            const btn = ev.currentTarget;
+            const originalText = btn.textContent;
+            btn.textContent = "⏳ Génération...";
+            btn.disabled = true;
+            const params = new URLSearchParams({ spot, style, fx, hook, loop, wm, cg, var: variability, subtext, substyle, sfx, sfxi, subsize });
+            const res = await fetch(`/api/admin/marketing/montage/preview?${params.toString()}`, { headers });
+            if (!res.ok) throw new Error("Erreur génération");
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const modal = document.createElement("div");
+            modal.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:10000; display:flex; flex-direction:column; justify-content:center; align-items:center;";
+            modal.innerHTML = `
+              <div style="position:relative; width:300px; height:533px; background:#000;">
+                 <video src="${url}" controls autoplay style="width:100%; height:100%; object-fit:cover;"></video>
+                 <button id="close-vid" style="position:absolute; top:-40px; right:0; color:white; background:none; border:none; font-size:24px;">&times;</button>
+              </div>
+              <a href="${url}" download="montage_preview.mp4" style="margin-top:20px; color:#3b82f6; text-decoration:none;">⬇️ Télécharger la vidéo</a>
+            `;
+            document.body.appendChild(modal);
+            modal.querySelector("#close-vid").onclick = () => modal.remove();
+          } catch (e) {
+            alert("Erreur: " + e.message);
+          } finally {
+            const btn = ev.currentTarget;
+            btn.textContent = "🎬 Prévisualiser Montage Pro";
+            btn.disabled = false;
+          }
+        };
+        if (q("mk-trends")) q("mk-trends").onclick = async () => {
+          try {
+            const r = await fetch("/api/trends", { headers });
+            const j = await r.json();
+            if (!r.ok) { alert("Tendances indisponibles"); return; }
+            const list = (j || []).slice(0, 12).map(t => `• ${t.title} (${t.source})`).join("<br/>");
+            const modal = document.createElement("div");
+            modal.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10000; display:flex; align-items:center; justify-content:center;";
+            modal.innerHTML = `
+              <div style="background:#0b1020; color:#fff; padding:24px; border-radius:12px; width:600px; max-width:90%;">
+                <h3 style="margin-top:0;">Tendances du moment</h3>
+                <div style="line-height:1.6">${list || "Aucune tendance détectée"}</div>
+                <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
+                  <button id="close-trends" class="btn">Fermer</button>
+                </div>
+              </div>`;
+            document.body.appendChild(modal);
+            modal.querySelector("#close-trends").onclick = () => modal.remove();
+          } catch { alert("Tendances indisponibles"); }
+        };
+        if (q("mk-publish-trend")) q("mk-publish-trend").onclick = async (ev) => {
+          const btn = ev.currentTarget;
+          const original = btn.textContent;
+          btn.textContent = "⏳ Publication...";
+          btn.disabled = true;
+          try {
+            const r = await fetch("/api/admin/marketing/trends/post", { method: "POST", headers });
+            const j = await r.json();
+            if (r.ok && j.success) alert("✅ Trend publié: " + j.topic);
+            else alert("❌ Échec: " + (j.error || "inconnu"));
+          } catch (e) {
+            alert("❌ Échec: " + e.message);
+          } finally {
+            btn.textContent = original;
+            btn.disabled = false;
+          }
+        };
+        if (q("mk-videos")) q("mk-videos").onclick = async () => {
+          try {
+            const r = await fetch("/api/admin/marketing/videos", { headers });
+            const j = await r.json();
+            if (!r.ok || !j.success) { alert("Erreur liste vidéos"); return; }
+            const items = (j.videos || []).slice(0, 50);
+            const modal = document.createElement("div");
+            modal.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10000; display:flex; align-items:center; justify-content:center;";
+            const rows = items.map(v => `
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #1e293b;">
+                <div>
+                  <div style="font-weight:600;">${v.name}</div>
+                  <div style="opacity:0.7; font-size:12px;">${(v.size/1024/1024).toFixed(2)} MB • ${new Date(v.mtime).toLocaleString()}</div>
+                </div>
+                <div style="display:flex; gap:12px;">
+                  <a href="${v.url}" target="_blank" class="btn">Ouvrir</a>
+                  <a href="${v.url}" download class="btn btn-primary">Télécharger</a>
+                </div>
+              </div>
+            `).join("");
+            modal.innerHTML = `
+              <div style="background:#0b1020; color:#fff; padding:24px; border-radius:12px; width:800px; max-width:95%; max-height:90vh; overflow:auto;">
+                <h3 style="margin-top:0;">Vidéos Générées</h3>
+                <div>${rows || "Aucune vidéo générée pour l'instant."}</div>
+                <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
+                  <button id="close-videos" class="btn">Fermer</button>
+                </div>
+              </div>`;
+            document.body.appendChild(modal);
+            modal.querySelector("#close-videos").onclick = () => modal.remove();
+          } catch { alert("Erreur liste vidéos"); }
         };
         q("mk-start").onclick = async () => {
           const iv = parseInt(q("mk-interval").value, 10) || 60;

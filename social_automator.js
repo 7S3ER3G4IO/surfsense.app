@@ -12,6 +12,7 @@ const __dirname = path.dirname(__filename);
 
 // Enable stealth plugin
 puppeteer.use(StealthPlugin());
+const HEADLESS_ONLY = !!(process.env.PUPPETEER_DISABLE || process.env.NO_BROWSER);
 
 const COOKIES_PATH = path.join(__dirname, 'browser_cookies.json');
 const resolveChromeExecutable = () => {
@@ -370,6 +371,7 @@ class SocialAutomator {
     }
 
     async launchBrowser(headless = "new") {
+        if (HEADLESS_ONLY) throw new Error("Browser disabled by environment");
         const args = [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -390,6 +392,7 @@ class SocialAutomator {
         return await puppeteer.launch({ headless, args });
     }
     async launchBrowserWithSystemProfile(headless = "new") {
+        if (HEADLESS_ONLY) throw new Error("Browser disabled by environment");
         const args = [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -489,6 +492,106 @@ class SocialAutomator {
             return false;
         } finally {
             await browser.close();
+        }
+    }
+
+    async searchAndLogin(network) {
+        if (HEADLESS_ONLY) throw new Error("Browser disabled by environment");
+        console.log(`🧭 Human-like login via Google for ${network}...`);
+        const pr = await this.launchBrowserWithSystemProfile(false);
+        const browser = pr.browser;
+        const cleanup = pr.cleanup;
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1280, height: 800 });
+        try {
+            const queries = {
+                instagram: "instagram login",
+                twitter: "x login",
+                facebook: "facebook login",
+                youtube: "youtube studio login",
+                tiktok: "tiktok login"
+            };
+            const domains = {
+                instagram: "instagram.com",
+                twitter: "x.com",
+                facebook: "facebook.com",
+                youtube: "youtube.com",
+                tiktok: "tiktok.com"
+            };
+            const q = queries[network] || `${network} login`;
+            const domain = domains[network] || `${network}.com`;
+            console.log(`🔎 Google query: "${q}"`);
+            await page.goto("https://www.google.com/", { waitUntil: "networkidle2" });
+            await this.humanDelay(1000, 2000);
+            const box = await page.$('input[name="q"]');
+            if (box) {
+                await box.type(q, { delay: 50 });
+                await page.keyboard.press("Enter");
+            } else {
+                await page.goto(`https://www.google.com/search?q=${encodeURIComponent(q)}`, { waitUntil: "networkidle2" });
+            }
+            await this.humanDelay(2000, 4000);
+            // Click first result matching domain
+            const link = await page.evaluateHandle((dom) => {
+                const anchors = Array.from(document.querySelectorAll('a'));
+                return anchors.find(a => (a.href || '').includes(dom)) || null;
+            }, domain);
+            if (link) {
+                console.log(`➡️ Opening ${domain} result...`);
+                await link.click();
+                await this.humanDelay(2000, 4000);
+            } else {
+                console.log("⚠️ No matching result found, using direct URL fallback");
+                const direct = {
+                    instagram: "https://www.instagram.com/accounts/login/",
+                    twitter: "https://x.com/login",
+                    facebook: "https://www.facebook.com/login",
+                    youtube: "https://accounts.google.com/signin/v2/identifier?service=youtube",
+                    tiktok: "https://www.tiktok.com/login"
+                }[network] || `https://${domain}/`;
+                await page.goto(direct, { waitUntil: "networkidle2" });
+            }
+            await this.humanDelay(1000, 2000);
+            // Now perform auto login with known flows
+            console.log("👤 Attempting credentialed login flow...");
+            let ok = false;
+            if (network === "instagram") ok = await this.loginInstagramAuto(page);
+            else if (network === "twitter") ok = await this.loginTwitterAuto(page);
+            else if (network === "facebook") ok = await this.loginFacebookAuto(page);
+            else if (network === "youtube") ok = await this.loginYouTubeGoogleAuto(page);
+            else if (network === "tiktok") {
+                // TikTok captcha risk; just land on upload and try cookies
+                try {
+                    await page.goto("https://www.tiktok.com/upload?lang=fr", { waitUntil: "networkidle2" });
+                    await this.humanDelay(2000, 4000);
+                    ok = !page.url().includes("/login");
+                } catch { ok = false; }
+            }
+            console.log(`🔐 ${network} login result: ${ok ? "✅ OK" : "❌ FAIL"}`);
+            if (ok) {
+                const ck = await page.cookies();
+                this.cookies[network] = ck;
+                this.saveCookies();
+                console.log(`🍪 Saved cookies for ${network} (${ck.length})`);
+            }
+            return ok;
+        } catch (e) {
+            console.error(`❌ searchAndLogin error (${network}):`, e.message || e);
+            return false;
+        } finally {
+            try { await browser.close(); } catch {}
+            try { await cleanup(); } catch {}
+        }
+    }
+
+    async ensureHumanLoginIfNeeded(network) {
+        try {
+            const ok = await this.checkLogin(network);
+            if (ok) return true;
+            return await this.searchAndLogin(network);
+        } catch (e) {
+            console.error(`ensureHumanLoginIfNeeded(${network}) failed:`, e.message || e);
+            return false;
         }
     }
 
@@ -1173,6 +1276,16 @@ class SocialAutomator {
         }
         if (!result.success && result.details.length === 0 && !result.error) result.error = "No changes applied";
         return result;
+    }
+
+    hasBrowser() {
+        try {
+            if (HEADLESS_ONLY) return false;
+            const exec = resolveChromeExecutable();
+            return !!exec;
+        } catch {
+            return false;
+        }
     }
 
 }

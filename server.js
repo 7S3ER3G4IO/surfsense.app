@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from "express";
 import cors from "cors";
 import path from "path";
@@ -322,8 +323,13 @@ const ROBOTS = {
     AUTH: { name: "Auth-Gate", icon: "🔐", msg: "Passerelle d'authentification..." },
     DB: { name: "Data-Matrix", icon: "🗄️", msg: "Base de données..." },
     API: { name: "Marine-Link", icon: "📡", msg: "Requêtes HTTP..." },
-    SERVER: { name: "Core-Server", icon: "🖥️", msg: "Événements système..." }
+    SERVER: { name: "Core-Server", icon: "🖥️", msg: "Événements système..." },
+    CAPTION: { name: "Caption-AI", icon: "📝", msg: "Génération de légendes dynamiques..." },
+    TAGS: { name: "Hashtag-AI", icon: "🏷️", msg: "Sélection de hashtags pertinents..." },
+    LOGIN: { name: "Login-Fixer", icon: "🧭", msg: "Réparation des connexions réseaux..." }
 };
+
+const HEADLESS_ONLY = !!(process.env.PUPPETEER_DISABLE || process.env.NO_BROWSER);
 
 const robotLog = (robot, status = "OK", details = "") => {
     const timestamp = new Date().toLocaleTimeString();
@@ -431,6 +437,7 @@ const WEATHER_ROBOT_INTERVAL = 45 * 60 * 1000;
 
 // Mémoire globale
 let globalNews = [];
+let trendingTopics = [];
 let epicSpots = []; 
 let apiCallCount = 0;
 let lastQuotaInfo = { limit: 500, remaining: 500, used: 0 };
@@ -443,6 +450,16 @@ const pushSeries = (arr, v) => { arr.push({ t: Date.now(), v }); if (arr.length 
 let weatherWorkerPaused = false;
 let weatherWorkerIntervalMs = 45 * 60 * 1000;
 let weatherWorkerTimer = null;
+const GENERATED_VIDEOS_DIR = path.join(__dirname, 'public', 'generated');
+try { if (!fs.existsSync(GENERATED_VIDEOS_DIR)) fs.mkdirSync(GENERATED_VIDEOS_DIR, { recursive: true }); } catch {}
+const safeCleanupVideo = (p, delayMs = 0) => {
+  try {
+    if (!p) return;
+    const isStored = String(p).startsWith(GENERATED_VIDEOS_DIR);
+    const cleanup = () => { try { if (!isStored && fs.existsSync(p)) fs.unlinkSync(p); } catch {} };
+    if (delayMs > 0) setTimeout(cleanup, delayMs); else cleanup();
+  } catch {}
+};
 const prioritySpots = new Set();
 const restartWeatherWorker = () => {
   if (weatherWorkerTimer) clearInterval(weatherWorkerTimer);
@@ -867,12 +884,16 @@ const addToHistory = (entry) => {
 let marketing = {
   running: false,
   timer: null,
-  intervalMs: (parseInt(process.env.MARKETING_INTERVAL_MINUTES || "0", 10) || 0) * 60 * 1000,
+  intervalMs: (parseInt(process.env.MARKETING_INTERVAL_MINUTES || "60", 10) || 60) * 60 * 1000,
   webhookUrl: process.env.MARKETING_WEBHOOK_URL || "https://hook.eu1.make.com/eak8dpssccvf9e1hoibtlzma9k2dbe43",
   channels: (process.env.MARKETING_CHANNELS || "").split(",").map(s => s.trim()).filter(Boolean),
   nextRunAt: 0,
   template: process.env.MARKETING_MESSAGE || "{hook} Conditions live sur {spot} • {desc} {tags}",
   contentType: "story",
+  autopostEnabled: false,
+  hashtags: [],
+  networkIntervals: {},
+  lastByNet: {},
   connectors: {
     instagram: { enabled: false, webhook: "", profileUrl: "https://www.instagram.com/swellsyncfr/", format: "story" },
     facebook: { enabled: false, webhook: "", profileUrl: "https://www.facebook.com/profile.php?id=61588121698712", format: "post" },
@@ -891,6 +912,36 @@ let marketing = {
   lastErrorAt: 0
 };
 
+// --- CAPABILITÉS ENV (Direct vs Stealth) ---
+const hasEnvForNetwork = (name) => {
+  switch (name) {
+    case "instagram":
+      return !!(process.env.INSTAGRAM_USERNAME && process.env.INSTAGRAM_PASSWORD);
+    case "threads":
+      return !!((process.env.THREADS_USERNAME && process.env.THREADS_PASSWORD) || (process.env.INSTAGRAM_USERNAME && process.env.INSTAGRAM_PASSWORD));
+    case "twitter":
+      return !!(process.env.TWITTER_API_KEY && process.env.TWITTER_API_SECRET && process.env.TWITTER_ACCESS_TOKEN && process.env.TWITTER_ACCESS_SECRET);
+    case "facebook":
+      return !!(process.env.FACEBOOK_PAGE_ACCESS_TOKEN && process.env.FACEBOOK_PAGE_ID);
+    case "youtube":
+      return !!(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET && process.env.YOUTUBE_REFRESH_TOKEN);
+    case "telegram":
+      return !!(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID);
+    case "discord":
+      return !!process.env.DISCORD_WEBHOOK_URL;
+    default:
+      return false;
+  }
+};
+
+const retry = async (fn, times) => {
+  for (let i = 0; i < times; i++) {
+    try { await fn(); return true; } catch {}
+    await new Promise(r => setTimeout(r, 500 + Math.floor(Math.random() * 1000)));
+  }
+  return false;
+};
+
 // --- PERSISTENCE CONFIGURATION MARKETING ---
 const MARKETING_CONFIG_FILE = path.join(__dirname, "marketing.json");
 const saveMarketingConfig = () => {
@@ -901,6 +952,9 @@ const saveMarketingConfig = () => {
       channels: marketing.channels,
       template: marketing.template,
       contentType: marketing.contentType,
+      autopostEnabled: marketing.autopostEnabled,
+      hashtags: marketing.hashtags,
+      networkIntervals: marketing.networkIntervals,
       connectors: marketing.connectors
     };
     fs.writeFileSync(MARKETING_CONFIG_FILE, JSON.stringify(data, null, 2));
@@ -918,6 +972,9 @@ const loadMarketingConfig = () => {
       if (Array.isArray(data.channels)) marketing.channels = data.channels;
       if (data.template) marketing.template = data.template;
       if (data.contentType) marketing.contentType = data.contentType;
+      if (typeof data.autopostEnabled === "boolean") marketing.autopostEnabled = data.autopostEnabled;
+      if (Array.isArray(data.hashtags)) marketing.hashtags = data.hashtags.filter(x => typeof x === "string" && x.trim().length).map(x => x.trim());
+      if (data.networkIntervals && typeof data.networkIntervals === "object") marketing.networkIntervals = data.networkIntervals;
       if (data.connectors) {
           // Merge deep to preserve defaults if keys missing
           Object.keys(data.connectors).forEach(k => {
@@ -936,14 +993,23 @@ const loadMarketingConfig = () => {
           marketing.connectors.discord.webhook = process.env.DISCORD_WEBHOOK_URL;
           marketing.connectors.discord.enabled = true; // Auto enable if env provided? Maybe safer to just set webhook.
       }
+      // Préremplissages par défaut pour automatisation
+      marketing.autopostEnabled = true;
+      marketing.hashtags = ["#surf","#vagues","#ocean","#report","#meteo","#swell","#beach","#france","#bretagne","#landes","#cote","#session","#today","#live"];
+      marketing.networkIntervals = {
+        instagram: 45, threads: 60, twitter: 90, facebook: 120,
+        youtube: 180, telegram: 60, discord: 120, tiktok: 120
+      };
+      // Activer tous les connecteurs (sans webhook) pour Mode Direct/Stealth
+      Object.keys(marketing.connectors).forEach(k => { marketing.connectors[k].enabled = true; });
   }
 };
 loadMarketingConfig();
-if (marketing.intervalMs >= 60000 && marketing.webhookUrl) {
+if (marketing.intervalMs >= 60000 && (marketing.autopostEnabled || marketing.webhookUrl)) {
   try { startMarketingTimer(undefined, marketing.intervalMs); } catch {}
 }
 setInterval(() => {
-  const okCfg = marketing.intervalMs >= 60000 && !!marketing.webhookUrl;
+  const okCfg = marketing.intervalMs >= 60000 && (marketing.autopostEnabled || !!marketing.webhookUrl);
   if (!marketing.running && okCfg && !marketing.stoppedByAdmin) {
     try { startMarketingTimer(undefined, marketing.intervalMs); } catch {}
   }
@@ -993,18 +1059,43 @@ const buildMarketingPayload = (req) => {
       ? availableHooks[Math.floor(Math.random() * availableHooks.length)] 
       : VIRAL_HOOKS[Math.floor(Math.random() * VIRAL_HOOKS.length)];
 
-  // Select 5 random tags
-  const tags = VIRAL_HASHTAGS.sort(() => 0.5 - Math.random()).slice(0, 5).join(" ");
-
-  const descObj = { title: "", desc: "" };
+  let tagPool = Array.isArray(marketing.hashtags) && marketing.hashtags.length ? marketing.hashtags.slice() : VIRAL_HASHTAGS.slice();
   try {
-    descObj.title = `${spot} • Conditions Live`;
-    descObj.desc = `Houle & période en temps réel`;
+    const s = spots.find(x => x.name === spot);
+    if (s) {
+      const key = `${s.coords[0]},lng=${s.coords[1]}`;
+      const d = cache.get(key)?.data || null;
+      if (d) {
+        const addTags = [];
+        if (d.windDirection) addTags.push(`#${String(d.windDirection).toLowerCase()}`);
+        if (d.waveHeight != null) addTags.push(`#${Math.round(Number(d.waveHeight) * 10) / 10}m`);
+        if (d.wavePeriod != null) addTags.push(`#${Math.round(Number(d.wavePeriod))}s`);
+        if (d.windSpeed != null) addTags.push(`#${Math.round(Number(d.windSpeed))}kmh`);
+        tagPool = [...new Set([...tagPool, ...addTags])];
+        const descLine = `${spot} • ${d.waveHeight?.toFixed ? d.waveHeight.toFixed(1) : d.waveHeight}m • ${Math.round(Number(d.wavePeriod || 0))}s • ${Math.round(Number(d.windSpeed || 0))}km/h ${d.windDirection || ""}`;
+        console.log(`🤖 AI CaptionBot: ${descLine}`);
+        const tags = tagPool.sort(() => 0.5 - Math.random()).slice(0, 6).join(" ");
+        const text = marketing.template
+          .replace("{spot}", spot || "ton spot favori")
+          .replace("{desc}", descLine)
+          .replace("{hook}", hook)
+          .replace("{tags}", tags)
+          + `\n\n👉 Voir le report : ${base}/conditions.html?spot=${encodeURIComponent(spot || "")}`; // Always append Link for Traffic
+        addToHistory({ spot, hook, type: marketing.contentType });
+        const channels = marketing.channels.length ? marketing.channels : ["instagram","facebook","tiktok","threads","youtube","twitter","telegram","discord"];
+        const profiles = {};
+        Object.keys(marketing.connectors).forEach(k => {
+          if (marketing.connectors[k].profileUrl) profiles[k] = marketing.connectors[k].profileUrl;
+        });
+        return { text, image, channels, link: trackedLink, type: marketing.contentType, email: marketing.email, profiles, spot };
+      }
+    }
   } catch {}
-
+  const tags = tagPool.sort(() => 0.5 - Math.random()).slice(0, 5).join(" ");
+  const descLine = `${spot} • Conditions Live`;
   const text = marketing.template
     .replace("{spot}", spot || "ton spot favori")
-    .replace("{desc}", descObj.desc || "Analyse en temps réel")
+    .replace("{desc}", descLine)
     .replace("{hook}", hook)
     .replace("{tags}", tags)
     + `\n\n👉 Voir le report : ${base}/conditions.html?spot=${encodeURIComponent(spot || "")}`; // Always append Link for Traffic
@@ -1019,13 +1110,17 @@ const buildMarketingPayload = (req) => {
   });
   
   // Use tracked link for the payload 'link' field
-  return { text, image, channels, link: trackedLink, type: marketing.contentType, email: marketing.email, profiles, spot };
+  return { text, image, channels, link: trackedLink, base, type: marketing.contentType, email: marketing.email, profiles, spot };
 };
 
 // --- DIRECT INSTAGRAM POSTING ---
 const postToInstagram = async (imageUrl, caption) => {
-  const username = process.env.INSTAGRAM_USERNAME || "swellsyncfr";
-  const password = process.env.INSTAGRAM_PASSWORD || "Hinalol08-";
+  const username = process.env.INSTAGRAM_USERNAME;
+  const password = process.env.INSTAGRAM_PASSWORD;
+  if (!username || !password) {
+    robotLog(ROBOTS.NEWS, "WARN", "Instagram Direct: Identifiants manquants (.env)");
+    return false;
+  }
   
   robotLog(ROBOTS.NEWS, "INSTA", `Connexion directe en cours pour ${username}...`);
   
@@ -1101,8 +1196,12 @@ const postToTwitter = async (imageUrl, caption) => {
 
 // --- DIRECT THREADS POSTING ---
 const postToThreads = async (imageUrl, caption) => {
-  const username = process.env.THREADS_USERNAME || process.env.INSTAGRAM_USERNAME || "swellsyncfr";
-  const password = process.env.THREADS_PASSWORD || process.env.INSTAGRAM_PASSWORD || "Hinalol08-";
+  const username = process.env.THREADS_USERNAME || process.env.INSTAGRAM_USERNAME;
+  const password = process.env.THREADS_PASSWORD || process.env.INSTAGRAM_PASSWORD;
+  if (!username || !password) {
+    robotLog(ROBOTS.NEWS, "WARN", "Threads Direct: Identifiants manquants (.env)");
+    return false;
+  }
 
   robotLog(ROBOTS.NEWS, "THREADS", `Connexion directe en cours pour ${username}...`);
 
@@ -1255,7 +1354,7 @@ const createVideoFromImage = async (imageUrl, spotName = "Spot") => {
 };
 
 // --- ADVANCED VIDEO MONTAGE GENERATOR ---
-const generateVideoMontage = async (spotName) => {
+const generateVideoMontage = async (spotName, opts = {}) => {
     robotLog(ROBOTS.NEWS, "VIDEO", `Génération montage vidéo intelligent pour ${spotName}...`);
     const browser = await puppeteer.launch({
         headless: "new",
@@ -1263,7 +1362,8 @@ const generateVideoMontage = async (spotName) => {
     });
     
     const slidePaths = [];
-    const outputVideo = path.join(__dirname, `montage_${Date.now()}.mp4`);
+    const slug = String(spotName || "video").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "video";
+    const outputVideo = path.join(GENERATED_VIDEOS_DIR, `${slug}_${Date.now()}.mp4`);
 
     try {
         const page = await browser.newPage();
@@ -1277,7 +1377,7 @@ const generateVideoMontage = async (spotName) => {
 
         // --- RANDOM SCENARIO & STYLE ---
         const scenarios = ["CLASSIC", "ALERT", "DATA_FIRST", "VIBE", "MINIMAL", "CHAOS"];
-        const scenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+        const scenario = opts.scenario && scenarios.includes(opts.scenario) ? opts.scenario : scenarios[Math.floor(Math.random() * scenarios.length)];
         
         const styles = [
             { name: "Dark", bg: "#0f172a", filter: "none" },
@@ -1287,7 +1387,13 @@ const generateVideoMontage = async (spotName) => {
             { name: "Forest", bg: "#064e3b", filter: "hue-rotate(90deg)" },
             { name: "Retro", bg: "#78350f", filter: "sepia(0.6) contrast(0.8)" }
         ];
-        const style = styles[Math.floor(Math.random() * styles.length)];
+        const style = (() => {
+            if (opts.styleName) {
+              const s = styles.find(x => x.name.toLowerCase() === String(opts.styleName).toLowerCase());
+              if (s) return s;
+            }
+            return styles[Math.floor(Math.random() * styles.length)];
+        })();
         
         robotLog(ROBOTS.NEWS, "VIDEO", `Scenario: ${scenario} | Style: ${style.name}`);
 
@@ -1395,8 +1501,11 @@ const generateVideoMontage = async (spotName) => {
             const cmd = ffmpeg();
             
             // Input all slides
-            slidePaths.forEach(p => {
-                cmd.input(p).inputOptions(['-loop 1', '-t 3.5']); // 3.5 seconds each for dynamic feel
+            slidePaths.forEach((p, idx) => {
+                const baseDur = 3.5;
+                const isHook = idx === 0 && String(opts.hookStrength || "").toLowerCase() === "strong";
+                const dur = isHook ? 2.0 : baseDur;
+                cmd.input(p).inputOptions(['-loop 1', `-t ${dur}`]);
             });
 
             // Music Selection (Random from public/music if exists)
@@ -1405,13 +1514,24 @@ const generateVideoMontage = async (spotName) => {
             if (fs.existsSync(musicDir)) {
                 const files = fs.readdirSync(musicDir).filter(f => f.endsWith('.mp3'));
                 if (files.length > 0) {
-                    const randomMusic = files[Math.floor(Math.random() * files.length)];
-                    cmd.input(path.join(musicDir, randomMusic));
+                    const chosen = opts.musicName && files.includes(opts.musicName) ? opts.musicName : files[Math.floor(Math.random() * files.length)];
+                    cmd.input(path.join(musicDir, chosen));
                     hasMusic = true;
-                    // Fade out audio at end
-                    // We need total duration
                     const totalDuration = slidePaths.length * 3.5;
-                    cmd.audioFilters(`afade=t=out:st=${totalDuration-2}:d=2`);
+                    let af = [`afade=t=out:st=${totalDuration-2}:d=2`];
+                    const sfxDir = path.join(__dirname, 'public', 'assets', 'sfx');
+                    if (opts.sfxPreset && fs.existsSync(sfxDir)) {
+                        const baseName = String(opts.sfxPreset).toLowerCase();
+                        const intensity = Math.max(0, Math.min(100, parseInt(String(opts.sfxIntensity || "70"), 10)));
+                        const pick = intensity < 40 ? `${baseName}_soft.mp3` : (intensity > 70 ? `${baseName}_strong.mp3` : `${baseName}.mp3`);
+                        const candidates = [pick, `${baseName}.mp3`, `${baseName}_soft.mp3`, `${baseName}_strong.mp3`];
+                        const chosenSfx = candidates.map(n => path.join(sfxDir, n)).find(fp => fs.existsSync(fp));
+                        if (chosenSfx) {
+                            cmd.input(chosenSfx);
+                            af.push("amix=inputs=2:duration=first:dropout_transition=2,volume=0.95");
+                        }
+                    }
+                    cmd.audioFilters(af.join(","));
                 }
             }
 
@@ -1421,14 +1541,34 @@ const generateVideoMontage = async (spotName) => {
             const inputs = [];
             
             slidePaths.forEach((_, i) => {
-                // Randomize zoom effect (In or Out)
                 const zoomType = Math.random() > 0.5 ? "IN" : "OUT";
-                const z = zoomType === "IN" ? "'min(zoom+0.0015,1.2)'" : "'if(eq(on,1),1.2,max(1.0,zoom-0.0015))'"; // 1.2 max zoom
-                
-                // Scale to HD first, then apply zoompan
-                filters.push(`[${i}:v]scale=1080:1920,setsar=1,zoompan=z=${z}:d=120:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920[v${i}]`);
+                const varLevel = Math.max(0, Math.min(10, parseInt(opts.varLevel || "3", 10)));
+                const inc = (0.0015 * (1 + varLevel * 0.1)).toFixed(4);
+                const z = zoomType === "IN" ? `'min(zoom+${inc},1.2)'` : `'if(eq(on,1),1.2,max(1.0,zoom-${inc}))'`;
+                let chain = `[${i}:v]scale=1080:1920,setsar=1,zoompan=z=${z}:d=120:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920`;
+                const fx = String(opts.fxPreset || "").toLowerCase();
+                if (fx === "glitch") chain += `,noise=alls=20:allf=t,eq=contrast=1.2:saturation=1.3`;
+                else if (fx === "shake") chain += `,zoompan=z=${z}:d=120:x='iw/2-(iw/zoom/2)+random(0)*10':y='ih/2-(ih/zoom/2)+random(0)*10'`;
+                else if (fx === "fade") chain += `,fade=t=in:st=0:d=0.3,fade=t=out:st=3.2:d=0.3`;
+                else if (fx === "retro") chain += `,curves=vintage`;
+                const cg = String(opts.colorGrade || "").toLowerCase();
+                if (cg === "tealorange") chain += `,eq=contrast=1.05:saturation=1.1:brightness=0.02`;
+                else if (cg === "cinematic") chain += `,eq=contrast=1.1:saturation=1.05:brightness=-0.01`;
+                if (opts.watermark) chain += `,drawtext=text='swellsync.fr':fontcolor=white:fontsize=28:x=w-tw-30:y=h-60`;
+                if (opts.subtitleText) {
+                    const st = String(opts.subtitleText);
+                    const fc = (opts.subtitleStyle === "light") ? "white" : (opts.subtitleStyle === "neon" ? "cyan" : "white");
+                    const sz = Math.max(16, Math.min(64, parseInt(String(opts.subtitleSize || "34"), 10)));
+                    chain += `,drawtext=text='${st.replace(/:/g,"\\:").replace(/'/g,"\\'")}':fontcolor=${fc}:fontsize=${sz}:x=40:y=h-100:box=1:boxcolor=black@0.4:boxborderw=8`;
+                }
+                filters.push(`${chain}[v${i}]`);
                 inputs.push(`[v${i}]`);
             });
+            if (String(opts.loopSeamless || "").toLowerCase() === "1" || String(opts.loopSeamless || "").toLowerCase() === "true") {
+                if (slidePaths.length > 0) {
+                    inputs.push(inputs[0]);
+                }
+            }
             
             // Simple Concat (Crossfade is complex with fluent-ffmpeg chain, using simple concat for reliability first)
             // To do proper crossfade, we'd need complex filter logic with offsets. 
@@ -1523,12 +1663,12 @@ const postToYouTube = async (imageUrl, caption) => {
         robotLog(ROBOTS.NEWS, "YOUTUBE", `✅ Vidéo uploadée: https://youtu.be/${res.data.id}`);
         
         // Clean up video
-        if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
+        safeCleanupVideo(videoPath);
         return true;
 
     } catch (e) {
         robotLog(ROBOTS.NEWS, "ERROR", `YouTube Direct: ${e.message}`);
-        if (videoPath && fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
+        safeCleanupVideo(videoPath);
         return false;
     }
 };
@@ -1543,6 +1683,83 @@ const postToTikTok = async (imageUrl, caption) => {
     return false;
 };
 
+const uploadYouTubeVideo = async (videoPath, title, description, tags = []) => {
+  const clientId = process.env.YOUTUBE_CLIENT_ID;
+  const clientSecret = process.env.YOUTUBE_CLIENT_SECRET;
+  const refreshToken = process.env.YOUTUBE_REFRESH_TOKEN;
+  if (!clientId || !clientSecret || !refreshToken) return false;
+  try {
+    const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, "https://developers.google.com/oauthplayground");
+    oauth2Client.setCredentials({ refresh_token: refreshToken });
+    const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+    const res = await youtube.videos.insert({
+      part: 'snippet,status',
+      requestBody: {
+        snippet: {
+          title: String(title || "").substring(0, 100),
+          description: String(description || ""),
+          tags: Array.isArray(tags) ? tags.slice(0, 12) : [],
+          categoryId: '17'
+        },
+        status: {
+          privacyStatus: 'public',
+          selfDeclaredMadeForKids: false
+        }
+      },
+      media: { body: fs.createReadStream(videoPath) }
+    });
+    robotLog(ROBOTS.NEWS, "YOUTUBE", `✅ Vidéo upload: https://youtu.be/${res.data.id}`);
+    return true;
+  } catch (e) {
+    robotLog(ROBOTS.NEWS, "ERROR", `YouTube Upload: ${e.message}`);
+    return false;
+  }
+};
+const runTrendPublisher = async () => {
+  if (!marketing.autopostEnabled) return;
+  if (!trendingTopics.length) return;
+  const t = trendingTopics[0];
+  try {
+    const styleName = "Neon";
+    const fxPreset = "fade";
+    const videoPath = await generateVideoMontage(t.title, { styleName, fxPreset, hookStrength: "strong", loopSeamless: "1", watermark: true, colorGrade: "tealorange", varLevel: 6 });
+    const tags = t.title.split(/\s+/).map(w => w.replace(/[^\w]/g, '')).filter(Boolean).slice(0, 6);
+    const caption = `${t.title}\n\n${marketing.template.replace("{spot}", "tendance").replace("{desc}", "Vidéo courte inspirée des tendances").replace("{hook}", "INSTANT HOOK").replace("{tags}", tags.map(h => `#${h.toLowerCase()}`).join(" "))}\n\nVoir: https://swellsync.fr/`;
+    await uploadYouTubeVideo(videoPath, t.title, caption, tags);
+    if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+      try {
+        await socialAutomator.ensureHumanLoginIfNeeded("instagram");
+        await socialAutomator.postToInstagramVideo(videoPath, caption);
+      } catch (e) { robotLog(ROBOTS.NEWS, "WARN", `Instagram trend post: ${e.message}`); }
+      try {
+        await socialAutomator.ensureHumanLoginIfNeeded("tiktok");
+        await socialAutomator.postToTikTok(videoPath, caption);
+      } catch (e) { robotLog(ROBOTS.NEWS, "WARN", `TikTok trend post: ${e.message}`); }
+    }
+    const base = baseUrlForReq(undefined);
+    const campaignId = `trend_${new Date().toISOString().split('T')[0]}`;
+    const utm = `?utm_source=swellsync_bot&utm_medium=social&utm_campaign=${campaignId}&utm_content=${encodeURIComponent(t.title)}`;
+    const trackedLink = `${base}${utm}`;
+    const kw = tags.length ? tags : ["surf","wave","ocean"];
+    const image = `https://source.unsplash.com/1080x1920/?${kw.join(",")},surf,sea,wave`;
+    const mixTags = Array.from(new Set([...(Array.isArray(marketing.hashtags) ? marketing.hashtags : []), ...VIRAL_HASHTAGS, ...kw.map(k => `#${k.toLowerCase()}`)])).slice(0, 8).join(" ");
+    const text = marketing.template
+      .replace("{spot}", t.title)
+      .replace("{desc}", "Tendance du moment • Vidéo courte")
+      .replace("{hook}", "GLOBAL TREND")
+      .replace("{tags}", mixTags)
+      + `\n\n👉 Voir : ${base}/`;
+    const channels = marketing.channels.length ? marketing.channels : ["instagram","facebook","threads","twitter","telegram","discord"];
+    const channels2 = (socialAutomator.hasBrowser() && !HEADLESS_ONLY) ? channels.filter(n => n !== "instagram" && n !== "tiktok") : channels;
+    const profiles = {};
+    Object.keys(marketing.connectors).forEach(k => {
+      if (marketing.connectors[k]?.profileUrl) profiles[k] = marketing.connectors[k].profileUrl;
+    });
+    await deliverAggregator(undefined, { text, image, channels: channels2, link: trackedLink, type: "classic", email: marketing.email, profiles, spot: t.title });
+  } catch (e) {
+    robotLog(ROBOTS.NEWS, "WARN", `TrendPublisher: ${e.message}`);
+  }
+};
 const fireMarketing = async (req) => {
   try {
     const payload = buildMarketingPayload(req);
@@ -1557,6 +1774,12 @@ const fireMarketing = async (req) => {
       const enabled = Object.entries(marketing.connectors).filter(([k, v]) => !!v.enabled);
       
       for (const [name, conf] of enabled) {
+        const customIv = marketing.networkIntervals && marketing.networkIntervals[name] ? parseInt(marketing.networkIntervals[name], 10) : 0;
+        if (customIv && customIv >= 1) {
+          const last = marketing.lastByNet[name] || 0;
+          const due = Date.now() - last >= customIv * 60 * 1000;
+          if (!due) continue;
+        }
         try {
           // Customize payload per channel format
           const channelPayload = { ...payload, channel: name, format: conf.format || "post" };
@@ -1577,110 +1800,134 @@ const fireMarketing = async (req) => {
             }
           }
 
-          channelPayload.image = `${payload.link}${imagePath}?spot=${encodeURIComponent(payload.spot || "spot")}`;
+          channelPayload.image = `${payload.base}${imagePath}?spot=${encodeURIComponent(payload.spot || "spot")}`;
 
           // --- DIRECT MODE HANDLING ---
-          // If Instagram AND (Webhook is empty OR explicit DIRECT)
-          if (name === "instagram" && (!conf.webhook || conf.webhook === "DIRECT" || conf.webhook.trim() === "")) {
-             try {
-                 // Try API first
-                 await postToInstagram(channelPayload.image, channelPayload.text);
-             } catch (e) {
-                 robotLog(ROBOTS.NEWS, "ERROR", `IG API Fail: ${e.message}, trying Stealth...`);
-                 // Fallback to Stealth Video
-                 try {
-                     const videoPath = await generateVideoMontage(payload.spot || "Spot");
-                     await socialAutomator.postToInstagramVideo(videoPath, channelPayload.text);
-                     setTimeout(() => { if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath); }, 60000);
-                 } catch (err) {
-                     robotLog(ROBOTS.NEWS, "ERROR", `IG Stealth Fail: ${err.message}`);
-                 }
+          // Instagram: Direct only if env present, else Stealth
+          if (name === "instagram" && hasEnvForNetwork("instagram")) {
+             const ok = await retry(() => postToInstagram(channelPayload.image, channelPayload.text), 2);
+             if (!ok) {
+                if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+                    try {
+                        const videoPath = await generateVideoMontage(payload.spot || "Spot");
+                        console.log("👣 Ensuring human-like login for Instagram before stealth post...");
+                        await socialAutomator.ensureHumanLoginIfNeeded("instagram");
+                        await socialAutomator.postToInstagramVideo(videoPath, channelPayload.text);
+                        safeCleanupVideo(videoPath, 60000);
+                    } catch (err) {
+                        robotLog(ROBOTS.NEWS, "ERROR", `IG Stealth Fail: ${err.message}`);
+                    }
+                } else {
+                    robotLog(ROBOTS.NEWS, "WARN", "IG Stealth disabled (no browser)");
+                }
              }
+             marketing.lastByNet[name] = Date.now();
              continue; // Skip webhook fetch
           }
 
-          // If Twitter AND (Webhook is empty OR explicit DIRECT)
-          if (name === "twitter" && (!conf.webhook || conf.webhook === "DIRECT" || conf.webhook.trim() === "")) {
-             try {
-                 const ok = await postToTwitter(channelPayload.image, channelPayload.text);
-                 if (!ok) throw new Error("API Failed");
-             } catch (e) {
-                 robotLog(ROBOTS.NEWS, "ERROR", `Twitter API Fail: ${e.message}, trying Stealth...`);
-                 await socialAutomator.postToTwitter(channelPayload.image, channelPayload.text);
+          // Twitter: Direct only if env present, else Stealth
+          if (name === "twitter" && hasEnvForNetwork("twitter")) {
+             const ok = await retry(() => postToTwitter(channelPayload.image, channelPayload.text), 2);
+             if (!ok) {
+                if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+                    try {
+                        console.log("👣 Ensuring human-like login for Twitter before stealth post...");
+                        await socialAutomator.ensureHumanLoginIfNeeded("twitter");
+                        await socialAutomator.postToTwitter(channelPayload.image, channelPayload.text);
+                    } catch (err) { robotLog(ROBOTS.NEWS, "ERROR", `Twitter Stealth Fail: ${err.message}`); }
+                } else {
+                    robotLog(ROBOTS.NEWS, "WARN", "Twitter Stealth disabled (no browser)");
+                }
              }
+             marketing.lastByNet[name] = Date.now();
              continue;
           }
 
-          // If Threads AND (Webhook is empty OR explicit DIRECT)
-          if (name === "threads" && (!conf.webhook || conf.webhook === "DIRECT" || conf.webhook.trim() === "")) {
-             await postToThreads(channelPayload.image, channelPayload.text);
+          // Threads: Direct only if env present; otherwise skip (no stealth impl)
+          if (name === "threads" && hasEnvForNetwork("threads")) {
+             try {
+               const ok = await postToThreads(channelPayload.image, channelPayload.text);
+               if (!ok) throw new Error("API Failed");
+             } catch (e) {
+               robotLog(ROBOTS.NEWS, "WARN", "Threads Direct fail or creds missing; skipping");
+             }
+             marketing.lastByNet[name] = Date.now();
              continue;
           }
 
-          // If Telegram AND (Webhook is empty OR explicit DIRECT)
-          if (name === "telegram" && (!conf.webhook || conf.webhook === "DIRECT" || conf.webhook.trim() === "")) {
+          // Telegram: Direct only if env present
+          if (name === "telegram" && hasEnvForNetwork("telegram")) {
              await postToTelegram(channelPayload.image, channelPayload.text);
+             marketing.lastByNet[name] = Date.now();
              continue;
           }
 
-          // If Facebook AND (Webhook is empty OR explicit DIRECT)
-          if (name === "facebook" && (!conf.webhook || conf.webhook === "DIRECT" || conf.webhook.trim() === "")) {
-             try {
-                 const ok = await postToFacebook(channelPayload.image, channelPayload.text);
-                 if (!ok) throw new Error("API Failed/Missing");
-             } catch (e) {
-                 robotLog(ROBOTS.NEWS, "WARN", `Facebook API Fail: ${e.message}, trying Stealth...`);
-                 try {
-                    // Prefer Video for Stealth
-                    const videoPath = await generateVideoMontage(payload.spot || "Spot");
-                    await socialAutomator.postToFacebook(videoPath, channelPayload.text);
-                    // Cleanup handled inside generateVideoMontage? No, it returns path.
-                    // We should delete it after a delay or let OS handle tmp.
-                    // For now, leave it or use a cleanup helper.
-                    setTimeout(() => { if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath); }, 60000);
-                 } catch (err) {
-                    robotLog(ROBOTS.NEWS, "ERROR", `Facebook Stealth Fail: ${err.message}`);
-                 }
+          // Facebook: Direct only if env present, else Stealth
+          if (name === "facebook" && hasEnvForNetwork("facebook")) {
+             const ok = await retry(() => postToFacebook(channelPayload.image, channelPayload.text), 2);
+             if (!ok) {
+                if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+                    try {
+                       const videoPath = await generateVideoMontage(payload.spot || "Spot");
+                       console.log("👣 Ensuring human-like login for Facebook before stealth post...");
+                       await socialAutomator.ensureHumanLoginIfNeeded("facebook");
+                       await socialAutomator.postToFacebook(videoPath, channelPayload.text);
+                       safeCleanupVideo(videoPath, 60000);
+                    } catch (err) {
+                       robotLog(ROBOTS.NEWS, "ERROR", `Facebook Stealth Fail: ${err.message}`);
+                    }
+                } else {
+                   robotLog(ROBOTS.NEWS, "WARN", "Facebook Stealth disabled (no browser)");
+                }
              }
+             marketing.lastByNet[name] = Date.now();
              continue;
           }
 
-          // If TikTok AND (Webhook is empty OR explicit DIRECT)
-          if (name === "tiktok" && (!conf.webhook || conf.webhook === "DIRECT" || conf.webhook.trim() === "")) {
-              try {
-                  // Always generate video for TikTok
-                  let videoToPost = channelPayload.image;
-                  if (!videoToPost.endsWith(".mp4")) {
-                      videoToPost = await generateVideoMontage(payload.spot || "Spot");
+          // TikTok: Stealth only (no direct API)
+          if (name === "tiktok") {
+              if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+                  try {
+                      let videoToPost = channelPayload.image;
+                      if (!videoToPost.endsWith(".mp4")) {
+                          videoToPost = await generateVideoMontage(payload.spot || "Spot");
+                      }
+                      console.log("👣 Ensuring human-like login for TikTok before stealth post...");
+                      await socialAutomator.ensureHumanLoginIfNeeded("tiktok");
+                      await socialAutomator.postToTikTok(videoToPost, channelPayload.text);
+                      if (videoToPost.endsWith(".mp4") && !channelPayload.image.endsWith(".mp4")) {
+                          safeCleanupVideo(videoToPost, 60000);
+                      }
+                  } catch (e) {
+                      robotLog(ROBOTS.NEWS, "ERROR", `TikTok Stealth Fail: ${e.message}`);
                   }
-                  await socialAutomator.postToTikTok(videoToPost, channelPayload.text);
-                  
-                  // Cleanup
-                  if (videoToPost.endsWith(".mp4") && !channelPayload.image.endsWith(".mp4")) {
-                      setTimeout(() => { if (fs.existsSync(videoToPost)) fs.unlinkSync(videoToPost); }, 60000);
-                  }
-              } catch (e) {
-                  robotLog(ROBOTS.NEWS, "ERROR", `TikTok Stealth Fail: ${e.message}`);
+              } else {
+                  robotLog(ROBOTS.NEWS, "WARN", "TikTok Direct disabled (no browser)");
               }
+              marketing.lastByNet[name] = Date.now();
               continue;
           }
 
-  // If YouTube AND (Webhook is empty OR explicit DIRECT)
-          if (name === "youtube" && (!conf.webhook || conf.webhook === "DIRECT" || conf.webhook.trim() === "")) {
-             try {
-                 const ok = await postToYouTube(channelPayload.image, channelPayload.text);
-                 if (!ok) throw new Error("API Failed/Missing");
-             } catch (e) {
-                 robotLog(ROBOTS.NEWS, "WARN", `YouTube API Fail: ${e.message}, trying Stealth...`);
-                 try {
-                     const videoPath = await generateVideoMontage(payload.spot || "Spot");
-                     const title = channelPayload.text.split('\n')[0].substring(0, 100);
-                     await socialAutomator.postToYouTube(videoPath, title, channelPayload.text);
-                     setTimeout(() => { if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath); }, 60000);
-                 } catch (err) {
-                     robotLog(ROBOTS.NEWS, "ERROR", `YouTube Stealth Fail: ${err.message}`);
-                 }
+          // YouTube: Direct only if env present, else Stealth
+          if (name === "youtube" && hasEnvForNetwork("youtube")) {
+             const ok = await retry(() => postToYouTube(channelPayload.image, channelPayload.text), 2);
+             if (!ok) {
+                if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+                    try {
+                        const videoPath = await generateVideoMontage(payload.spot || "Spot");
+                        const title = channelPayload.text.split('\n')[0].substring(0, 100);
+                        console.log("👣 Ensuring human-like login for YouTube before stealth post...");
+                        await socialAutomator.ensureHumanLoginIfNeeded("youtube");
+                        await socialAutomator.postToYouTube(videoPath, title, channelPayload.text);
+                        safeCleanupVideo(videoPath, 60000);
+                    } catch (err) {
+                        robotLog(ROBOTS.NEWS, "ERROR", `YouTube Stealth Fail: ${err.message}`);
+                    }
+                } else {
+                    robotLog(ROBOTS.NEWS, "WARN", "YouTube Stealth disabled (no browser)");
+                }
              }
+             marketing.lastByNet[name] = Date.now();
              continue;
           }
 
@@ -1695,10 +1942,11 @@ const fireMarketing = async (req) => {
              const discordBody = {
                content: `${channelPayload.text}\n${channelPayload.image}`,
                username: "SwellSync Bot",
-               avatar_url: `${payload.link}/logo-og.png`
+              avatar_url: `${payload.base}/logo-og.png`
              };
              await fetch(conf.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(discordBody) });
              robotLog(ROBOTS.NEWS, "PROMO", `Discord Webhook envoyé`);
+             marketing.lastByNet[name] = Date.now();
              continue;
           }
           
@@ -1706,6 +1954,7 @@ const fireMarketing = async (req) => {
 
           await fetch(conf.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(channelPayload) });
           robotLog(ROBOTS.NEWS, "PROMO", `Payload ${name} (${conf.format})`);
+          marketing.lastByNet[name] = Date.now();
         } catch (e) {
           robotLog(ROBOTS.NEWS, "ERROR", `Promo ${name}: ${e.message}`);
         }
@@ -1749,12 +1998,12 @@ const drainAggregatorQueue = async (req) => {
   }
 };
 const startMarketingTimer = (req, intervalMs) => {
-  if (marketing.timer) clearInterval(marketing.timer);
+  if (marketing.timer) clearTimeout(marketing.timer);
   marketing.intervalMs = intervalMs;
   marketing.running = true;
-  marketing.nextRunAt = Date.now() + intervalMs;
   marketing.stoppedByAdmin = false;
-  marketing.timer = setInterval(async () => {
+  const scheduleNext = async () => {
+    // Run now
     const ok = await fireMarketing(req);
     if (!ok) {
       marketing.failureCount++;
@@ -1770,8 +2019,19 @@ const startMarketingTimer = (req, intervalMs) => {
     } else {
       marketing.failureCount = 0;
     }
-    marketing.nextRunAt = Date.now() + marketing.intervalMs;
-  }, intervalMs);
+    // Compute jittered delay for next run
+    const base = marketing.intervalMs;
+    const minJ = Math.max(60_000, Math.floor(base * 0.10)); // >=1 min or 10%
+    const maxJ = Math.max(180_000, Math.floor(base * 0.25)); // >=3 min or 25%
+    const jitter = Math.floor(minJ + Math.random() * (maxJ - minJ));
+    const nextDelay = base + jitter; // always offset forward to avoid mêmes heures/minutes
+    marketing.nextRunAt = Date.now() + nextDelay;
+    marketing.timer = setTimeout(scheduleNext, nextDelay);
+  };
+  // First schedule with random offset to avoid fixed minute alignment
+  const firstOffset = Math.floor(Math.max(30_000, Math.min(intervalMs, Math.random() * 120_000))); // 30s..2m
+  marketing.nextRunAt = Date.now() + firstOffset;
+  marketing.timer = setTimeout(scheduleNext, firstOffset);
 };
 const stopMarketingTimer = () => {
   if (marketing.timer) clearInterval(marketing.timer);
@@ -1780,6 +2040,22 @@ const stopMarketingTimer = () => {
   marketing.nextRunAt = 0;
   marketing.stoppedByAdmin = true;
 };
+const ALLOWED_ENV_KEYS = [
+  "INSTAGRAM_USERNAME","INSTAGRAM_PASSWORD","INSTAGRAM_TOTP_SECRET",
+  "THREADS_USERNAME","THREADS_PASSWORD",
+  "TWITTER_API_KEY","TWITTER_API_SECRET","TWITTER_ACCESS_TOKEN","TWITTER_ACCESS_SECRET",
+  "TWITTER_USERNAME","TWITTER_PASSWORD",
+  "TELEGRAM_BOT_TOKEN","TELEGRAM_CHAT_ID",
+  "FACEBOOK_PAGE_ACCESS_TOKEN","FACEBOOK_PAGE_ID",
+  "FACEBOOK_USERNAME","FACEBOOK_PASSWORD",
+  "YOUTUBE_CLIENT_ID","YOUTUBE_CLIENT_SECRET","YOUTUBE_REFRESH_TOKEN",
+  "GOOGLE_LOGIN_EMAIL","GOOGLE_LOGIN_PASSWORD","GOOGLE_TOTP_SECRET",
+  "SMTP_FROM","SMTP_HOST","SMTP_PORT","SMTP_USER","SMTP_PASS",
+  "BASE_URL","ADMIN_EMAIL","ADMIN_TOKEN",
+  "PUPPETEER_DISABLE","NO_BROWSER",
+  "MARKETING_WEBHOOK_URL","MARKETING_INTERVAL_MINUTES","MARKETING_MESSAGE","MARKETING_CHANNELS",
+  "AUTO_POST_ALL_ON_BOOT"
+];
 app.get("/api/admin/marketing/status", (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
   const iv = Math.round(marketing.intervalMs / 60000);
@@ -1800,7 +2076,8 @@ app.get("/api/admin/marketing/status", (req, res) => {
     reason,
     failureCount: marketing.failureCount,
     lastErrorAt: marketing.lastErrorAt,
-    cookieStatus: socialAutomator.getCookieStatus()
+    cookieStatus: socialAutomator.hasBrowser() ? socialAutomator.getCookieStatus() : { instagram: false, facebook: false, tiktok: false, youtube: false, twitter: false },
+    browserAvailable: socialAutomator.hasBrowser() && !HEADLESS_ONLY
   });
 });
 app.post("/api/admin/marketing/start", (req, res) => {
@@ -1824,6 +2101,234 @@ app.post("/api/admin/marketing/fire", async (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
   const ok = await fireMarketing(req);
   res.json({ success: ok });
+});
+app.post("/api/admin/social/post-all", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const requested = Array.isArray(req.body?.networks) && req.body.networks.length
+    ? req.body.networks.map(s => String(s).toLowerCase())
+    : ["instagram","threads","twitter","facebook","youtube","telegram","discord"]; // tiktok exclu par défaut en prod
+  const payload = buildMarketingPayload(req);
+  const results = [];
+  for (const net of requested) {
+    try {
+      const conf = marketing.connectors[net] || { enabled: true, webhook: "" };
+      const p = { ...payload, channel: net };
+      if (conf.webhook && conf.webhook !== "DIRECT") {
+        await fetch(conf.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
+        results.push({ network: net, ok: true, mode: "webhook" });
+        continue;
+      }
+      if (net === "instagram") {
+        let ok = false;
+        if (hasEnvForNetwork("instagram")) {
+          ok = await postToInstagram(p.image, p.text);
+        }
+        if (!ok && socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+          try {
+            const videoPath = await generateVideoMontage(p.spot || "Spot");
+            await socialAutomator.ensureHumanLoginIfNeeded("instagram");
+            await socialAutomator.postToInstagramVideo(videoPath, p.text);
+            safeCleanupVideo(videoPath, 60000);
+            ok = true;
+          } catch (e) { ok = false; }
+        }
+        results.push({ network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" });
+        continue;
+      }
+      if (net === "threads") {
+        const ok = await postToThreads(p.image, p.text);
+        results.push({ network: net, ok, mode: "direct" });
+        continue;
+      }
+      if (net === "telegram") {
+        const ok = await postToTelegram(p.image, p.text);
+        results.push({ network: net, ok, mode: "direct" });
+        continue;
+      }
+      if (net === "discord") {
+        if (marketing.connectors.discord?.webhook) {
+          const body = { content: `${p.text}\n${p.image}`, username: "SwellSync Bot", avatar_url: `${payload.base}/logo-og.png` };
+          await fetch(marketing.connectors.discord.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+          results.push({ network: net, ok: true, mode: "webhook" });
+        } else {
+          results.push({ network: net, ok: false, error: "discord webhook manquant" });
+        }
+        continue;
+      }
+      if (net === "twitter") {
+        let ok = await postToTwitter(p.image, p.text);
+        if (!ok && socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+          try {
+            console.log("👣 Ensuring human-like login for Twitter (post-all)...");
+            await socialAutomator.ensureHumanLoginIfNeeded("twitter");
+            await socialAutomator.postToTwitter(p.image, p.text); ok = true;
+          } catch (e) { ok = false; }
+        }
+        results.push({ network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" });
+        continue;
+      }
+      if (net === "facebook") {
+        let ok = await postToFacebook(p.image, p.text);
+        if (!ok && socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+          try {
+            const videoPath = await generateVideoMontage(p.spot || "Spot");
+            console.log("👣 Ensuring human-like login for Facebook (post-all)...");
+            await socialAutomator.ensureHumanLoginIfNeeded("facebook");
+            await socialAutomator.postToFacebook(videoPath, p.text);
+            safeCleanupVideo(videoPath, 60000);
+            ok = true;
+          } catch (e) { ok = false; }
+        }
+        results.push({ network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" });
+        continue;
+      }
+      if (net === "youtube") {
+        let ok = await postToYouTube(p.image, p.text);
+        if (!ok && socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+          try {
+            const videoPath = await generateVideoMontage(p.spot || "Spot");
+            const title = p.text.split('\n')[0].substring(0, 100);
+            console.log("👣 Ensuring human-like login for YouTube (post-all)...");
+            await socialAutomator.ensureHumanLoginIfNeeded("youtube");
+            await socialAutomator.postToYouTube(videoPath, title, p.text);
+            safeCleanupVideo(videoPath, 60000);
+            ok = true;
+          } catch (e) { ok = false; }
+        }
+        results.push({ network: net, ok, mode: ok ? (socialAutomator.hasBrowser() && !HEADLESS_ONLY ? "stealth_or_direct" : "direct") : "failed" });
+        continue;
+      }
+      if (net === "tiktok") {
+        if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+          let videoToPost = p.image;
+          if (!videoToPost.endsWith(".mp4")) videoToPost = await generateVideoMontage(p.spot || "Spot");
+          console.log("👣 Ensuring human-like login for TikTok (post-all)...");
+          await socialAutomator.ensureHumanLoginIfNeeded("tiktok");
+          await socialAutomator.postToTikTok(videoToPost, p.text);
+          results.push({ network: net, ok: true, mode: "stealth" });
+        } else {
+          results.push({ network: net, ok: false, error: "tiktok nécessite webhook ou navigateur" });
+        }
+        continue;
+      }
+      results.push({ network: net, ok: false, error: "network inconnu" });
+    } catch (e) {
+      results.push({ network: net, ok: false, error: e.message });
+    }
+  }
+  res.json({ success: results.every(r => r.ok), results });
+});
+app.post("/api/admin/secrets/save", express.json({ limit: "1mb" }), async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const envInput = req.body?.env || {};
+    const updates = {};
+    Object.keys(envInput).forEach(k => {
+      if (ALLOWED_ENV_KEYS.includes(k)) {
+        const v = String(envInput[k] ?? "");
+        updates[k] = v;
+      }
+    });
+    const envPath = path.join(process.cwd(), ".env");
+    let current = {};
+    try {
+      if (fs.existsSync(envPath)) {
+        const raw = fs.readFileSync(envPath, "utf8");
+        raw.split("\n").forEach(line => {
+          const idx = line.indexOf("=");
+          if (idx > 0) {
+            const k = line.slice(0, idx).trim();
+            const v = line.slice(idx + 1).trim().replace(/^"+|"+$/g, "");
+            if (k) current[k] = v;
+          }
+        });
+      }
+    } catch {}
+    const merged = { ...current, ...updates };
+    const lines = Object.entries(merged).map(([k, v]) => `${k}="${v.replace(/\n/g, " ")}"`);
+    fs.writeFileSync(envPath, lines.join("\n"));
+    res.json({ success: true, saved: Object.keys(updates).length });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+app.post("/api/admin/social/post", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const net = String(req.body?.network || "").toLowerCase();
+  if (!net) return res.status(400).json({ success: false, error: "network manquant" });
+  const payload = buildMarketingPayload(req);
+  const conf = marketing.connectors[net] || { enabled: true, webhook: "" };
+  const p = { ...payload, channel: net };
+  try {
+    if (conf.webhook && conf.webhook !== "DIRECT") {
+      await fetch(conf.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
+      return res.json({ success: true, mode: "webhook" });
+    }
+    if (net === "instagram") {
+      await postToInstagram(p.image, p.text);
+      return res.json({ success: true, mode: "direct" });
+    }
+    if (net === "twitter") {
+      const ok = await postToTwitter(p.image, p.text);
+      if (!ok) throw new Error("Twitter API manquante");
+      return res.json({ success: true, mode: "direct" });
+    }
+    if (net === "threads") {
+      await postToThreads(p.image, p.text);
+      return res.json({ success: true, mode: "direct" });
+    }
+    if (net === "telegram") {
+      await postToTelegram(p.image, p.text);
+      return res.json({ success: true, mode: "direct" });
+    }
+    if (net === "facebook") {
+      const ok = await postToFacebook(p.image, p.text);
+      if (!ok) throw new Error("Facebook API manquante");
+      return res.json({ success: true, mode: "direct" });
+    }
+    if (net === "youtube") {
+      const ok = await postToYouTube(p.image, p.text);
+      if (!ok) throw new Error("YouTube API manquante");
+      return res.json({ success: true, mode: "direct" });
+    }
+    if (net === "tiktok") {
+      if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+        let videoToPost = p.image;
+        if (!videoToPost.endsWith(".mp4")) {
+          videoToPost = await generateVideoMontage(p.spot || "Spot");
+        }
+        await socialAutomator.postToTikTok(videoToPost, p.text);
+        return res.json({ success: true, mode: "stealth" });
+      }
+      return res.status(400).json({ success: false, error: "tiktok nécessite webhook ou navigateur" });
+    }
+    return res.status(400).json({ success: false, error: "network inconnu" });
+  } catch (e) {
+    return res.status(500).json({ success: false, error: e.message });
+  }
+});
+// --- HUMAN-LIKE LOGIN RECOVERY ---
+app.post("/api/admin/marketing/human-login", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const nets = Array.isArray(req.body?.networks) ? req.body.networks.map(s => String(s).toLowerCase()) : ["instagram","twitter","facebook","youtube","tiktok"];
+    const results = [];
+    console.log(`🧭 Human-like login requested for: ${nets.join(", ")}`);
+    for (const net of nets) {
+      try {
+        console.log(`➡️ Ensuring login for ${net}...`);
+        const ok = await socialAutomator.ensureHumanLoginIfNeeded(net);
+        results.push({ network: net, ok });
+        console.log(`✔️ ${net}: ${ok ? "Logged In" : "Login Failed"}`);
+      } catch (e) {
+        results.push({ network: net, ok: false, error: e.message });
+        console.log(`❌ ${net}: ${e.message}`);
+      }
+    }
+    res.json({ success: results.every(r => r.ok), results });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 // --- PROFILE UPDATE ENDPOINT ---
 app.post("/api/admin/marketing/update-profile", adminStaticGate, upload.single('photo'), async (req, res) => {
@@ -1867,13 +2372,16 @@ app.get("/api/admin/marketing/config", (req, res) => {
     intervalMinutes: Math.round(marketing.intervalMs / 60000),
     template: marketing.template,
     contentType: marketing.contentType,
+    autopostEnabled: marketing.autopostEnabled,
+    hashtags: marketing.hashtags,
+    networkIntervals: marketing.networkIntervals,
     connectors: marketing.connectors,
     email: marketing.email
   });
 });
 app.post("/api/admin/marketing/config", (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
-  const { channels, webhookUrl, intervalMinutes, template, contentType, connectors } = req.body || {};
+  const { channels, webhookUrl, intervalMinutes, template, contentType, connectors, autopostEnabled, hashtags, networkIntervals } = req.body || {};
   if (Array.isArray(channels)) marketing.channels = channels.map(s => String(s)).filter(Boolean);
   if (typeof webhookUrl === "string") marketing.webhookUrl = webhookUrl;
   if (template) marketing.template = String(template);
@@ -1889,6 +2397,16 @@ app.post("/api/admin/marketing/config", (req, res) => {
       }
     });
   }
+  if (typeof autopostEnabled === "boolean") marketing.autopostEnabled = autopostEnabled;
+  if (Array.isArray(hashtags)) marketing.hashtags = hashtags.filter(x => typeof x === "string" && x.trim().length).map(x => x.trim());
+  if (networkIntervals && typeof networkIntervals === "object") {
+    const ni = {};
+    Object.keys(networkIntervals).forEach(k => {
+      const v = parseInt(networkIntervals[k], 10);
+      if (!isNaN(v) && v >= 1) ni[k] = v;
+    });
+    marketing.networkIntervals = ni;
+  }
   if (intervalMinutes) {
     const iv = parseInt(intervalMinutes, 10);
     if (iv >= 1) {
@@ -1900,6 +2418,80 @@ app.post("/api/admin/marketing/config", (req, res) => {
   drainAggregatorQueue(req);
   saveMarketingConfig();
   res.json({ success: true });
+});
+app.post("/api/admin/marketing/advice", (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const nets = Object.keys(marketing.connectors).filter(k => marketing.connectors[k]?.enabled);
+  const advice = {};
+  nets.forEach(n => {
+    if (n === "instagram") advice[n] = { hashtagsMax: 10, captionMin: 40, captionMax: 180, bestHours: [8,9,12,13,18,21], jitterMin: 2, jitterMax: 7, varyFormat: ["reel","story","post"], cta: ["Lien en bio", "Conditions LIVE", "Abonne-toi"] };
+    else if (n === "threads") advice[n] = { hashtagsMax: 12, captionMin: 40, captionMax: 200, bestHours: [9,10,14,19,22], jitterMin: 3, jitterMax: 8, varyFormat: ["post","square"], cta: ["Voir le report", "Spot LIVE"] };
+    else if (n === "twitter") advice[n] = { hashtagsMax: 4, captionMin: 20, captionMax: 120, bestHours: [7,8,12,17,20], jitterMin: 2, jitterMax: 6, varyFormat: ["post"], cta: ["Voir swellsync.fr"] };
+    else if (n === "facebook") advice[n] = { hashtagsMax: 6, captionMin: 60, captionMax: 220, bestHours: [9,12,18,21], jitterMin: 3, jitterMax: 9, varyFormat: ["post","video"], cta: ["Report complet"] };
+    else if (n === "youtube") advice[n] = { tagsMax: 8, titleMax: 100, bestHours: [18,19,20,21], jitterMin: 5, jitterMax: 12, varyFormat: ["short","video"], cta: ["Site en description"] };
+    else advice[n] = { hashtagsMax: 8, captionMin: 40, captionMax: 180, bestHours: [10,12,18,20], jitterMin: 3, jitterMax: 8, varyFormat: ["post"], cta: ["Voir le site"] };
+  });
+  res.json({ success: true, advice });
+});
+app.post("/api/admin/marketing/style-suggest", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const url = String(req.body?.referenceUrl || "");
+  let styleName = "Dark", fxPreset = "fade";
+  try {
+    if (url && url.startsWith("http")) {
+      const r = await axios.get(url, { timeout: 5000 });
+      const t = (r.data || "").toString().toLowerCase();
+      if (t.includes("neon") || t.includes("glow") || t.includes("cyber")) styleName = "Neon";
+      else if (t.includes("sunset") || t.includes("warm") || t.includes("orange") || t.includes("pink")) styleName = "Sunset";
+      else if (t.includes("ocean") || t.includes("sea") || t.includes("blue") || t.includes("wave")) styleName = "Ocean";
+      else if (t.includes("forest") || t.includes("green")) styleName = "Forest";
+      else if (t.includes("retro") || t.includes("vintage")) styleName = "Retro";
+      if (t.includes("glitch") || t.includes("distortion")) fxPreset = "glitch";
+      else if (t.includes("shake") || t.includes("handheld")) fxPreset = "shake";
+    }
+  } catch {}
+  res.json({ success: true, styleName, fxPreset });
+});
+app.get("/api/admin/marketing/montage/preview", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  const spot = String(req.query.spot || "Spot");
+  const styleName = String(req.query.style || "");
+  const fxPreset = String(req.query.fx || "");
+  const musicName = String(req.query.music || "");
+  const hookStrength = String(req.query.hook || "");
+  const loopSeamless = String(req.query.loop || "");
+  const watermark = String(req.query.wm || "");
+  const colorGrade = String(req.query.cg || "");
+  const varLevel = String(req.query.var || "");
+  const subtitleText = String(req.query.subtext || "");
+  const subtitleStyle = String(req.query.substyle || "");
+  const sfxPreset = String(req.query.sfx || "");
+  const subtitleSize = String(req.query.subsize || "");
+  const sfxIntensity = String(req.query.sfxi || "");
+  try {
+    const p = await generateVideoMontage(spot, { styleName, fxPreset, musicName, hookStrength, loopSeamless, watermark: !!(watermark && watermark !== "0" && watermark !== "false"), colorGrade, varLevel, subtitleText, subtitleStyle, subtitleSize, sfxPreset, sfxIntensity });
+    res.setHeader("Content-Type", "video/mp4");
+    const s = fs.createReadStream(p);
+    s.pipe(res);
+    s.on("close", () => { try { const isStored = String(p).startsWith(GENERATED_VIDEOS_DIR); if (!isStored && fs.existsSync(p)) fs.unlinkSync(p); } catch {} });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+app.post("/api/admin/marketing/trends/post", async (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    if (!trendingTopics.length) await fetchGlobalTrends();
+    if (!trendingTopics.length) return res.status(400).json({ error: "No trends" });
+    const t = trendingTopics[0];
+    const videoPath = await generateVideoMontage(t.title, { styleName: "Neon", fxPreset: "fade", hookStrength: "strong", loopSeamless: "1", watermark: true, colorGrade: "tealorange", varLevel: 6 });
+    const tags = t.title.split(/\s+/).map(w => w.replace(/[^\w]/g, '')).filter(Boolean).slice(0, 6);
+    const caption = `${t.title}\n\n${marketing.template.replace("{spot}", "tendance").replace("{desc}", "Vidéo courte inspirée des tendances").replace("{hook}", "INSTANT HOOK").replace("{tags}", tags.map(h => "#" + h.toLowerCase()).join(" "))}\n\nVoir: https://swellsync.fr/`;
+    const ok = await uploadYouTubeVideo(videoPath, t.title, caption, tags);
+    res.json({ success: ok, topic: t.title });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 app.post("/api/agg/entry", async (req, res) => {
   try {
@@ -2257,6 +2849,38 @@ const fetchSurfNews = async () => {
   } catch (e) { robotLog(ROBOTS.NEWS, "ERROR"); }
 };
 
+const fetchGlobalTrends = async () => {
+  try {
+    const fr = await parser.parseURL("https://trends.google.com/trends/trendingsearches/daily/rss?geo=FR");
+    const items = (fr.items || []).map((it, idx) => ({
+      title: String(it.title || "").trim(),
+      link: String(it.link || ""),
+      source: "google_trends_fr",
+      rank: idx + 1
+    })).filter(x => x.title);
+    let surf = [];
+    try {
+      const rs = await parser.parseURL("https://www.reddit.com/r/surf/top/.rss?t=day");
+      surf = (rs.items || []).slice(0, 10).map((it, idx) => ({
+        title: String(it.title || "").trim(),
+        link: String(it.link || ""),
+        source: "reddit_r_surf",
+        rank: idx + 1
+      })).filter(x => x.title);
+    } catch {}
+    const all = [...items, ...surf];
+    const seen = new Set();
+    trendingTopics = all.filter(x => {
+      const k = x.title.toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    }).slice(0, 25);
+    robotLog(ROBOTS.NEWS, "READY", `${trendingTopics.length} tendances chargées`);
+  } catch (e) {
+    robotLog(ROBOTS.NEWS, "WARN", `Trends: ${e.message}`);
+  }
+};
 const getCardinal = (deg) => {
   if (deg == null) return "--";
   const arr = ["N", "NE", "E", "SE", "S", "SO", "O", "NO"];
@@ -2391,6 +3015,39 @@ const startBackgroundWorkers = () => {
   setTimeout(runSolarSync, 3500);
   setInterval(runEcoScan, 10 * 60 * 1000);
   setTimeout(runEcoScan, 4000);
+  setInterval(fetchGlobalTrends, 3 * 60 * 60 * 1000);
+  setTimeout(fetchGlobalTrends, 8000);
+  setInterval(runTrendPublisher, 6 * 60 * 60 * 1000);
+  setInterval(async () => {
+    const now = Date.now();
+    if (marketing.running && marketing.nextRunAt && now > marketing.nextRunAt + 60_000) {
+      try { await fireMarketing(undefined); } catch {}
+      const base = marketing.intervalMs;
+      const minJ = Math.max(60_000, Math.floor(base * 0.10));
+      const maxJ = Math.max(180_000, Math.floor(base * 0.25));
+      const jitter = Math.floor(minJ + Math.random() * (maxJ - minJ));
+      marketing.nextRunAt = Date.now() + base + jitter;
+    }
+    if (aggregator.queue.length) {
+      try { await drainAggregatorQueue(undefined); } catch {}
+    }
+  }, 60 * 1000);
+  setInterval(async () => {
+    if (!HEADLESS_ONLY && socialAutomator.hasBrowser()) {
+      const nets = ["instagram","twitter","facebook","youtube","tiktok"];
+      for (const n of nets) {
+        try { await socialAutomator.ensureHumanLoginIfNeeded(n); } catch {}
+      }
+    }
+  }, 5 * 60 * 1000);
+  (async () => {
+    if (!HEADLESS_ONLY && socialAutomator.hasBrowser()) {
+      const nets = ["instagram","twitter","facebook","youtube","tiktok"];
+      for (const n of nets) {
+        try { await socialAutomator.ensureHumanLoginIfNeeded(n); } catch {}
+      }
+    }
+  })();
 };
 
 app.get("/api/marine", async (req, res) => {
@@ -2401,6 +3058,7 @@ app.get("/api/marine", async (req, res) => {
 
 app.get("/api/alerts", (req, res) => { robotLog(ROBOTS.HUNTER, "RESP", `${epicSpots.length} alertes`); res.json(epicSpots); });
 app.get("/api/news", (req, res) => { robotLog(ROBOTS.NEWS, "RESP", `${globalNews.length} articles`); res.json(globalNews); });
+app.get("/api/trends", (req, res) => { robotLog(ROBOTS.NEWS, "RESP", `${trendingTopics.length} tendances`); res.json(trendingTopics); });
 app.post("/api/news/reload", async (req, res) => {
   await fetchSurfNews();
   robotLog(ROBOTS.NEWS, "READY", `reload ${globalNews.length}`);
@@ -2516,6 +3174,25 @@ app.get("/api/admin/metrics", async (req, res) => {
     res.status(500).json({ error: "Erreur serveur admin" });
   }
 });
+app.get("/api/admin/marketing/videos", (req, res) => {
+  if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
+  try {
+    const files = fs.existsSync(GENERATED_VIDEOS_DIR) ? fs.readdirSync(GENERATED_VIDEOS_DIR).filter(f => f.endsWith(".mp4")) : [];
+    const list = files.map(name => {
+      const p = path.join(GENERATED_VIDEOS_DIR, name);
+      const st = fs.statSync(p);
+      return {
+        name,
+        size: st.size,
+        mtime: st.mtimeMs,
+        url: `/generated/${encodeURIComponent(name)}`
+      };
+    }).sort((a, b) => b.mtime - a.mtime);
+    res.json({ success: true, videos: list });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
 
 app.post("/api/admin/session/token", async (req, res) => {
   const tok = (req.body && req.body.token) || "";
@@ -2540,7 +3217,7 @@ app.get("/api/admin/preview-video", async (req, res) => {
     try {
         const videoPath = await generateVideoMontage(spot);
         res.sendFile(videoPath, () => {
-            setTimeout(() => { if(fs.existsSync(videoPath)) fs.unlinkSync(videoPath); }, 60000);
+            safeCleanupVideo(videoPath, 60000);
         });
     } catch (e) {
         robotLog(ROBOTS.NEWS, "ERROR", `Preview Video Fail: ${e.message}`);
@@ -2584,6 +3261,9 @@ app.post("/api/admin/marketing/cookies/collect", async (req, res) => {
   const timeoutMs = Math.max(5000, parseInt(body.timeoutMs || "15000", 10));
   const results = [];
   let browser = null, cleanup = null;
+  if (HEADLESS_ONLY || !socialAutomator.hasBrowser()) {
+    return res.json({ success: true, details: nets.map(n => `${n}: skipped (no_browser)`) });
+  }
   try {
     const pr = await socialAutomator.launchBrowserWithSystemProfile("new");
     browser = pr.browser;
@@ -3100,16 +3780,23 @@ app.listen(PORT, () => {
         robotLog(ROBOTS.SERVER, "ACTIF", `http://localhost:${PORT}`);
         robotLog(ROBOTS.API, "READY", "Liaison ÉTABLIE");
         startBackgroundWorkers();
-        const auto = process.env.AUTO_COLLECT_COOKIES;
-        if (auto && auto !== "0" && auto !== "false") {
-          (async () => {
+        try {
+          const autoBoot = process.env.AUTO_POST_ALL_ON_BOOT;
+          if (autoBoot === undefined || autoBoot === "1") {
+            fireMarketing(undefined).catch(()=>{});
+          }
+        } catch {}
+        (async () => {
+          if (!HEADLESS_ONLY && socialAutomator.hasBrowser()) {
             try {
               const r = await socialAutomator.autoLoginAndCollect(["instagram","twitter","facebook","youtube"], 20000);
               if (r && r.success) robotLog(ROBOTS.NEWS, "STEALTH", `Cookies auto: ${r.details.join(", ")}`);
               else robotLog(ROBOTS.NEWS, "STEALTH", `Cookies auto: ERROR`);
             } catch {}
-          })();
-        }
+          } else {
+            robotLog(ROBOTS.NEWS, "WARN", "Auto cookies skipped (no browser)");
+          }
+        })();
     }, 1500);
     setInterval(sampleAdminSeries, 60 * 1000);
     try { sampleAdminSeries(); } catch {}
