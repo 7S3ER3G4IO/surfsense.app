@@ -516,9 +516,18 @@ const initDB = async () => {
                 id SERIAL PRIMARY KEY,
                 spot_name TEXT NOT NULL,
                 ip TEXT,
+                utm_source TEXT,
+                utm_medium TEXT,
+                utm_campaign TEXT,
+                utm_content TEXT,
                 ts TIMESTAMP DEFAULT NOW()
             );
         `);
+        // Ensure columns exist for old tables
+        await pool.query(`ALTER TABLE click_logs ADD COLUMN IF NOT EXISTS utm_source TEXT`);
+        await pool.query(`ALTER TABLE click_logs ADD COLUMN IF NOT EXISTS utm_medium TEXT`);
+        await pool.query(`ALTER TABLE click_logs ADD COLUMN IF NOT EXISTS utm_campaign TEXT`);
+        await pool.query(`ALTER TABLE click_logs ADD COLUMN IF NOT EXISTS utm_content TEXT`);
         await pool.query(`
             CREATE TABLE IF NOT EXISTS twofa_codes (
                 user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
@@ -1098,17 +1107,17 @@ const postToThreads = async (imageUrl, caption) => {
     // Workaround: Save buffer to temp file and upload.
     const response = await fetch(imageUrl);
     const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const tempPath = path.join(__dirname, `temp_threads_${Date.now()}.png`);
+    fs.writeFileSync(tempPath, Buffer.from(arrayBuffer));
     
-    // Need to save to a temp file because library might expect path?
-    // Actually, looking at source code of some wrappers, they accept buffer.
-    // But `threads-api` (junhoyeo) expects 'image' as attachment.
-    
-    // Let's try simple publish. If it fails, we log it.
+    // Publish using file path
     await threadsAPI.publish({
       text: caption,
-      image: imageUrl // Trying URL first.
+      image: tempPath
     });
+
+    // Cleanup
+    if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
 
     robotLog(ROBOTS.NEWS, "THREADS", "✅ Thread publié avec succès !");
     return true;
@@ -1246,14 +1255,16 @@ const generateVideoMontage = async (spotName) => {
         await page.goto(url, { waitUntil: "networkidle0" });
 
         // --- RANDOM SCENARIO & STYLE ---
-        const scenarios = ["CLASSIC", "ALERT", "DATA_FIRST", "VIBE"];
+        const scenarios = ["CLASSIC", "ALERT", "DATA_FIRST", "VIBE", "MINIMAL", "CHAOS"];
         const scenario = scenarios[Math.floor(Math.random() * scenarios.length)];
         
         const styles = [
             { name: "Dark", bg: "#0f172a", filter: "none" },
             { name: "Neon", bg: "#000000", filter: "contrast(1.2) saturate(1.2)" },
             { name: "Sunset", bg: "#2a1b3d", filter: "sepia(0.2)" },
-            { name: "Ocean", bg: "#0c4a6e", filter: "brightness(1.1)" }
+            { name: "Ocean", bg: "#0c4a6e", filter: "brightness(1.1)" },
+            { name: "Forest", bg: "#064e3b", filter: "hue-rotate(90deg)" },
+            { name: "Retro", bg: "#78350f", filter: "sepia(0.6) contrast(0.8)" }
         ];
         const style = styles[Math.floor(Math.random() * styles.length)];
         
@@ -1310,19 +1321,22 @@ const generateVideoMontage = async (spotName) => {
         };
 
         const slideCTA = async () => {
+             const ctaTexts = ["LIEN EN BIO 🔗", "CHECK LE REPORT", "CONDITIONS LIVE", "ABONNE-TOI 🤙", "SURF REPORT 🌊"];
+             const ctaText = ctaTexts[Math.floor(Math.random() * ctaTexts.length)];
+             
              // Inject a custom HTML overlay for CTA
-             await page.evaluate((spot) => {
+             await page.evaluate((spot, text) => {
                  document.body.innerHTML = `
                     <div style="height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; color:white; font-family:sans-serif;">
                         <h1 style="font-size:3rem; margin-bottom:20px;">🌊 ${spot}</h1>
                         <h2 style="font-size:2rem; color:#4ade80;">REPORT COMPLET</h2>
                         <div style="background:white; color:black; padding:20px 40px; font-size:2rem; font-weight:bold; border-radius:50px; margin-top:50px; box-shadow:0 0 30px rgba(255,255,255,0.3);">
-                            LIEN EN BIO 🔗
+                            ${text}
                         </div>
                         <p style="margin-top:30px; opacity:0.7;">swellsync.fr</p>
                     </div>
                  `;
-             }, spotName);
+             }, spotName, ctaText);
              const p = path.join(__dirname, `slide_cta_${Date.now()}.png`);
              await page.screenshot({ path: p });
              slidePaths.push(p);
@@ -1341,7 +1355,10 @@ const generateVideoMontage = async (spotName) => {
             await slideData();
             await slideTitle();
             await slideStatus();
-        } else { // VIBE
+        } else if (scenario === "MINIMAL") {
+            await slideTitle();
+            await slideStatus();
+        } else { // VIBE / CHAOS
             await slideTitle();
             await slideStatus();
             await slideData();
@@ -1352,34 +1369,76 @@ const generateVideoMontage = async (spotName) => {
 
         await browser.close();
 
-        // --- STITCH WITH FFMPEG ---
+        // --- STITCH WITH FFMPEG (Enhanced with Ken Burns & Transitions) ---
         return new Promise((resolve, reject) => {
             const cmd = ffmpeg();
             
             // Input all slides
             slidePaths.forEach(p => {
-                cmd.input(p).inputOptions(['-loop 1', '-t 3']); // 3 seconds each
+                cmd.input(p).inputOptions(['-loop 1', '-t 3.5']); // 3.5 seconds each for dynamic feel
             });
 
+            // Music Selection (Random from public/music if exists)
+            const musicDir = path.join(__dirname, 'public', 'assets', 'music');
+            let hasMusic = false;
+            if (fs.existsSync(musicDir)) {
+                const files = fs.readdirSync(musicDir).filter(f => f.endsWith('.mp3'));
+                if (files.length > 0) {
+                    const randomMusic = files[Math.floor(Math.random() * files.length)];
+                    cmd.input(path.join(musicDir, randomMusic));
+                    hasMusic = true;
+                    // Fade out audio at end
+                    // We need total duration
+                    const totalDuration = slidePaths.length * 3.5;
+                    cmd.audioFilters(`afade=t=out:st=${totalDuration-2}:d=2`);
+                }
+            }
+
             // Dynamic Filter Construction
-            let filterStr = "";
-            let inputsStr = "";
-            slidePaths.forEach((_, i) => {
-                filterStr += `[${i}:v]scale=1080:1920,setsar=1[v${i}];`;
-                inputsStr += `[v${i}]`;
-            });
-            filterStr += `${inputsStr}concat=n=${slidePaths.length}:v=1:a=0[outv]`;
+            // We apply a zoompan (Ken Burns) to each input, then concat
+            const filters = [];
+            const inputs = [];
             
-            cmd.complexFilter([filterStr])
-            .map('[outv]')
+            slidePaths.forEach((_, i) => {
+                // Randomize zoom effect (In or Out)
+                const zoomType = Math.random() > 0.5 ? "IN" : "OUT";
+                const z = zoomType === "IN" ? "'min(zoom+0.0015,1.2)'" : "'if(eq(on,1),1.2,max(1.0,zoom-0.0015))'"; // 1.2 max zoom
+                
+                // Scale to HD first, then apply zoompan
+                filters.push(`[${i}:v]scale=1080:1920,setsar=1,zoompan=z=${z}:d=120:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=1080x1920[v${i}]`);
+                inputs.push(`[v${i}]`);
+            });
+            
+            // Simple Concat (Crossfade is complex with fluent-ffmpeg chain, using simple concat for reliability first)
+            // To do proper crossfade, we'd need complex filter logic with offsets. 
+            // For now, let's stick to simple concat but with the motion effect which is already a huge upgrade.
+            const concatFilter = `${inputs.join('')}concat=n=${slidePaths.length}:v=1:a=0[outv]`;
+            filters.push(concatFilter);
+            
+            // Map output
+            let chain = cmd.complexFilter(filters)
+            .map('[outv]');
+            
+            if (hasMusic) {
+                // Map the last input as audio (index = slidePaths.length)
+                chain = chain.map(`${slidePaths.length}:a`);
+                chain.outputOptions(['-shortest']); // Cut audio to video length
+            }
+
+            chain
             .videoCodec('libx264')
-            .fps(30)
+            .outputOptions([
+                '-pix_fmt yuv420p', // Ensure compatibility
+                '-r 30'
+            ])
             .save(outputVideo)
             .on('end', () => {
+                // Cleanup slides
                 slidePaths.forEach(p => { if(fs.existsSync(p)) fs.unlinkSync(p); });
                 resolve(outputVideo);
             })
             .on('error', (err) => {
+                console.error("FFMPEG Error:", err);
                 slidePaths.forEach(p => { if(fs.existsSync(p)) fs.unlinkSync(p); });
                 reject(err);
             });
@@ -1410,9 +1469,9 @@ const postToYouTube = async (imageUrl, caption) => {
 
     let videoPath = null;
     try {
-        // 1. Convert Image to Video
-        videoPath = await createVideoFromImage(imageUrl);
-        robotLog(ROBOTS.NEWS, "YOUTUBE", "Conversion terminée. Upload en cours...");
+        // 1. Generate Video Montage (Smart)
+        videoPath = await generateVideoMontage(caption.match(/conditions live sur (.*?) •/i)?.[1] || "Spot");
+        robotLog(ROBOTS.NEWS, "YOUTUBE", "Montage terminé. Upload en cours...");
 
         // 2. Auth
         const oauth2Client = new google.auth.OAuth2(clientId, clientSecret, "https://developers.google.com/oauthplayground");
@@ -1507,9 +1566,13 @@ const fireMarketing = async (req) => {
                  await postToInstagram(channelPayload.image, channelPayload.text);
              } catch (e) {
                  robotLog(ROBOTS.NEWS, "ERROR", `IG API Fail: ${e.message}, trying Stealth...`);
-                 // Fallback to Stealth for Video if API fails
-                 if (channelPayload.image.endsWith(".mp4")) {
-                     await socialAutomator.postToInstagramVideo(channelPayload.image, channelPayload.text);
+                 // Fallback to Stealth Video
+                 try {
+                     const videoPath = await generateVideoMontage(payload.spot || "Spot");
+                     await socialAutomator.postToInstagramVideo(videoPath, channelPayload.text);
+                     setTimeout(() => { if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath); }, 60000);
+                 } catch (err) {
+                     robotLog(ROBOTS.NEWS, "ERROR", `IG Stealth Fail: ${err.message}`);
                  }
              }
              continue; // Skip webhook fetch
@@ -1561,24 +1624,25 @@ const fireMarketing = async (req) => {
              continue;
           }
 
+          // If TikTok AND (Webhook is empty OR explicit DIRECT)
           if (name === "tiktok" && (!conf.webhook || conf.webhook === "DIRECT" || conf.webhook.trim() === "")) {
-      // Use STEALTH AUTOMATION for TikTok
-      try {
-          // If video not generated yet (e.g. image provided), generate one
-          let videoToPost = channelPayload.image; // Assume it's a video path if type is video
-          if (!videoToPost.endsWith(".mp4")) {
-             videoToPost = await generateVideoMontage(payload.spot || "Spot");
+              try {
+                  // Always generate video for TikTok
+                  let videoToPost = channelPayload.image;
+                  if (!videoToPost.endsWith(".mp4")) {
+                      videoToPost = await generateVideoMontage(payload.spot || "Spot");
+                  }
+                  await socialAutomator.postToTikTok(videoToPost, channelPayload.text);
+                  
+                  // Cleanup
+                  if (videoToPost.endsWith(".mp4") && !channelPayload.image.endsWith(".mp4")) {
+                      setTimeout(() => { if (fs.existsSync(videoToPost)) fs.unlinkSync(videoToPost); }, 60000);
+                  }
+              } catch (e) {
+                  robotLog(ROBOTS.NEWS, "ERROR", `TikTok Stealth Fail: ${e.message}`);
+              }
+              continue;
           }
-          await socialAutomator.postToTikTok(videoToPost, channelPayload.text);
-          // Cleanup
-          if (videoToPost.endsWith(".mp4") && !channelPayload.image.endsWith(".mp4")) {
-              setTimeout(() => { if (fs.existsSync(videoToPost)) fs.unlinkSync(videoToPost); }, 60000);
-          }
-      } catch (e) {
-          robotLog(ROBOTS.NEWS, "ERROR", `TikTok Stealth Fail: ${e.message}`);
-      }
-      return; // Skip webhook
-  }
 
   // If YouTube AND (Webhook is empty OR explicit DIRECT)
           if (name === "youtube" && (!conf.webhook || conf.webhook === "DIRECT" || conf.webhook.trim() === "")) {
@@ -1600,10 +1664,8 @@ const fireMarketing = async (req) => {
           }
 
           // If TikTok AND (Webhook is empty OR explicit DIRECT)
-          if (name === "tiktok" && (!conf.webhook || conf.webhook === "DIRECT" || conf.webhook.trim() === "")) {
-             await postToTikTok(channelPayload.image, channelPayload.text);
-             continue;
-          }
+          // Handled above.
+          // if (name === "tiktok" ... ) { ... }
 
           // Discord Webhook Handling (Custom Payload)
           if (name === "discord" && conf.webhook && conf.webhook.startsWith("http")) {
@@ -1909,6 +1971,24 @@ app.post("/api/favorites", async (req, res) => {
             return res.status(400).json({ error: "Action invalide" });
         }
     } catch (e) { res.status(500).json({ error: "Erreur serveur" }); }
+});
+
+app.post("/api/log-click", async (req, res) => {
+    const { spot, source, medium, campaign, content } = req.body;
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    try {
+        // Only log if we have at least a spot or a source
+        if (spot || source) {
+            await pool.query(
+                "INSERT INTO click_logs (spot_name, ip, utm_source, utm_medium, utm_campaign, utm_content) VALUES ($1, $2, $3, $4, $5, $6)",
+                [spot || "unknown", ip, source, medium, campaign, content]
+            );
+        }
+        res.json({ success: true });
+    } catch (e) {
+        console.error("Log error:", e.message);
+        res.status(500).json({ error: "Error logging" });
+    }
 });
 
 app.get("/sitemap.xml", (req, res) => {

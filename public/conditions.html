@@ -292,5 +292,26 @@
   </div>
 </div>
 
+<script>
+  // Traffic Tracking
+  (async function() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const spot = params.get("spot");
+        const source = params.get("utm_source");
+        const medium = params.get("utm_medium");
+        const campaign = params.get("utm_campaign");
+        const content = params.get("utm_content");
+
+        if (spot || source) {
+            await fetch("/api/log-click", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ spot, source, medium, campaign, content })
+            });
+        }
+    } catch (e) { console.error("Tracking error", e); }
+  })();
+</script>
 
 </body>

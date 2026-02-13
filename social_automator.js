@@ -21,7 +21,38 @@ class SocialAutomator {
     loadCookies() {
         try {
             if (fs.existsSync(COOKIES_PATH)) {
-                this.cookies = JSON.parse(fs.readFileSync(COOKIES_PATH, 'utf8'));
+                const rawCookies = JSON.parse(fs.readFileSync(COOKIES_PATH, 'utf8'));
+                // Flatten cookies if they are double nested (e.g. [[{...}]])
+                this.cookies = {};
+                for (const [key, val] of Object.entries(rawCookies)) {
+                    let cookieList = [];
+                    if (Array.isArray(val) && val.length > 0 && Array.isArray(val[0])) {
+                        cookieList = val.flat();
+                    } else {
+                        cookieList = val;
+                    }
+
+                    // Sanitize cookies for Puppeteer
+                    this.cookies[key] = cookieList.map(c => {
+                        const newCookie = { ...c };
+                        // Fix sameSite: null -> undefined, "no_restriction" -> "None"
+                        if (newCookie.sameSite === null) delete newCookie.sameSite;
+                        if (newCookie.sameSite === "no_restriction") newCookie.sameSite = "None";
+                        if (newCookie.sameSite === "unspecified") delete newCookie.sameSite;
+                        
+                        // Remove fields that Puppeteer/CDP might complain about if invalid
+                        // storeId, session, hostOnly are often extra metadata from extensions
+                        delete newCookie.storeId;
+                        delete newCookie.session;
+                        delete newCookie.hostOnly;
+                        
+                        // Ensure name and value are strings
+                        newCookie.name = String(newCookie.name);
+                        newCookie.value = String(newCookie.value);
+                        
+                        return newCookie;
+                    });
+                }
             }
         } catch (e) {
             console.error("Error loading cookies:", e);
@@ -66,6 +97,67 @@ class SocialAutomator {
         await new Promise(resolve => setTimeout(resolve, delay));
     }
 
+    async checkLogin(network) {
+        console.log(`🔍 Checking login for ${network}...`);
+        const browser = await this.launchBrowser(false);
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1280, height: 800 });
+        let isLoggedIn = false;
+
+        try {
+            if (this.cookies[network]) {
+                await page.setCookie(...this.cookies[network]);
+            }
+
+            if (network === 'tiktok') {
+                await page.goto('https://www.tiktok.com/upload?lang=fr', { waitUntil: 'networkidle2' });
+                await this.humanDelay(3000, 5000);
+                
+                // Check if redirected to login
+                if (page.url().includes('/login') || page.url().includes('/signup')) {
+                    isLoggedIn = false;
+                } else {
+                    try {
+                        const isGuest = await page.evaluate(() => document.body.innerText.includes("Log in") || document.body.innerText.includes("Connexion"));
+                        isLoggedIn = !isGuest;
+                    } catch (e) {
+                        console.log("TikTok check interrupted (reload/redirect).");
+                        isLoggedIn = false;
+                    }
+                }
+            } else if (network === 'twitter') {
+                await page.goto('https://twitter.com/home', { waitUntil: 'networkidle2' });
+                await this.humanDelay(2000, 4000);
+                isLoggedIn = await page.evaluate(() => !document.querySelector('a[href="/login"], div[data-testid="loginButton"]'));
+            } else if (network === 'instagram') {
+                await page.goto('https://www.instagram.com/', { waitUntil: 'networkidle2' });
+                await this.humanDelay(2000, 4000);
+                isLoggedIn = await page.evaluate(() => !!document.querySelector('svg[aria-label="Home"], svg[aria-label="Accueil"]'));
+            } else if (network === 'facebook') {
+                await page.goto('https://www.facebook.com/', { waitUntil: 'networkidle2' });
+                await this.humanDelay(2000, 4000);
+                isLoggedIn = await page.evaluate(() => {
+                     return !!document.querySelector('div[aria-label="Account controls and settings"]') || 
+                            !!document.querySelector('svg[aria-label="Your profile"]') ||
+                            !!document.querySelector('div[role="navigation"]');
+                });
+            } else if (network === 'youtube') {
+                await page.goto('https://studio.youtube.com/', { waitUntil: 'networkidle2' });
+                await this.humanDelay(3000, 5000);
+                isLoggedIn = !page.url().includes('accounts.google.com');
+            }
+
+            console.log(`${network} Login Status: ${isLoggedIn ? "✅ Logged In" : "❌ Not Logged In"}`);
+            return isLoggedIn;
+
+        } catch (e) {
+            console.error(`Error checking ${network}:`, e);
+            return false;
+        } finally {
+            await browser.close();
+        }
+    }
+
     // --- TIKTOK AUTOMATION ---
     async postToTikTok(videoPath, caption, credentials = {}) {
         console.log("🚀 Launching Stealth Browser for TikTok...");
@@ -89,11 +181,18 @@ class SocialAutomator {
             await page.goto('https://www.tiktok.com/upload?lang=fr', { waitUntil: 'networkidle2' });
             await this.humanDelay(2000, 4000);
 
-            // Check if logged in
-            const loginButton = await page.$('button[data-e2e="upload-login-button"]'); // Example selector, changes often
-            const isGuest = await page.evaluate(() => document.body.innerText.includes("Log in") || document.body.innerText.includes("Connexion"));
+            // Check Login (Robust)
+            let isLoggedIn = true;
+            if (page.url().includes('/login') || page.url().includes('/signup')) {
+                isLoggedIn = false;
+            } else {
+                try {
+                    const isGuest = await page.evaluate(() => document.body.innerText.includes("Log in") || document.body.innerText.includes("Connexion"));
+                    isLoggedIn = !isGuest;
+                } catch (e) { isLoggedIn = false; }
+            }
 
-            if (isGuest) {
+            if (!isLoggedIn) {
                 console.log("⚠️ Not logged in. Attempting login...");
                 // Note: Automating TikTok login is EXTREMELY hard (puzzle captcha).
                 // Best strategy: Wait for user to login MANUALLY if running locally, OR use cookies.
