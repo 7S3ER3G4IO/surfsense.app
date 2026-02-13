@@ -21,6 +21,7 @@ import socialAutomator from './social_automator.js'; // STEALTH AUTOMATOR
 import FormData from 'form-data';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
+import multer from 'multer';
 ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 // --- GATE ADMIN AVANT STATIQUE ---
@@ -49,6 +50,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
+const upload = multer({ dest: path.join(__dirname, 'public/temp_uploads/') });
+if (!fs.existsSync(path.join(__dirname, 'public/temp_uploads/'))) {
+    fs.mkdirSync(path.join(__dirname, 'public/temp_uploads/'), { recursive: true });
+}
 const parser = new Parser();
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "loviatmax@gmail.com";
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "Hinalol08-";
@@ -1774,6 +1779,40 @@ app.post("/api/admin/marketing/fire", async (req, res) => {
   const ok = await fireMarketing(req);
   res.json({ success: ok });
 });
+// --- PROFILE UPDATE ENDPOINT ---
+app.post("/api/admin/marketing/update-profile", adminStaticGate, upload.single('photo'), async (req, res) => {
+    const { bio } = req.body;
+    const photoPath = req.file ? req.file.path : null;
+    
+    if (!bio && !photoPath) {
+        return res.status(400).json({ success: false, error: "Aucune donnée fournie (bio ou photo)" });
+    }
+
+    console.log(`📝 Bulk Profile Update requested. Bio: ${!!bio}, Photo: ${!!photoPath}`);
+    
+    // Networks to update (currently supported)
+    const networks = ['instagram', 'twitter', 'tiktok']; 
+    const results = [];
+    
+    // Process sequentially to save resources
+    for (const net of networks) {
+        try {
+            console.log(`Processing ${net}...`);
+            const r = await socialAutomator.updateProfileIdentity(net, { photoPath, bio });
+            results.push(`${net}: ${r.success ? '✅ Success' : '❌ Failed (' + (r.error || 'Unknown') + ')'}`);
+        } catch (e) {
+            results.push(`${net}: ❌ Error (${e.message})`);
+        }
+    }
+
+    // Cleanup temp file
+    if (photoPath && fs.existsSync(photoPath)) {
+        fs.unlinkSync(photoPath);
+    }
+
+    res.json({ success: true, details: results });
+});
+
 app.get("/api/admin/marketing/config", (req, res) => {
   if (!requireAdmin(req)) return res.status(403).json({ error: "Forbidden" });
   res.json({

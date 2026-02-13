@@ -1,857 +1,411 @@
 <!DOCTYPE html>
 <html lang="fr">
-  <head>
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin — SwellSync</title>
-    <link rel="stylesheet" href="../styles.css">
+    <title>SwellSync — Dashboard</title>
     <link rel="icon" href="../logo.svg" type="image/svg+xml" />
     <style>
-      .admin-layout{display:flex;min-height:100vh}
-      .admin-sidebar{width:260px;background:#0b0e16;border-right:1px solid #1f2937;padding:18px;position:sticky;top:0;height:100vh;backdrop-filter:blur(8px)}
-      .admin-brand{display:flex;align-items:center;gap:10px;color:#e5e7eb;font-weight:800;margin-bottom:18px}
-      .admin-nav a{display:block;padding:10px 12px;border-radius:12px;color:#c4b5fd;text-decoration:none;margin-bottom:6px;transition:background .2s, transform .1s}
-      .admin-nav a:hover{background:#111827;transform:translateX(2px)}
-      .admin-main{flex:1;padding:24px;background:
-        radial-gradient(1200px 600px at -10% -10%, rgba(124,58,237,.12), transparent 60%),
-        radial-gradient(1000px 500px at 110% 10%, rgba(34,197,94,.12), transparent 60%)}
-      .section-title h2{background:linear-gradient(90deg,#7c3aed,#22c55e,#f59e0b,#d946ef);background-size:300% 100%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;font-weight:900;animation:gradientShift 12s ease infinite}
-      .forecast-title{color:#c4b5fd;font-weight:800}
-      .btn.btn--compact{padding:6px 10px}
-      .admin-cards{margin-top:20px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
-      .admin-card{background:rgba(11,14,22,.7);backdrop-filter:blur(8px);border:1px solid #1f2937;border-radius:16px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.35);transition:transform .2s, box-shadow .2s}
-      .admin-card:hover{transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,.45)}
-      .metric-label{color:#94a3b8;font-weight:700}
-      .metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-      .metric-value{color:#e5e7eb;font-weight:900;font-size:1.05rem}
-      .stats-grid-6{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-top:20px}
-      .stat-item{background:#0b0e16;border:1px solid #1f2937;border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:6px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
-      .stat-label{color:#94a3b8;font-weight:700;display:flex;align-items:center;gap:8px}
-      .stat-icon{opacity:.9}
-      .stat-value{color:#fff;font-weight:900;font-size:1.3rem}
-      .pulse-dot{width:8px;height:8px;border-radius:50%;display:inline-block;animation:pulse 1.2s infinite}
-      .sparkline{width:100%;height:40px;opacity:.9}
-      .progress{height:10px;border-radius:8px;background:#111827;margin-top:10px;overflow:hidden}
-      .progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#d946ef,#f59e0b,#22c55e);transition:width .4s ease}
-      .flash{animation:flash .6s}
-      .live-toggle{display:flex;align-items:center;gap:10px;color:#94a3b8}
-      .live-toggle input{appearance:none;width:38px;height:20px;border-radius:10px;background:#1f2937;position:relative;outline:none;transition:background .2s}
-      .live-toggle input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s}
-      .live-toggle input:checked{background:#22c55e}
-      .live-toggle input:checked::after{left:20px}
-      .theme-toggle{display:flex;align-items:center;gap:10px;color:#94a3b8}
-      .theme-toggle input{appearance:none;width:38px;height:20px;border-radius:10px;background:#1f2937;position:relative;outline:none;transition:background .2s}
-      .theme-toggle input::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s}
-      .theme-toggle input:checked{background:#d946ef}
-      .theme-toggle input:checked::after{left:20px}
-      .neon .admin-card{box-shadow:0 8px 34px rgba(217,70,239,.25), inset 0 0 0 1px rgba(217,70,239,.12)}
-      .neon .stat-item{box-shadow:0 6px 28px rgba(96,165,250,.25)}
-      .neon .admin-main{background:
-        radial-gradient(1200px 600px at -10% -10%, rgba(217,70,239,.16), transparent 60%),
-        radial-gradient(1000px 500px at 110% 10%, rgba(245,158,11,.14), transparent 60%)}
-      @keyframes gradientShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
-      @keyframes pulse{0%{transform:scale(1);opacity:.9}50%{transform:scale(1.4);opacity:.6}100%{transform:scale(1);opacity:.9}}
-      @keyframes flash{0%{box-shadow:0 0 0 rgba(124,58,237,0)}50%{box-shadow:0 0 18px rgba(124,58,237,.35)}100%{box-shadow:0 0 0 rgba(124,58,237,0)}}
-      .spot-grid-admin{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-      .spot-card-admin{background:rgba(11,14,22,.7);backdrop-filter:blur(8px);border:1px solid #1f2937;border-radius:14px;padding:12px;box-shadow:0 6px 24px rgba(0,0,0,.25);transition:transform .2s, box-shadow .2s}
-      .spot-card-admin:hover{transform:translateY(-2px);box-shadow:0 10px 36px rgba(0,0,0,.35)}
-      .spot-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-      .spot-name{color:#fff;font-weight:900}
-      .spot-region{color:#94a3b8;font-weight:700}
-      .status-pill{padding:4px 8px;border-radius:999px;font-size:.8rem;font-weight:800}
-      .status-live{background:rgba(34,197,94,.15);color:#22c55e}
-      .status-wait{background:rgba(250,204,21,.15);color:#facc15}
-      .status-epic{background:rgba(217,70,239,.15);color:#d946ef}
-      .pill-clean{background:rgba(34,197,94,.15);color:#22c55e}
-      .pill-fair{background:rgba(245,158,11,.15);color:#f59e0b}
-      .pill-messy{background:rgba(239,68,68,.15);color:#ef4444}
-      .spot-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:6px}
-      .metric-chip{background:#0b0e16;border:1px solid #1f2937;border-radius:10px;padding:8px;text-align:center}
-      .spot-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
-      .act-btn{background:#0b0e16;border:1px solid #1f2937;color:#e5e7eb;border-radius:10px;padding:6px 10px;transition:transform .1s}
-      .act-btn:hover{transform:translateY(-1px)}
-      .spot-footer{display:flex;justify-content:space-between;align-items:center;margin-top:8px;color:#94a3b8}
-      .priority-star{color:#f59e0b;font-weight:900}
-      .epic-glow{box-shadow:0 0 0 1px rgba(217,70,239,.35), 0 0 22px rgba(217,70,239,.25)}
-      .spot-grid-admin.compact{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-      .spot-grid-admin.compact .spot-card-admin{padding:10px;border-radius:12px}
-      .spot-grid-admin.compact .spot-name{font-size:.95rem}
-      .spot-grid-admin.compact .metric-chip{padding:6px}
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #8b5cf6;
+            --accent-hover: #7c3aed;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .admin-container {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            height: 100vh;
+        }
+
+        .admin-sidebar {
+            background: #0b0f19;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-content {
+            overflow-y: auto;
+            padding: 32px;
+            background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.05), transparent 40%);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 32px;
+        }
+
+        .page-title h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .page-title p {
+            margin: 8px 0 0 0;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .badge-live {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            box-shadow: 0 0 8px var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 16px;
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .grid-6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        .metric-label { color: var(--text-secondary); }
+        .metric-value { font-weight: 600; color: var(--text-primary); }
+
+        .stat-card {
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+        
+        .stat-icon { font-size: 24px; margin-bottom: 4px; }
+        .stat-number { font-size: 24px; font-weight: 800; color: var(--text-primary); }
+        .stat-desc { font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; }
+
+        .progress-track {
+            height: 6px;
+            background: #334155;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #d946ef);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .btn-icon {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-icon:hover { background: rgba(255,255,255,0.1); border-color: var(--text-secondary); }
+
+        .input-mini {
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            width: 60px;
+            text-align: center;
+        }
     </style>
-  </head>
-  <body style="background:#080a12;">
-    <div class="admin-layout">
-      <aside class="admin-sidebar">
-        <div class="admin-brand">
-          <img src="../logo.svg" alt="logo" width="24" height="24"/>
-          <span>Admin</span>
-        </div>
-        <nav class="admin-nav" id="admin-nav"></nav>
-      </aside>
-      <main class="admin-main">
-    <div class="section" style="max-width:1200px; margin:0 auto;">
-      <div class="section-title" id="overview" style="display:flex; justify-content:space-between; align-items:center;">
-        <div>
-          <h2>Tableau de bord Admin</h2>
-          <p style="color:#94a3b8;">Surveillance en temps réel</p>
-        </div>
-        <div style="display:flex; align-items:center; gap:14px;">
-          <span class="badge badge--live">LIVE</span>
-          <label class="live-toggle"><input type="checkbox" id="live-mode"><span>Live mode</span></label>
-          <button id="pause-live" class="btn btn--compact">Pause Live</button>
-          <label class="theme-toggle"><input type="checkbox" id="dark-neon"><span>Dark Neon</span></label>
-        </div>
-      </div>
-      <div class="admin-cards">
-        <div class="admin-card" id="card-health">
-          <div class="metric-label">Santé Système</div>
-          <div class="metric-grid">
-            <div style="color:#9ca3af">DB</div><div id="health-db" class="metric-value">-</div>
-            <div style="color:#9ca3af">Ping DB</div><div id="health-ping" class="metric-value">-</div>
-            <div style="color:#9ca3af">Uptime</div><div id="health-uptime" class="metric-value">-</div>
-            <div style="color:#9ca3af">Mémoire</div><div id="health-mem" class="metric-value">-</div>
-            <div style="color:#9ca3af">Cache</div><div id="health-cache" class="metric-value">-</div>
-            <div style="color:#9ca3af">API</div><div id="health-api" class="metric-value">-</div>
-            <div style="color:#9ca3af">Spots</div><div id="health-spots" class="metric-value">-</div>
-          </div>
-        </div>
-        <div class="admin-card" id="card-workers">
-          <div class="metric-label">Workers</div>
-          <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
-            <span class="pulse-dot" style="background:#22c55e"></span>
-            <button id="btn-worker-pause" class="btn btn--compact">Pause</button>
-            <button id="btn-worker-resume" class="btn btn--compact">Resume</button>
-            <input id="worker-interval" type="number" min="1" max="240" value="45" class="btn" style="width:90px;"/>
-            <button id="btn-worker-apply" class="btn btn--compact">Appliquer</button>
-          </div>
-          <div style="color:#9ca3af; margin-top:6px;">Intervalle actuel: <span id="worker-interval-cur" class="metric-value">-</span> min · État: <span id="worker-state" class="metric-value">-</span></div>
-        </div>
-        <div class="admin-card" id="card-quota">
-          <div class="metric-label">Quota API</div>
-          <div class="metric-grid">
-            <div style="color:#9ca3af">Limite</div><div id="health-limit" class="metric-value">-</div>
-            <div style="color:#9ca3af">Restant</div><div id="health-rem" class="metric-value">-</div>
-            <div style="color:#9ca3af">Utilisé</div><div id="health-used" class="metric-value">-</div>
-          </div>
-          <div class="progress"><div id="quota-progress-bar" class="progress-bar"></div></div>
-          <div style="margin-top:10px;">
-            <button id="btn-quota-reel" class="btn btn--compact">Actualiser quota réel (Stormglass)</button>
-            <div id="quota-source" style="color:#94a3b8; margin-top:6px;"></div>
-          </div>
-        </div>
-      </div>
-      <div id="admin-grid" class="stats-grid-6">
-        <div class="stat-item"><span class="stat-label"><span class="pulse-dot" style="background:#60a5fa"></span><span class="stat-icon">👤</span> Utilisateurs</span><span class="stat-value"><span id="m-users">-</span></span><canvas id="spark-users" class="sparkline" width="140" height="40"></canvas></div>
-        <div class="stat-item"><span class="stat-label"><span class="pulse-dot" style="background:#f59e0b"></span><span class="stat-icon">♥</span> Favoris</span><span class="stat-value"><span id="m-favorites">-</span></span></div>
-        <div class="stat-item"><span class="stat-label"><span class="pulse-dot" style="background:#94a3b8"></span><span class="stat-icon">🖱️</span> Clicks</span><span class="stat-value"><span id="m-clicks">-</span></span></div>
-        <div class="stat-item"><span class="stat-label"><span class="pulse-dot" style="background:#22c55e"></span><span class="stat-icon">🛰️</span> Spots LIVE</span><span class="stat-value"><span id="m-live">-</span></span><canvas id="spark-live" class="sparkline" width="140" height="40"></canvas></div>
-        <div class="stat-item"><span class="stat-label"><span class="pulse-dot" style="background:#facc15"></span><span class="stat-icon">⏳</span> Spots WAIT</span><span class="stat-value"><span id="m-wait">-</span></span></div>
-        <div class="stat-item"><span class="stat-label"><span class="pulse-dot" style="background:#d946ef"></span><span class="stat-icon">⚡</span> Alertes ÉPIQUES</span><span class="stat-value"><span id="m-epic">-</span></span><canvas id="spark-epic" class="sparkline" width="140" height="40"></canvas></div>
-      </div>
-      <div class="stats-grid-6" style="margin-top:20px;">
-        <div class="stat-item"><span class="stat-label"><span class="pulse-dot" style="background:#22c55e"></span><span class="stat-icon">🔑</span> Quota RESTANT</span><span class="stat-value"><span id="m-quota-rem">-</span></span><canvas id="spark-quota" class="sparkline" width="140" height="40"></canvas></div>
-        <div class="stat-item"><span class="stat-label"><span class="stat-icon">🎚️</span> Quota LIMITE</span><span class="stat-value"><span id="m-quota-limit">-</span></span></div>
-        <div class="stat-item"><span class="stat-label"><span class="stat-icon">📊</span> Quota UTILISÉ</span><span class="stat-value"><span id="m-quota-used">-</span></span></div>
-        <div class="stat-item"><span class="stat-label"><span class="stat-icon">🗄️</span> Cache Items</span><span class="stat-value"><span id="m-cache">-</span></span></div>
-        <div class="stat-item"><span class="stat-label"><span class="stat-icon">🌊</span> Tide Keys</span><span class="stat-value"><span id="m-tide">-</span></span></div>
-      </div>
-      <div id="analytics" style="margin-top:30px;">
-        <h3 class="forecast-title">Analytique</h3>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
-          <div class="admin-card">
-            <div style="color:#94a3b8; margin-bottom:8px;">Spots LIVE vs WAIT (24h)</div>
-            <canvas id="chart-live" width="520" height="180"></canvas>
-          </div>
-          <div class="admin-card">
-            <div style="color:#94a3b8; margin-bottom:8px;">Quota restant (24h)</div>
-            <canvas id="chart-quota" width="520" height="180"></canvas>
-          </div>
-          <div class="admin-card">
-            <div style="color:#94a3b8; margin-bottom:8px;">Alertes ÉPIQUES (24h)</div>
-            <canvas id="chart-epic" width="520" height="180"></canvas>
-          </div>
-          <div class="admin-card">
-            <div style="color:#94a3b8; margin-bottom:8px;">Utilisateurs (24h)</div>
-            <canvas id="chart-users" width="520" height="180"></canvas>
-          </div>
-        </div>
-      </div>
-      <div id="robots" style="margin-top:30px;">
-        <h3 class="forecast-title">Robots</h3>
-        <div id="robots-list" class="robots-grid-container"></div>
-      </div>
-      <div id="actions" style="margin-top:30px;">
-        <h3 class="forecast-title">Actions</h3>
-        <div style="display:flex; gap:12px; flex-wrap:wrap;">
-          <button id="btn-clear-cache" class="btn">Vider cache</button>
-          <button id="btn-clear-tide" class="btn">Vider cache marée</button>
-          <button id="btn-reload-news" class="btn">Recharger actu</button>
-          <button id="btn-snapshot-robots" class="btn">Snapshot robots</button>
-        </div>
-      </div>
-      <div id="spots" style="margin-top:30px;">
-        <h3 class="forecast-title">Tableau des spots</h3>
-        <div style="display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
-          <label style="color:#94a3b8;">Région</label>
-          <select id="region-filter" class="btn" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-            <option value="">Toutes</option>
-          </select>
-          <label style="color:#94a3b8;">Statut</label>
-          <select id="spot-status" class="btn" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-            <option value="">Tous</option>
-            <option value="LIVE">LIVE</option>
-            <option value="WAITING">WAIT</option>
-            <option value="EPIC">EPIC</option>
-            <option value="PRIORITY">Priorité</option>
-          </select>
-          <label style="color:#94a3b8;">Tri</label>
-          <select id="spot-sort" class="btn" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-            <option value="name">Nom</option>
-            <option value="time">Maj</option>
-            <option value="height">Hauteur</option>
-            <option value="period">Période</option>
-            <option value="wind">Vent</option>
-          </select>
-          <input id="spot-search-admin" type="search" placeholder="Rechercher un spot..." class="btn" style="flex:1; min-width:220px; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;"/>
-          <label class="live-toggle"><input type="checkbox" id="spots-compact"><span>Mode compact</span></label>
-          <button id="btn-export-spots" class="btn">Exporter CSV spots</button>
-        </div>
-        <div id="spots-list" class="spot-grid-admin"></div>
-      </div>
-      <div id="logs" style="margin-top:30px; display:grid; grid-template-columns:1fr 1fr; gap:20px;">
-        <div>
-          <h3 class="forecast-title">Logs récents</h3>
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <div style="display:flex; gap:8px; align-items:center;">
-              <input id="logs-start" type="date" class="btn" />
-              <input id="logs-end" type="date" class="btn" />
-              <button id="btn-apply-logs" class="btn btn--compact">Appliquer</button>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Sidebar loaded via JS -->
+        <aside class="admin-sidebar">
+            <div style="padding: 24px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-color);">
+                <img src="../logo.svg" alt="logo" width="28" height="28"/>
+                <span style="font-weight: 800; font-size: 18px; letter-spacing: -0.5px;">Admin Panel</span>
             </div>
-            <button id="btn-export-logs" class="btn">Exporter CSV logs</button>
-          </div>
-          <div id="logs-list" style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px; max-height:320px; overflow:auto;"></div>
-        </div>
-        <div id="users">
-          <h3 class="forecast-title">Utilisateurs récents</h3>
-          <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
-            <input id="user-search" class="btn" placeholder="Rechercher email" style="flex:1; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;"/>
-            <select id="user-type-filter" class="btn" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-              <option value="">Tous</option>
-              <option value="premium">Premium</option>
-              <option value="standard">Standard</option>
-            </select>
-            <button id="btn-reset-premium" class="btn">Enlever Premium (tous)</button>
-            <button id="btn-export-users" class="btn">Exporter CSV</button>
-          </div>
-          <div style="color:#94a3b8; margin-bottom:8px;">Supprimés aujourd’hui: <span id="deleted-today">0</span></div>
-          <div id="users-list" style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px; max-height:320px; overflow:auto;"></div>
-        </div>
-      </div>
-      <div id="regions" style="margin-top:30px;">
-        <h3 class="forecast-title">Sessions par région (7 jours)</h3>
-        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
-          <input id="regions-start" type="date" class="btn" />
-          <input id="regions-end" type="date" class="btn" />
-          <button id="btn-apply-regions" class="btn btn--compact">Appliquer</button>
-        </div>
-        <div id="regions-bars" style="background:#0b0e16; border:1px solid #1f2937; border-radius:12px; padding:12px;"></div>
-      </div>
-      <div id="marketing" style="margin-top:30px;">
-        <h3 class="forecast-title">Marketing</h3>
-        <div class="admin-card" style="margin-top:10px;">
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-            <div>
-              <div style="color:#94a3b8; margin-bottom:6px;">Webhook agrégateur</div>
-              <input id="mk-webhook" class="btn" placeholder="https://hooks..." style="width:100%; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;" />
+            <nav id="admin-nav" style="flex: 1; padding: 16px; overflow-y: auto;"></nav>
+        </aside>
+
+        <main class="main-content">
+            <div class="header">
+                <div class="page-title">
+                    <h1>Tableau de Bord</h1>
+                    <p>Vue d'ensemble du système et performances temps réel</p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 16px;">
+                    <div class="badge-live">
+                        <span class="pulse-dot"></span>
+                        LIVE MODE
+                    </div>
+                    <button id="btn-refresh-all" class="btn-icon" title="Rafraîchir">🔄</button>
+                </div>
             </div>
-            <div>
-              <div style="color:#94a3b8; margin-bottom:6px;">Intervalle (minutes)</div>
-              <input id="mk-interval" type="number" min="1" step="1" class="btn" placeholder="60" style="width:100%; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;" />
+
+            <!-- System Health & Controls -->
+            <div class="grid-3" style="margin-bottom: 32px;">
+                <!-- Health -->
+                <div class="card" style="margin-bottom: 0;">
+                    <div class="card-header">
+                        <span class="card-title">Santé Système</span>
+                        <span id="health-status-dot" class="pulse-dot"></span>
+                    </div>
+                    <div class="metric-row"><span class="metric-label">Base de données</span><span id="health-db" class="metric-value">-</span></div>
+                    <div class="metric-row"><span class="metric-label">Latence DB</span><span id="health-ping" class="metric-value">-</span></div>
+                    <div class="metric-row"><span class="metric-label">Uptime</span><span id="health-uptime" class="metric-value">-</span></div>
+                    <div class="metric-row"><span class="metric-label">Mémoire</span><span id="health-mem" class="metric-value">-</span></div>
+                    <div class="metric-row"><span class="metric-label">Cache</span><span id="health-cache" class="metric-value">-</span></div>
+                </div>
+
+                <!-- Workers -->
+                <div class="card" style="margin-bottom: 0;">
+                    <div class="card-header">
+                        <span class="card-title">Background Workers</span>
+                        <span id="worker-state-dot" class="pulse-dot" style="background:var(--info); box-shadow:0 0 8px var(--info);"></span>
+                    </div>
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+                        <span id="worker-state" style="font-weight:700; color:var(--text-primary)">Actif</span>
+                        <div style="display:flex; gap:8px;">
+                            <button id="btn-worker-pause" class="btn-icon" title="Pause">⏸</button>
+                            <button id="btn-worker-resume" class="btn-icon" title="Resume">▶</button>
+                        </div>
+                    </div>
+                    <div class="metric-row" style="align-items:center;">
+                        <span class="metric-label">Intervalle (min)</span>
+                        <div style="display:flex; gap:8px;">
+                            <input id="worker-interval" type="number" min="1" max="240" value="45" class="input-mini">
+                            <button id="btn-worker-apply" class="btn-icon" style="width:auto; padding:0 12px; font-size:12px;">Set</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quota -->
+                <div class="card" style="margin-bottom: 0;">
+                    <div class="card-header">
+                        <span class="card-title">Quota Stormglass</span>
+                        <span id="quota-percent" style="font-size:12px; color:var(--text-secondary)">0%</span>
+                    </div>
+                    <div class="metric-row"><span class="metric-label">Limite Journalière</span><span id="health-limit" class="metric-value">-</span></div>
+                    <div class="metric-row"><span class="metric-label">Requêtes Utilisées</span><span id="health-used" class="metric-value">-</span></div>
+                    <div class="progress-track"><div id="quota-progress-bar" class="progress-fill"></div></div>
+                </div>
             </div>
-            <div style="grid-column:1 / span 2;">
-              <div style="color:#94a3b8; margin-bottom:6px;">Template message</div>
-              <input id="mk-template" class="btn" placeholder="SurfSense: conditions live sur {spot} • {desc}" style="width:100%; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;" />
+
+            <!-- Key Metrics -->
+            <div class="grid-6" style="margin-bottom: 32px;">
+                <div class="stat-card">
+                    <div class="stat-icon">👤</div>
+                    <div class="stat-number" id="m-users">-</div>
+                    <div class="stat-desc">Utilisateurs</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">❤️</div>
+                    <div class="stat-number" id="m-favorites">-</div>
+                    <div class="stat-desc">Favoris</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🖱️</div>
+                    <div class="stat-number" id="m-clicks">-</div>
+                    <div class="stat-desc">Clics (24h)</div>
+                </div>
+                <div class="stat-card" style="border-color:rgba(34,197,94,0.3)">
+                    <div class="stat-icon">🌊</div>
+                    <div class="stat-number" id="m-live" style="color:var(--success)">-</div>
+                    <div class="stat-desc">Spots LIVE</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏳</div>
+                    <div class="stat-number" id="m-wait" style="color:var(--warning)">-</div>
+                    <div class="stat-desc">Spots WAIT</div>
+                </div>
+                <div class="stat-card" style="border-color:rgba(217,70,239,0.3)">
+                    <div class="stat-icon">⚡</div>
+                    <div class="stat-number" id="m-epic" style="color:#d946ef">-</div>
+                    <div class="stat-desc">Alertes EPIC</div>
+                </div>
             </div>
-            <div>
-              <div style="color:#94a3b8; margin-bottom:6px;">Type de contenu</div>
-              <select id="mk-type" class="btn" style="width:100%; background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                <option value="story">Story</option>
-                <option value="classic">Post classique</option>
-                <option value="video">Vidéo</option>
-              </select>
+
+            <!-- Charts Placeholder -->
+            <div class="grid-2">
+                <div class="card">
+                    <div class="card-header"><span class="card-title">Activité Spots (24h)</span></div>
+                    <div style="height:200px; display:flex; align-items:center; justify-content:center; color:var(--text-secondary); background:rgba(0,0,0,0.2); border-radius:8px;">
+                        Graphique d'activité
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header"><span class="card-title">Consommation API</span></div>
+                    <div style="height:200px; display:flex; align-items:center; justify-content:center; color:var(--text-secondary); background:rgba(0,0,0,0.2); border-radius:8px;">
+                        Graphique Quota
+                    </div>
+                </div>
             </div>
-            <div>
-              <div style="color:#94a3b8; margin-bottom:6px;">Canaux</div>
-              <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <label class="act-btn"><input type="checkbox" id="mk-ch-instagram"> Instagram</label>
-                <label class="act-btn"><input type="checkbox" id="mk-ch-facebook"> Facebook</label>
-                <label class="act-btn"><input type="checkbox" id="mk-ch-tiktok"> TikTok</label>
-                <label class="act-btn"><input type="checkbox" id="mk-ch-youtube"> YouTube</label>
-                <label class="act-btn"><input type="checkbox" id="mk-ch-twitter"> X/Twitter</label>
-              </div>
-            </div>
-            <div style="grid-column:1 / span 2;">
-              <div style="color:#94a3b8; margin-bottom:6px;">Webhooks connexions directes (optionnel)</div>
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                <input id="mk-wh-instagram" class="btn" placeholder="Instagram webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                <input id="mk-wh-facebook" class="btn" placeholder="Facebook webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                <input id="mk-wh-tiktok" class="btn" placeholder="TikTok webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                <input id="mk-wh-youtube" class="btn" placeholder="YouTube webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-                <input id="mk-wh-twitter" class="btn" placeholder="X/Twitter webhook" style="background:#0b0e16; border:1px solid #1f2937; color:#e5e7eb;">
-              </div>
-            </div>
-          </div>
-          <div style="display:flex; gap:8px; margin-top:12px;">
-            <button id="mk-save" class="btn">Enregistrer</button>
-            <button id="mk-fire" class="btn">Publier maintenant</button>
-            <button id="mk-start" class="btn">Démarrer planificateur</button>
-            <button id="mk-stop" class="btn">Stop planificateur</button>
-            <span id="mk-status" style="color:#94a3b8; margin-left:auto;">Status: -</span>
-          </div>
-        </div>
-      </div>
+
+        </main>
     </div>
+
     <script>
-      (function(){
-        fetch("/admin/nav.html").then(r=>r.text()).then(html=>{ const el=document.getElementById("admin-nav"); if(el) el.innerHTML=html; }).catch(()=>{});
-        const params = new URLSearchParams(window.location.search);
-        const tParam = params.get("token");
-        if (tParam) { try { localStorage.setItem("surfAdminToken", tParam); history.replaceState({}, "", window.location.pathname); } catch {} }
-        const tok = localStorage.getItem("surfAdminToken") || "";
-        const headers = tok ? { "x-admin-token": tok } : {};
-        const q = (id) => document.getElementById(id);
-        const toast = (msg, type="success") => {
-          const el = document.createElement("div");
-          el.textContent = msg;
-          el.style.position = "fixed";
-          el.style.right = "16px";
-          el.style.bottom = "16px";
-          el.style.background = type === "error" ? "#ef4444" : "#22c55e";
-          el.style.color = "#fff";
-          el.style.padding = "10px 12px";
-          el.style.borderRadius = "8px";
-          el.style.boxShadow = "0 4px 24px rgba(0,0,0,0.35)";
-          el.style.zIndex = "9999";
-          el.style.fontWeight = "600";
-          document.body.appendChild(el);
-          setTimeout(() => { el.style.transition = "opacity .3s"; el.style.opacity = "0"; setTimeout(() => el.remove(), 300); }, 1800);
-        };
-        const drawLine = (canvas, points, color="#7c3aed") => {
-          if (!canvas) return;
-          const ctx = canvas.getContext("2d");
-          const w = canvas.width, h = canvas.height;
-          ctx.clearRect(0,0,w,h);
-          const arr = points.slice(-50);
-          if (!arr.length) return;
-          const ys = arr.map(p => p.v);
-          const min = Math.min.apply(null, ys);
-          const max = Math.max.apply(null, ys);
-          const pad = 10;
-          const scaleY = (v) => {
-            if (max === min) return h/2;
-            return h - pad - ((v - min) / (max - min)) * (h - pad*2);
-          };
-          ctx.strokeStyle = "#1f2937"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad, pad); ctx.lineTo(pad, h-pad); ctx.lineTo(w-pad, h-pad); ctx.stroke();
-          ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath();
-          arr.forEach((p,i) => {
-            const x = pad + (i / Math.max(1, arr.length-1)) * (w - pad*2);
-            const y = scaleY(p.v);
-            if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
-          });
-          ctx.stroke();
-        };
-        const animateNumber = (el, val) => {
-          if (!el) return;
-          const target = Number(val) || 0;
-          const prev = Number(el.dataset.v || el.textContent || 0);
-          const steps = 12;
-          let i = 0;
-          const d = (target - prev) / steps;
-          el.classList.add("flash");
-          const tick = () => {
-            i++;
-            const cur = Math.round(prev + d * i);
-            el.textContent = String(cur);
-            if (i < steps) { requestAnimationFrame(tick); } else { el.textContent = String(target); el.dataset.v = String(target); el.classList.remove("flash"); }
-          };
-          tick();
-        };
-        const drawBars = (container, data) => {
-          if (!container) return;
-          container.innerHTML = Object.entries(data).sort((a,b)=>b[1]-a[1]).map(([k,v]) => {
-            const pct = Math.min(100, Math.round(v * 3));
-            return '<div style="display:flex; align-items:center; gap:10px; margin:6px 0;"><div style="width:160px; color:#e5e7eb;">'+k+'</div><div style="flex:1; background:#111827; border-radius:8px; overflow:hidden;"><div style="width:'+pct+'%; background:#7c3aed; height:16px;"></div></div><div style="width:60px; text-align:right; color:#94a3b8;">'+v+'</div></div>';
-          }).join("");
-        };
-        let timers = {};
-        let liveMode = false;
-        let paused = false;
-        const schedule = (fast) => {
-          Object.values(timers).forEach(id => { try { clearInterval(id); } catch {} });
-          timers = {};
-          if (paused) return;
-          if (fast) {
-            timers.t1 = setInterval(load, 2000);
-            timers.t2 = setInterval(loadHealth, 3000);
-            timers.t3 = setInterval(loadAnalytics, 6000);
-            timers.t4 = setInterval(loadRegions, 6000);
-            timers.t5 = setInterval(loadSpots, 3000);
-            timers.t6 = setInterval(loadLogs, 3000);
-            timers.t7 = setInterval(loadUsers, 4000);
-          } else {
-            timers.t1 = setInterval(load, 5000);
-            timers.t2 = setInterval(loadHealth, 8000);
-            timers.t3 = setInterval(loadAnalytics, 15000);
-            timers.t4 = setInterval(loadRegions, 15000);
-            timers.t5 = setInterval(loadSpots, 6000);
-            timers.t6 = setInterval(loadLogs, 7000);
-            timers.t7 = setInterval(loadUsers, 9000);
-          }
-        };
-        async function load() {
-          try {
-            const res = await fetch("/api/admin/metrics", { headers });
-            const d = await res.json();
-            if (!res.ok) { throw new Error(d.error || "Forbidden"); }
-            animateNumber(q("m-users"), d.users);
-            animateNumber(q("m-favorites"), d.favorites);
-            animateNumber(q("m-clicks"), d.clicks);
-            animateNumber(q("m-live"), d.liveSpots);
-            animateNumber(q("m-wait"), d.waitingSpots);
-            animateNumber(q("m-epic"), d.epicAlerts);
-            animateNumber(q("m-quota-rem"), d.quota.remaining);
-            animateNumber(q("m-quota-limit"), d.quota.limit);
-            animateNumber(q("m-quota-used"), d.quota.used);
-            animateNumber(q("m-cache"), d.cacheItems);
-            animateNumber(q("m-tide"), d.tideKeys);
-            const lim = d.quota.limit || 0;
-            const used = d.quota.used || 0;
-            const pct = lim > 0 ? Math.min(100, Math.round((used / lim) * 100)) : 0;
-            const bar = document.getElementById("quota-progress-bar");
-            if (bar) bar.style.width = pct + "%";
-            q("deleted-today").textContent = d.deletedToday || 0;
-            const robots = d.robotsStatus || {};
-            const container = document.getElementById("robots-list");
-            if (container) {
-              const items = Object.entries(robots).map(([name, info]) => {
-                const dot = info.status === "OK" ? "#4ade80" : "#facc15";
-                return '<div class="ai-robot-card"><span class="robot-icon">'+(info.icon||"🤖")+'</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:'+dot+'"></span>'+name+'</span><span class="robot-value">'+(info.status||"-")+'</span><span class="robot-desc">'+(info.details||"")+'</span></div></div>';
-              }).join("");
-              container.innerHTML = items;
-            }
-          } catch(e) {
-            alert("Accès refusé. Veuillez vous reconnecter.");
-            localStorage.removeItem("surfAdminToken");
-            window.location.href = "../index.html";
-          }
-        }
-        async function loadHealth() {
-          try {
-            const r = await fetch("/api/admin/health", { headers });
-            const h = await r.json();
-            document.getElementById("health-db").textContent = h.db ? "OK" : "ERREUR";
-            document.getElementById("health-ping").textContent = (h.pingMs ?? "-")+" ms";
-            document.getElementById("health-uptime").textContent = h.uptime+" s";
-            document.getElementById("health-mem").textContent = h.memoryMB+" MB";
-            document.getElementById("health-cache").textContent = h.cacheCount ?? "-";
-            document.getElementById("health-api").textContent = (h.apiCallCount ?? 0)+" appels";
-            document.getElementById("health-spots").textContent = "LIVE "+(h.live||0)+" · WAIT "+(h.wait||0);
-            document.getElementById("health-limit").textContent = h.quota?.limit ?? "-";
-            document.getElementById("health-rem").textContent = h.quota?.remaining ?? "-";
-            document.getElementById("health-used").textContent = h.quota?.used ?? "-";
-            document.getElementById("worker-interval-cur").textContent = h.worker?.intervalMinutes ?? "-";
-            document.getElementById("worker-state").textContent = h.worker?.paused ? "PAUSED" : "RUNNING";
-            document.getElementById("worker-interval").value = h.worker?.intervalMinutes ?? 45;
-          } catch {}
-        }
-        document.getElementById("btn-worker-pause").onclick = async () => {
-          try { const r = await fetch("/api/admin/workers", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ action: "pause" }) }); if (r.ok) { toast("Worker en pause"); loadHealth(); } else { toast("Erreur pause", "error"); } } catch { toast("Erreur pause", "error"); }
-        };
-        document.getElementById("btn-worker-resume").onclick = async () => {
-          try { const r = await fetch("/api/admin/workers", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ action: "resume" }) }); if (r.ok) { toast("Worker relancé"); loadHealth(); } else { toast("Erreur resume", "error"); } } catch { toast("Erreur resume", "error"); }
-        };
-        document.getElementById("btn-worker-apply").onclick = async () => {
-          const minutes = parseInt(document.getElementById("worker-interval").value || "45");
-          try { const r = await fetch("/api/admin/workers", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ action: "setInterval", minutes }) }); if (r.ok) { toast("Intervalle mis à jour"); loadHealth(); } else { toast("Erreur intervalle", "error"); } } catch { toast("Erreur intervalle", "error"); }
-        };
-        document.getElementById("btn-quota-reel").onclick = async () => {
-          const elSrc = document.getElementById("quota-source");
-          try {
-            elSrc.textContent = "Mise à jour…";
-            const r = await fetch("/api/admin/quota/reel", { headers });
-            const dj = await r.json();
-            if (!r.ok) { toast("Erreur quota réel", "error"); elSrc.textContent = ""; return; }
-            document.getElementById("health-limit").textContent = dj.limit ?? "-";
-            document.getElementById("health-rem").textContent = dj.remaining ?? "-";
-            document.getElementById("health-used").textContent = dj.used ?? "-";
-            elSrc.textContent = "Source: "+(dj.source === "dashboard" ? "Dashboard Stormglass" : "API Stormglass");
-            toast("Quota réel mis à jour");
-          } catch { toast("Erreur quota réel", "error"); }
-        };
-        async function loadAnalytics() {
-          try {
-            const r = await fetch("/api/admin/analytics/timeseries", { headers });
-            const series = await r.json();
-            drawLine(document.getElementById("chart-live"), series.live, "#22c55e");
-            drawLine(document.getElementById("chart-quota"), series.quota, "#f59e0b");
-            drawLine(document.getElementById("chart-epic"), series.epic, "#d946ef");
-            drawLine(document.getElementById("chart-users"), series.users, "#60a5fa");
-            drawLine(document.getElementById("spark-live"), series.live, "#22c55e");
-            drawLine(document.getElementById("spark-quota"), series.quota, "#f59e0b");
-            drawLine(document.getElementById("spark-epic"), series.epic, "#d946ef");
-            drawLine(document.getElementById("spark-users"), series.users, "#60a5fa");
-          } catch {}
-        }
-        async function loadRegions() {
-          try {
-            const s = document.getElementById("regions-start").value;
-            const e = document.getElementById("regions-end").value;
-            let url = "/api/admin/regions";
-            if (s && e) url = "/api/admin/regions?start="+encodeURIComponent(s)+"&end="+encodeURIComponent(e);
-            const r = await fetch(url, { headers });
-            const data = await r.json();
-            drawBars(document.getElementById("regions-bars"), data);
-          } catch {}
-        }
-        document.getElementById("btn-apply-regions").onclick = loadRegions;
-        async function loadSpots() {
-          try {
-            const r = await fetch("/api/admin/spots", { headers });
-            const arr = await r.json();
-            const regions = Array.from(new Set(arr.map(x => x.region))).sort();
-            const sel = document.getElementById("region-filter");
-            if (sel && sel.options.length <= 1) {
-              regions.forEach(reg => {
-                const o = document.createElement("option");
-                o.value = reg; o.textContent = reg; sel.appendChild(o);
-              });
-            }
-            const statusSel = document.getElementById("spot-status");
-            const sortSel = document.getElementById("spot-sort");
-            const searchInput = document.getElementById("spot-search-admin");
-            const regionVal = sel.value;
-            const statusVal = statusSel ? statusSel.value : "";
-            const sortVal = sortSel ? sortSel.value : "name";
-            const searchVal = (searchInput ? searchInput.value : "").toLowerCase();
-            const prList = await fetch("/api/admin/spots/priority", { headers }).then(rr=>rr.json()).catch(()=>[]);
-            const epicRaw = await fetch("/api/admin/alerts", { headers }).then(rr=>rr.json()).catch(()=>[]);
-            const epicList = Array.isArray(epicRaw) ? epicRaw.map(x => x.name || x) : [];
-            let filtered = regionVal ? arr.filter(x => x.region === regionVal) : arr.slice();
-            if (statusVal === "LIVE") filtered = filtered.filter(x => x.status === "LIVE");
-            else if (statusVal === "WAITING") filtered = filtered.filter(x => x.status !== "LIVE");
-            else if (statusVal === "EPIC") filtered = filtered.filter(x => epicList.includes(x.name));
-            else if (statusVal === "PRIORITY") filtered = filtered.filter(x => Array.isArray(prList) && prList.includes(x.name));
-            if (searchVal) filtered = filtered.filter(x => x.name.toLowerCase().includes(searchVal));
-            const sorter = {
-              name: (a,b) => a.name.localeCompare(b.name),
-              time: (a,b) => new Date(b.sourceTime || 0) - new Date(a.sourceTime || 0),
-              height: (a,b) => (b.waveHeight||0) - (a.waveHeight||0),
-              period: (a,b) => (b.wavePeriod||0) - (a.wavePeriod||0),
-              wind: (a,b) => (b.windSpeed||0) - (a.windSpeed||0)
-            }[sortVal] || ((a,b)=>a.name.localeCompare(b.name));
-            filtered.sort(sorter);
-            const view = (x) => {
-              const h = x.waveHeight != null ? x.waveHeight.toFixed(1) : "-";
-              const t = x.wavePeriod != null ? Math.round(x.wavePeriod) : "-";
-              const v = x.windSpeed != null ? Math.round(x.windSpeed) : "-";
-              const d = x.windDirection || "-";
-              const timeLabel = x.sourceTime ? new Date(x.sourceTime).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : "-";
-              const isLive = x.status === "LIVE";
-              const isEpic = epicList.includes(x.name);
-              const star = Array.isArray(prList) && prList.includes(x.name) ? "★" : "☆";
-              const pillCls = isEpic ? "status-epic" : (isLive ? "status-live" : "status-wait");
-              const epicCls = isEpic ? "epic-glow" : "";
-              const score = (()=>{
-                let s = 0;
-                const hh = Number(x.waveHeight||0);
-                const pp = Number(x.wavePeriod||0);
-                const ww = Number(x.windSpeed||0);
-                if (pp >= 9) s+=2; else if (pp >= 7) s+=1;
-                if (ww <= 12) s+=2; else if (ww <= 20) s+=1;
-                if (hh >= .8 && hh <= 2.5) s+=2; else if (hh >= .5 && hh <= 3.5) s+=1;
-                return s;
-              })();
-              const cleanLabel = score >= 5 ? "CLEAN" : (score >= 3 ? "FAIR" : "MESSY");
-              const cleanCls = score >= 5 ? "pill-clean" : (score >= 3 ? "pill-fair" : "pill-messy");
-              return '<div class="spot-card-admin '+epicCls+'"><div class="spot-head"><div><div class="spot-name">'+x.name+'</div><div class="spot-region">'+x.region+'</div></div><div style="display:flex;gap:6px;align-items:center;"><div class="status-pill '+pillCls+'">'+(isEpic?'EPIC':(isLive?'LIVE':'WAIT'))+'</div><div class="status-pill '+cleanCls+'">'+cleanLabel+'</div></div></div><div class="spot-metrics"><div class="metric-chip"><div class="metric-label">Hauteur</div><div class="metric-value">'+h+'m</div></div><div class="metric-chip"><div class="metric-label">Période</div><div class="metric-value">'+t+'s</div></div><div class="metric-chip"><div class="metric-label">Vent</div><div class="metric-value">'+v+' km/h</div></div><div class="metric-chip"><div class="metric-label">Dir. Vent</div><div class="metric-value">'+d+'</div></div></div><div class="spot-footer"><div>Maj '+timeLabel+'</div><div class="priority-star">'+star+'</div></div><div class="spot-actions"><button class="act-btn" title="Refresh" data-action="refresh" data-name="'+x.name+'">⟳ Refresh</button><button class="act-btn" title="Effacer cache" data-action="clear" data-name="'+x.name+'">🗑️ Cache</button><button class="act-btn" title="Priorité" data-action="priority" data-name="'+x.name+'">⭐ Priorité</button><button class="act-btn" title="Marquer EPIC" data-action="epic-add" data-name="'+x.name+'">⚡ EPIC</button><button class="act-btn" title="Retirer EPIC" data-action="epic-rem" data-name="'+x.name+'">— EPIC</button></div></div>';
-            };
-            const container = document.getElementById("spots-list");
-            container.innerHTML = filtered.map(view).join("");
-            container.querySelectorAll("button[data-action]").forEach(btn => {
-              btn.onclick = async () => {
-                const name = btn.getAttribute("data-name");
-                const action = btn.getAttribute("data-action");
-                if (action === "refresh") {
-                  await fetch("/api/admin/spots/refresh", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ name }) });
-                  toast("Spot rafraîchi");
-                } else if (action === "clear") {
-                  await fetch("/api/admin/spots/clear", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ name }) });
-                  toast("Cache spot effacé");
-                } else if (action === "priority") {
-                  const rr = await fetch("/api/admin/spots/priority/toggle", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ name }) });
-                  if (rr.ok) toast("Priorité mise à jour"); else toast("Erreur priorité", "error");
-                } else if (action === "epic-add") {
-                  const rr = await fetch("/api/admin/alerts/manual", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ name, reason: "admin" }) });
-                  if (rr.ok) toast("EPIC ajouté"); else toast("Erreur EPIC", "error");
-                } else if (action === "epic-rem") {
-                  const rr = await fetch("/api/admin/alerts/manual/remove", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ name }) });
-                  if (rr.ok) toast("EPIC retiré"); else toast("Erreur EPIC", "error");
+        const token = localStorage.getItem('surfAdminToken');
+
+        fetch('/admin/nav.html').then(r => r.text()).then(html => {
+            document.getElementById('admin-nav').innerHTML = html;
+        });
+
+        const API_BASE = '/api/admin';
+        const headers = token ? { 'x-admin-token': token } : {};
+
+        async function refreshDashboard() {
+            try {
+                const [h, q, s] = await Promise.all([
+                    fetch(`${API_BASE}/health`, {headers}).then(r=>r.json()),
+                    fetch(`${API_BASE}/quota`, {headers}).then(r=>r.json()),
+                    fetch(`${API_BASE}/stats`, {headers}).then(r=>r.json())
+                ]);
+
+                // Health
+                if(h.success) {
+                    const d = h.data;
+                    document.getElementById('health-db').textContent = d.dbState;
+                    document.getElementById('health-ping').textContent = d.dbPing + 'ms';
+                    document.getElementById('health-uptime').textContent = Math.floor(d.uptime/3600) + 'h ' + Math.floor((d.uptime%3600)/60) + 'm';
+                    document.getElementById('health-mem').textContent = Math.round(d.memory.heapUsed/1024/1024) + ' MB';
+                    document.getElementById('health-cache').textContent = d.cacheSize;
+                    
+                    document.getElementById('worker-state').textContent = d.workerActive ? 'Actif' : 'En Pause';
+                    document.getElementById('worker-state-dot').style.background = d.workerActive ? 'var(--success)' : 'var(--danger)';
+                    document.getElementById('worker-state-dot').style.boxShadow = d.workerActive ? '0 0 8px var(--success)' : '0 0 8px var(--danger)';
+                    document.getElementById('worker-interval').value = d.workerInterval;
                 }
-                loadSpots();
-              };
+
+                // Quota
+                if(q.success) {
+                    const d = q.data;
+                    document.getElementById('health-limit').textContent = d.limit;
+                    document.getElementById('health-used').textContent = d.used;
+                    const pct = Math.round((d.used / d.limit) * 100);
+                    document.getElementById('quota-percent').textContent = pct + '%';
+                    document.getElementById('quota-progress-bar').style.width = pct + '%';
+                }
+
+                // Stats
+                if(s.success) {
+                    const d = s.data;
+                    document.getElementById('m-users').textContent = d.users;
+                    document.getElementById('m-favorites').textContent = d.favorites;
+                    document.getElementById('m-clicks').textContent = d.clicks24h;
+                    document.getElementById('m-live').textContent = d.liveSpots;
+                    document.getElementById('m-wait').textContent = d.waitingSpots;
+                    document.getElementById('m-epic').textContent = d.epicAlerts;
+                }
+
+            } catch(e) { console.error("Refresh error", e); }
+        }
+
+        // Handlers
+        document.getElementById('btn-worker-pause').onclick = async () => {
+            await fetch(`${API_BASE}/worker/stop`, {method:'POST', headers});
+            refreshDashboard();
+        };
+        document.getElementById('btn-worker-resume').onclick = async () => {
+            await fetch(`${API_BASE}/worker/start`, {method:'POST', headers});
+            refreshDashboard();
+        };
+        document.getElementById('btn-worker-apply').onclick = async () => {
+            const val = document.getElementById('worker-interval').value;
+            await fetch(`${API_BASE}/worker/interval`, {
+                method:'POST', 
+                headers: {...headers, 'Content-Type':'application/json'},
+                body:JSON.stringify({minutes: val})
             });
-          } catch {}
-        }
-        document.getElementById("region-filter").onchange = loadSpots;
-        if (document.getElementById("spot-status")) document.getElementById("spot-status").onchange = loadSpots;
-        if (document.getElementById("spot-sort")) document.getElementById("spot-sort").onchange = loadSpots;
-        if (document.getElementById("spot-search-admin")) document.getElementById("spot-search-admin").oninput = () => { clearTimeout(window.__spotSearchTimer); window.__spotSearchTimer = setTimeout(loadSpots, 250); };
-        if (document.getElementById("spots-compact")) document.getElementById("spots-compact").onchange = (e) => {
-          const list = document.getElementById("spots-list");
-          if (list) list.classList.toggle("compact", !!e.target.checked);
+            refreshDashboard();
         };
-        document.getElementById("btn-export-spots").onclick = async () => {
-          try {
-            const rr = await fetch("/api/admin/spots/export", { headers });
-            if (!rr.ok) { toast("Erreur export spots", "error"); return; }
-            const blob = await rr.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url; a.download = "spots.csv";
-            document.body.appendChild(a); a.click();
-            setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 0);
-            toast("CSV spots exporté");
-          } catch { toast("Erreur export spots", "error"); }
-        };
-        async function loadLogs() {
-          try {
-            const s = document.getElementById("logs-start").value;
-            const e = document.getElementById("logs-end").value;
-            let url = "/api/admin/logs";
-            if (s && e) url = "/api/admin/logs/range?start="+encodeURIComponent(s)+"&end="+encodeURIComponent(e);
-            const r = await fetch(url, { headers });
-            const arr = await r.json();
-            const el = document.getElementById("logs-list");
-            el.innerHTML = arr.map(x => '<div style="display:flex; justify-content:space-between; padding:6px 8px; border-bottom:1px solid #111827;"><span style="color:#9ca3af">'+(x.spot_name||"-")+'</span><span style="color:#6b7280">'+(x.ip||"-")+'</span></div>').join("");
-          } catch {}
-        }
-        document.getElementById("btn-apply-logs").onclick = loadLogs;
-        document.getElementById("btn-export-logs").onclick = async () => {
-          try {
-            const s = document.getElementById("logs-start").value;
-            const e = document.getElementById("logs-end").value;
-            let url = "/api/admin/logs/export";
-            if (s && e) url = "/api/admin/logs/export?start="+encodeURIComponent(s)+"&end="+encodeURIComponent(e);
-            const rr = await fetch(url, { headers });
-            if (!rr.ok) { toast("Erreur export logs", "error"); return; }
-            const blob = await rr.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = blobUrl; a.download = "logs.csv";
-            document.body.appendChild(a); a.click();
-            setTimeout(() => { URL.revokeObjectURL(blobUrl); a.remove(); }, 0);
-            toast("CSV logs exporté");
-          } catch { toast("Erreur export logs", "error"); }
-        };
-        let usersCache = [];
-        async function loadUsers() {
-          try {
-            const r = await fetch("/api/admin/users/recent", { headers });
-            const arr = await r.json();
-            usersCache = arr;
-            renderUsers();
-          } catch {}
-        }
-        function renderUsers() {
-          const el = document.getElementById("users-list");
-          const type = document.getElementById("user-type-filter").value;
-          const filtered = usersCache.filter(x => {
-            if (type === "premium") return !!x.premium;
-            if (type === "standard") return !x.premium;
-            return true;
-          });
-          el.innerHTML = filtered.map(x => '<div style="display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px solid #111827;"><div style="display:flex; gap:12px; align-items:center;"><span style="color:#9ca3af">'+(x.name||"Utilisateur")+'</span><span style="color:#6b7280">'+(x.email||"-")+'</span><span style="color:'+(x.premium?'#d946ef':'#94a3b8')+'">'+(x.premium?'Premium':'Standard')+'</span></div><div><button class="btn btn--compact" data-del="'+x.id+'">Supprimer</button></div></div>').join("");
-          el.querySelectorAll("button[data-del]").forEach(btn => {
-            btn.onclick = async () => {
-              const uid = parseInt(btn.getAttribute("data-del"));
-              if (!uid) return;
-              if (!confirm("Supprimer cet utilisateur ?")) return;
-              try {
-                const rr = await fetch("/api/admin/users/delete", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ userId: uid }) });
-                const dj = await rr.json();
-                if (!rr.ok) { alert(dj.error || "Erreur suppression"); return; }
-                loadUsers();
-                load();
-                toast("Utilisateur supprimé");
-              } catch { alert("Erreur suppression"); }
-            };
-          });
-        }
-        document.getElementById("user-type-filter").onchange = renderUsers;
-        document.getElementById("user-search").onchange = async (e) => {
-          const val = e.target.value.trim();
-          if (!val) { loadUsers(); return; }
-          try {
-            const r = await fetch("/api/admin/users/search?email="+encodeURIComponent(val), { headers });
-            usersCache = await r.json();
-            renderUsers();
-          } catch {}
-        }
-        document.getElementById("btn-reset-premium").onclick = async () => {
-          if (!confirm("Enlever Premium à tous les utilisateurs (sauf admin) ?")) return;
-          try {
-            const rr = await fetch("/api/admin/users/premium/reset", { method:"POST", headers });
-            const dj = await rr.json();
-            if (!rr.ok) { alert(dj.error || "Erreur"); return; }
-            loadUsers();
-            toast("Premium retiré");
-          } catch { alert("Erreur"); }
-        };
-        document.getElementById("btn-export-users").onclick = async () => {
-          try {
-            const rr = await fetch("/api/admin/users/export", { headers });
-            if (!rr.ok) { toast("Erreur export", "error"); return; }
-            const blob = await rr.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = blobUrl; a.download = "users.csv";
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => { URL.revokeObjectURL(blobUrl); a.remove(); }, 0);
-            toast("CSV exporté");
-          } catch { toast("Erreur export", "error"); }
-        };
-        async function clearCache(type) {
-          try {
-            await fetch("/api/admin/cache/clear", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ type }) });
-            load();
-            toast(type==="tide"?"Cache marée vidé":"Cache vidé");
-          } catch {}
-        }
-        async function loadMarketing() {
-          try {
-            const r = await fetch("/api/admin/marketing/status", { headers });
-            const s = await r.json();
-            q("mk-status").textContent = "Status: "+(s.running ? "RUNNING" : "STOPPED")+" • "+(s.intervalMinutes||"-")+" min";
-          } catch {}
-          try {
-            const rr = await fetch("/api/admin/marketing/config", { headers });
-            const c = await rr.json();
-            q("mk-webhook").value = c.webhookUrl || "";
-            q("mk-interval").value = c.intervalMinutes || "";
-            q("mk-template").value = c.template || "";
-            q("mk-type").value = c.contentType || "story";
-            const chs = new Set(c.channels || []);
-            q("mk-ch-instagram").checked = chs.has("instagram");
-            q("mk-ch-facebook").checked = chs.has("facebook");
-            q("mk-ch-tiktok").checked = chs.has("tiktok");
-            q("mk-ch-youtube").checked = chs.has("youtube");
-            q("mk-ch-twitter").checked = chs.has("twitter");
-            const cx = c.connectors || {};
-            q("mk-wh-instagram").value = cx.instagram?.webhook || "";
-            q("mk-wh-facebook").value = cx.facebook?.webhook || "";
-            q("mk-wh-tiktok").value = cx.tiktok?.webhook || "";
-            q("mk-wh-youtube").value = cx.youtube?.webhook || "";
-            q("mk-wh-twitter").value = cx.twitter?.webhook || "";
-          } catch {}
-        }
-        q("mk-save").onclick = async () => {
-          const channels = [];
-          if (q("mk-ch-instagram").checked) channels.push("instagram");
-          if (q("mk-ch-facebook").checked) channels.push("facebook");
-          if (q("mk-ch-tiktok").checked) channels.push("tiktok");
-          if (q("mk-ch-youtube").checked) channels.push("youtube");
-          if (q("mk-ch-twitter").checked) channels.push("twitter");
-          const connectors = {
-            instagram: { enabled: q("mk-ch-instagram").checked, webhook: q("mk-wh-instagram").value.trim() },
-            facebook: { enabled: q("mk-ch-facebook").checked, webhook: q("mk-wh-facebook").value.trim() },
-            tiktok: { enabled: q("mk-ch-tiktok").checked, webhook: q("mk-wh-tiktok").value.trim() },
-            youtube: { enabled: q("mk-ch-youtube").checked, webhook: q("mk-wh-youtube").value.trim() },
-            twitter: { enabled: q("mk-ch-twitter").checked, webhook: q("mk-wh-twitter").value.trim() }
-          };
-          try {
-            const rr = await fetch("/api/admin/marketing/config", {
-              method: "POST",
-              headers: { ...headers, "Content-Type":"application/json" },
-              body: JSON.stringify({
-                channels,
-                webhookUrl: q("mk-webhook").value.trim(),
-                template: q("mk-template").value,
-                contentType: q("mk-type").value,
-                connectors
-              })
-            });
-            const dj = await rr.json();
-            if (!rr.ok || !dj.success) { toast("Erreur configuration", "error"); return; }
-            toast("Configuration sauvegardée");
-            loadMarketing();
-          } catch { toast("Erreur configuration", "error"); }
-        };
-        q("mk-fire").onclick = async () => {
-          try {
-            const rr = await fetch("/api/admin/marketing/fire", { method: "POST", headers });
-            const dj = await rr.json();
-            if (!rr.ok || !dj.success) { toast("Erreur publication", "error"); return; }
-            toast("Publication envoyée");
-          } catch { toast("Erreur publication", "error"); }
-        };
-        q("mk-start").onclick = async () => {
-          const iv = parseInt(q("mk-interval").value, 10) || 60;
-          try {
-            const rr = await fetch("/api/admin/marketing/start", {
-              method: "POST",
-              headers: { ...headers, "Content-Type":"application/json" },
-              body: JSON.stringify({ intervalMinutes: iv })
-            });
-            const dj = await rr.json();
-            if (!rr.ok || !dj.success) { toast("Erreur démarrage", "error"); return; }
-            toast("Planificateur démarré");
-            loadMarketing();
-          } catch { toast("Erreur démarrage", "error"); }
-        };
-        q("mk-stop").onclick = async () => {
-          try {
-            const rr = await fetch("/api/admin/marketing/stop", { method: "POST", headers });
-            const dj = await rr.json();
-            if (!rr.ok || !dj.success) { toast("Erreur stop", "error"); return; }
-            toast("Planificateur stoppé");
-            loadMarketing();
-          } catch { toast("Erreur stop", "error"); }
-        };
-        loadMarketing();
-        async function reloadNews() {
-          try { await fetch("/api/admin/news/reload", { method:"POST", headers }); toast("Actu rechargée"); } catch {}
-        }
-        async function snapshotRobots() {
-          try { await fetch("/api/admin/robots/snapshot", { method:"POST", headers }); load(); toast("Robots mis à jour"); } catch {}
-        }
-        document.getElementById("btn-clear-cache").onclick = () => { if (confirm("Vider tout le cache ?")) clearCache("all"); };
-        document.getElementById("btn-clear-tide").onclick = () => clearCache("tide");
-        document.getElementById("btn-reload-news").onclick = reloadNews;
-        document.getElementById("btn-snapshot-robots").onclick = snapshotRobots;
-        load();
-        loadHealth();
-        loadAnalytics();
-        loadRegions();
-        loadSpots();
-        loadLogs();
-        loadUsers();
-        schedule(false);
-        document.getElementById("live-mode").onchange = (e) => { liveMode = !!e.target.checked; schedule(liveMode); };
-        document.getElementById("pause-live").onclick = () => {
-          paused = !paused;
-          Object.values(timers).forEach(id => { try { clearInterval(id); } catch {} });
-          timers = {};
-          document.getElementById("pause-live").textContent = paused ? "Reprendre Live" : "Pause Live";
-          if (!paused) schedule(liveMode);
-        };
-        document.getElementById("dark-neon").onchange = (e) => {
-          const active = !!e.target.checked;
-          document.body.classList.toggle("neon", active);
-        };
-      })();
+        document.getElementById('btn-refresh-all').onclick = refreshDashboard;
+
+        // Init
+        refreshDashboard();
+        setInterval(refreshDashboard, 30000);
     </script>
-      </main>
-    </div>
-  </body>
+</body>
 </html>

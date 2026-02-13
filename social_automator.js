@@ -535,104 +535,94 @@ class SocialAutomator {
     // --- YOUTUBE AUTOMATION (STEALTH) ---
     async postToYouTube(videoPath, title, description) {
         console.log("🚀 Launching Stealth Browser for YouTube...");
-        const browser = await this.launchBrowser(false); // Often needs headful for heavy Studio JS
+        const browser = await this.launchBrowser(false);
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 800 });
 
         try {
-            if (this.cookies.youtube) {
-                await page.setCookie(...this.cookies.youtube);
-            }
+             if (this.cookies.youtube) {
+                 await page.setCookie(...this.cookies.youtube);
+             }
 
-            console.log("📺 Navigating to YouTube Studio...");
-            await page.goto('https://studio.youtube.com/', { waitUntil: 'networkidle2' });
-            await this.humanDelay(3000, 5000);
+             console.log("📹 Navigating to YouTube Studio...");
+             await page.goto('https://studio.youtube.com/channel/UD/videos/upload?d=ud', { waitUntil: 'networkidle2' });
+             await this.humanDelay(3000, 5000);
 
-            // Check Login
-            if (page.url().includes('accounts.google.com')) {
-                console.log("⚠️ Not logged in (YouTube). Please import cookies.");
-                return;
-            }
+             // Check Login
+             if (page.url().includes('accounts.google.com')) {
+                 console.log("⚠️ Not logged in (YouTube). Please import cookies.");
+                 return;
+             }
+             
+             console.log("✅ Logged in (YouTube)");
 
-            console.log("✅ Logged in (YouTube)");
+             // Upload
+             const fileInput = await page.waitForSelector('input[type="file"]', { timeout: 10000 });
+             if (fileInput) {
+                 console.log("📤 Uploading video to YouTube...");
+                 await fileInput.uploadFile(videoPath);
+                 
+                 // Wait for processing
+                 await this.humanDelay(5000, 10000);
 
-            // 1. Click Create -> Upload Videos
-            const createBtn = await page.waitForSelector('#create-icon', { timeout: 10000 });
-            await createBtn.click();
-            await this.humanDelay(500, 1000);
+                 // Title & Description
+                 // YouTube Studio uses complex custom elements
+                 // We can try to use tab navigation or specific IDs if stable
+                 // Textbox for title: #textbox
+                 
+                 const textboxes = await page.$$('#textbox');
+                 if (textboxes.length >= 2) {
+                     // 0 is Title, 1 is Description usually
+                     await textboxes[0].click();
+                     await page.keyboard.down('Control');
+                     await page.keyboard.press('A');
+                     await page.keyboard.up('Control');
+                     await page.keyboard.press('Backspace');
+                     await textboxes[0].type(title, { delay: 50 });
+                     
+                     await this.humanDelay(1000, 2000);
+                     
+                     await textboxes[1].click();
+                     await textboxes[1].type(description, { delay: 30 });
+                 }
 
-            const uploadOption = await page.evaluateHandle(() => {
-                const items = Array.from(document.querySelectorAll('ytcp-text-menu-item'));
-                return items.find(i => i.innerText.includes('Upload') || i.innerText.includes('Mettre en ligne'));
-            });
-            if (uploadOption) await uploadOption.click();
+                 // Click Next multiple times
+                 // Button "Next" or "Suivant"
+                 const clickNext = async () => {
+                     const buttons = await page.$$('div[role="button"]');
+                     for (const btn of buttons) {
+                         const t = await page.evaluate(el => el.innerText, btn);
+                         if (t === "NEXT" || t === "SUIVANT") {
+                             await btn.click();
+                             return true;
+                         }
+                     }
+                     return false;
+                 };
 
-            // 2. Upload File
-            const fileInput = await page.waitForSelector('input[type="file"]', { timeout: 10000 });
-            console.log("📤 Uploading video to YouTube...");
-            await fileInput.uploadFile(videoPath);
-
-            // Wait for upload processing to start (dialog appears)
-            await page.waitForSelector('ytcp-uploads-dialog', { visible: true, timeout: 20000 });
-            console.log("⏳ Waiting for upload/processing...");
-            
-            // 3. Fill Details (Title/Description)
-            // Title is usually pre-filled with filename, but we can update it.
-            // Description is in a textbox.
-            // Simplified: Just wait for "Next" button to be active (processing might take time)
-            
-            // Wait loop for "Checks complete" or just click Next blindly after delay?
-            // YouTube requires answering "Made for kids?"
-            
-            await this.humanDelay(3000, 5000);
-
-            // Select "No, it's not made for kids"
-            // name="audience" radio button
-            const notForKids = await page.evaluateHandle(() => {
-                const radios = Array.from(document.querySelectorAll('tp-yt-paper-radio-button'));
-                return radios.find(r => r.getAttribute('name') === 'VIDEO_MADE_FOR_KIDS_MFK' || r.innerText.includes('Not made for kids') || r.innerText.includes('Pas conçu pour les enfants'));
-            });
-            if (notForKids) await notForKids.click();
-            
-            await this.humanDelay(1000, 2000);
-
-            // Click Next (Details -> Video Elements)
-            const clickNext = async () => {
-                const nextBtn = await page.$('#next-button-button');
-                if (nextBtn) await nextBtn.click();
-            };
-
-            await clickNext(); // To Video Elements
-            await this.humanDelay(1000, 2000);
-            await clickNext(); // To Checks
-            await this.humanDelay(1000, 2000);
-            await clickNext(); // To Visibility
-            await this.humanDelay(1000, 2000);
-
-            // 4. Set Visibility to Public
-            const publicRadio = await page.evaluateHandle(() => {
-                const radios = Array.from(document.querySelectorAll('tp-yt-paper-radio-button'));
-                return radios.find(r => r.getAttribute('name') === 'PUBLIC' || r.innerText.includes('Public'));
-            });
-            if (publicRadio) await publicRadio.click();
-
-            await this.humanDelay(1000, 2000);
-
-            // 5. Publish
-            const publishBtn = await page.$('#done-button');
-            if (publishBtn) {
-                console.log("🚀 Publishing...");
-                await publishBtn.click();
-                
-                // Wait for "Video published" dialog
-                await page.waitForSelector('ytcp-video-uploaded-dialog', { visible: true, timeout: 60000 });
-                console.log("✅ YouTube Published!");
-                
-                // Save Cookies
-                const currentCookies = await page.cookies();
-                this.cookies.youtube = currentCookies;
-                this.saveCookies();
-            }
+                 // Flow: Details -> Video Elements -> Checks -> Visibility
+                 await clickNext(); await this.humanDelay(2000, 3000);
+                 // No, it's not Kids
+                 const notKids = await page.$('tp-yt-paper-radio-button[name="VIDEO_MADE_FOR_KIDS_NOT_MFK"]');
+                 if (notKids) await notKids.click();
+                 
+                 await clickNext(); await this.humanDelay(2000, 3000);
+                 await clickNext(); await this.humanDelay(2000, 3000);
+                 await clickNext(); await this.humanDelay(2000, 3000);
+                 
+                 // Visibility: Public
+                 const publicRadio = await page.$('tp-yt-paper-radio-button[name="PUBLIC"]');
+                 if (publicRadio) await publicRadio.click();
+                 
+                 // Publish
+                 const publishBtn = await page.$('div[role="button"]#done-button');
+                 if (publishBtn) {
+                     console.log("🚀 Publishing...");
+                     await publishBtn.click();
+                     await this.humanDelay(5000, 8000);
+                     console.log("✅ YouTube Posted!");
+                 }
+             }
 
         } catch (e) {
             console.error("❌ YouTube Stealth Error:", e);
@@ -640,6 +630,215 @@ class SocialAutomator {
             await browser.close();
         }
     }
+
+    // --- PROFILE UPDATE AUTOMATION (IDENTITY MANAGER) ---
+    async updateProfileIdentity(network, { photoPath, bio }) {
+        console.log(`🚀 Updating Profile for ${network}...`);
+        
+        // Dispatch based on network
+        if (network === 'instagram') return this.updateInstagramProfile(photoPath, bio);
+        if (network === 'twitter') return this.updateTwitterProfile(photoPath, bio);
+        if (network === 'tiktok') return this.updateTikTokProfile(photoPath, bio);
+        
+        // Others (Facebook, YouTube) are too complex/risky for now via simple automation
+        console.log(`⚠️ Profile update not supported yet for ${network}`);
+        return { success: false, error: "Not supported" };
+    }
+
+    async updateInstagramProfile(photoPath, bio) {
+        const browser = await this.launchBrowser(false);
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1280, height: 800 });
+        let result = { success: false, details: [] };
+
+        try {
+            if (this.cookies.instagram) await page.setCookie(...this.cookies.instagram);
+            await page.goto('https://www.instagram.com/accounts/edit/', { waitUntil: 'networkidle2' });
+            await this.humanDelay(3000, 5000);
+
+            // Check Login
+            if (page.url().includes('login')) throw new Error("Not logged in");
+
+            // Update Photo
+            if (photoPath) {
+                console.log("📸 Updating Instagram Photo...");
+                // Hidden file input usually exists
+                // Sometimes need to click "Change Profile Photo" first to trigger modal/input
+                const changeBtn = await page.$('button[title="Change profile photo"], button.iframe-profile-picture-button');
+                if (changeBtn) await changeBtn.click();
+                
+                // Wait for input
+                const fileInput = await page.waitForSelector('input[type="file"]', { timeout: 5000 });
+                if (fileInput) {
+                    await fileInput.uploadFile(photoPath);
+                    await this.humanDelay(3000, 5000); // Wait for upload
+                    result.details.push("Photo Updated");
+                }
+            }
+
+            // Update Bio
+            if (bio) {
+                console.log("✍️ Updating Instagram Bio...");
+                const bioInput = await page.$('textarea#pepBio');
+                if (bioInput) {
+                    await bioInput.click({ clickCount: 3 }); // Select all
+                    await bioInput.type(bio, { delay: 50 });
+                    result.details.push("Bio Updated");
+                }
+            }
+
+            // Submit
+            const submitBtn = await page.$('button[type="submit"]');
+            if (submitBtn) {
+                await submitBtn.click();
+                await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 10000 }).catch(()=>null);
+                result.success = true;
+            }
+
+        } catch (e) {
+            console.error("❌ Instagram Profile Update Error:", e);
+            result.error = e.message;
+        } finally {
+            await browser.close();
+        }
+        return result;
+    }
+
+    async updateTwitterProfile(photoPath, bio) {
+        const browser = await this.launchBrowser(false);
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1280, height: 800 });
+        let result = { success: false, details: [] };
+
+        try {
+            if (this.cookies.twitter) await page.setCookie(...this.cookies.twitter);
+            
+            // Go to Profile Settings directly? No, usually Profile -> Edit
+            await page.goto('https://twitter.com/settings/profile', { waitUntil: 'networkidle2' });
+            await this.humanDelay(3000, 5000);
+            
+            // If redirect to home, go to profile then click Edit
+            if (!page.url().includes('settings/profile')) {
+                await page.goto('https://twitter.com/profile', { waitUntil: 'networkidle2' });
+                await this.humanDelay(2000, 3000);
+                const editBtn = await page.$('a[href="/settings/profile"]');
+                if (editBtn) await editBtn.click();
+                await this.humanDelay(2000, 3000);
+            }
+
+            // Check if modal is open (Edit Profile)
+            const modal = await page.$('div[aria-labelledby="modal-header"]');
+            if (modal || page.url().includes('settings')) {
+                // Photo
+                if (photoPath) {
+                    console.log("📸 Updating Twitter Photo...");
+                    // Input usually hidden behind camera icon div
+                    const fileInput = await page.$('input[type="file"]'); 
+                    // Or trigger via div[aria-label="Add avatar photo"]
+                    if (fileInput) {
+                         await fileInput.uploadFile(photoPath);
+                         await this.humanDelay(2000, 4000);
+                         // Apply button usually appears for crop
+                         const applyBtn = await page.$('div[data-testid="applyButton"]');
+                         if (applyBtn) await applyBtn.click();
+                         await this.humanDelay(1000, 2000);
+                         result.details.push("Photo Updated");
+                    }
+                }
+
+                // Bio
+                if (bio) {
+                    console.log("✍️ Updating Twitter Bio...");
+                    const bioInput = await page.$('textarea[name="description"]');
+                    if (bioInput) {
+                        await bioInput.click({ clickCount: 3 });
+                        await page.keyboard.press('Backspace');
+                        await bioInput.type(bio, { delay: 50 });
+                        result.details.push("Bio Updated");
+                    }
+                }
+
+                // Save
+                const saveBtn = await page.$('div[data-testid="Profile_Save_Button"]');
+                if (saveBtn) {
+                    await saveBtn.click();
+                    await this.humanDelay(3000, 5000);
+                    result.success = true;
+                }
+            }
+
+        } catch (e) {
+            console.error("❌ Twitter Profile Update Error:", e);
+            result.error = e.message;
+        } finally {
+            await browser.close();
+        }
+        return result;
+    }
+
+    async updateTikTokProfile(photoPath, bio) {
+        const browser = await this.launchBrowser(false);
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1280, height: 800 });
+        let result = { success: false, details: [] };
+
+        try {
+            if (this.cookies.tiktok) await page.setCookie(...this.cookies.tiktok);
+            await page.goto('https://www.tiktok.com/@profile', { waitUntil: 'networkidle2' }); // Redirects to own profile
+            await this.humanDelay(3000, 5000);
+
+            // Click Edit Profile
+            // Button text: "Edit profile" or "Modifier le profil"
+            const editBtn = await page.$('button[data-e2e="edit-profile-btn"]');
+            if (editBtn) {
+                await editBtn.click();
+                await this.humanDelay(2000, 4000);
+
+                // Modal opens
+                // Photo
+                if (photoPath) {
+                    console.log("📸 Updating TikTok Photo...");
+                    const fileInput = await page.$('input[type="file"]');
+                    if (fileInput) {
+                        await fileInput.uploadFile(photoPath);
+                        await this.humanDelay(2000, 4000);
+                        // Apply crop
+                        const applyBtn = await page.$('button.btn-primary'); // Generic selector, risky
+                        if (applyBtn) await applyBtn.click();
+                        result.details.push("Photo Updated");
+                    }
+                }
+
+                // Bio
+                if (bio) {
+                    console.log("✍️ Updating TikTok Bio...");
+                    const bioInput = await page.$('textarea'); // Usually only one textarea in this modal
+                    if (bioInput) {
+                         await bioInput.click({ clickCount: 3 });
+                         await bioInput.type(bio, { delay: 50 });
+                         result.details.push("Bio Updated");
+                    }
+                }
+
+                // Save
+                const saveBtn = await page.$('button[data-e2e="edit-profile-save"]');
+                if (saveBtn) {
+                    await saveBtn.click();
+                    await this.humanDelay(3000, 5000);
+                    result.success = true;
+                }
+            }
+
+        } catch (e) {
+            console.error("❌ TikTok Profile Update Error:", e);
+            result.error = e.message;
+        } finally {
+            await browser.close();
+        }
+        return result;
+    }
+
 }
 
-export default new SocialAutomator();
+const socialAutomator = new SocialAutomator();
+export default socialAutomator;

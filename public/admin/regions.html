@@ -1,73 +1,95 @@
 <!DOCTYPE html>
 <html lang="fr">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin — Régions</title>
-    <link rel="stylesheet" href="../styles.css">
-    <link rel="icon" href="../logo.svg" type="image/svg+xml" />
-    <style>
-      .admin-layout{display:flex;min-height:100vh}
-      .admin-sidebar{width:260px;background:#0b0e16;border-right:1px solid #1f2937;padding:18px;position:sticky;top:0;height:100vh;backdrop-filter:blur(8px)}
-      .admin-brand{display:flex;align-items:center;gap:10px;color:#e5e7eb;font-weight:800;margin-bottom:18px}
-      .admin-nav a{display:block;padding:10px 12px;border-radius:12px;color:#c4b5fd;text-decoration:none;margin-bottom:6px;transition:background .2s, transform .1s}
-      .admin-nav a:hover{background:#111827;transform:translateX(2px)}
-      .admin-main{flex:1;padding:24px;background:
-        radial-gradient(1200px 600px at -10% -10%, rgba(124,58,237,.12), transparent 60%),
-        radial-gradient(1000px 500px at 110% 10%, rgba(34,197,94,.12), transparent 60%)}
-      .admin-card{background:rgba(11,14,22,.7);backdrop-filter:blur(8px);border:1px solid #1f2937;border-radius:16px;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
-      .table{width:100%; border-collapse:collapse}
-      .table th,.table td{border:1px solid #1f2937; padding:8px; color:#e5e7eb}
-      .table th{color:#94a3b8; text-align:left}
-    </style>
-  </head>
-  <body style="background:#080a12;">
-    <div class="admin-layout">
-      <aside class="admin-sidebar">
-        <div class="admin-brand">
-          <img src="../logo.svg" alt="logo" width="24" height="24"/>
-          <span>Admin</span>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Régions</title>
+  <link rel="icon" href="../logo.svg" type="image/svg+xml" />
+  <style>
+    :root { --bg-dark: #0f172a; --card-bg: #1e293b; --accent: #8b5cf6; --accent-hover: #7c3aed; --text-primary: #f8fafc; --text-secondary: #94a3b8; --border-color: #334155; --success: #22c55e; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; }
+    body { background-color: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, -apple-system, sans-serif; margin: 0; height: 100vh; overflow: hidden; }
+    .admin-container { display: grid; grid-template-columns: 260px 1fr; height: 100vh; }
+    .admin-sidebar { background: #0b0f19; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; }
+    .main-content { overflow-y: auto; padding: 32px; background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.05), transparent 40%); }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
+    .page-title h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px; }
+    .page-title p { margin: 8px 0 0 0; color: var(--text-secondary); font-size: 14px; }
+    .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: 16px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 14px; }
+    .table th { color: var(--text-secondary); font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    <aside class="admin-sidebar">
+      <div style="padding: 24px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-color);">
+        <img src="../logo.svg" alt="logo" width="28" height="28"/>
+        <span style="font-weight: 800; font-size: 18px; letter-spacing: -0.5px;">Admin Panel</span>
+      </div>
+      <nav id="admin-nav" style="flex: 1; padding: 16px; overflow-y: auto;"></nav>
+    </aside>
+    
+    <main class="main-content">
+      <div class="header">
+        <div class="page-title">
+          <h1>Régions</h1>
+          <p>Volumes et répartition par zone</p>
         </div>
-        <nav class="admin-nav" id="admin-nav"></nav>
-      </aside>
-      <main class="admin-main">
-        <div class="section" style="max-width:1000px; margin:0 auto;">
-          <div class="section-title">
-            <h2>Régions</h2>
-            <p style="color:#94a3b8;">Volumes par région</p>
-          </div>
-          <div class="admin-card">
-            <table class="table">
-              <thead><tr><th>Région</th><th>Volume</th></tr></thead>
-              <tbody id="regions-body"></tbody>
-            </table>
-          </div>
-        </div>
-      </main>
-    </div>
-    <script>
-      (function(){
-        fetch("/admin/nav.html").then(r=>r.text()).then(html=>{ const el=document.getElementById("admin-nav"); if(el) el.innerHTML=html; }).catch(()=>{});
-        const params = new URLSearchParams(window.location.search);
-        const tParam = params.get("token");
-        if (tParam) { try { localStorage.setItem("surfAdminToken", tParam); history.replaceState({}, "", window.location.pathname); } catch {} }
-        const tok = localStorage.getItem("surfAdminToken") || "";
-        const headers = tok ? { "x-admin-token": tok } : {};
-        const q = (id) => document.getElementById(id);
-        async function loadRegions() {
-          try {
-            const r = await fetch("/api/admin/regions", { headers });
-            const obj = await r.json();
-            const rows = Object.entries(obj).sort((a,b)=>b[1]-a[1]);
-            q("regions-body").innerHTML = rows.map(([reg,c]) => `<tr><td>${reg}</td><td>${c}</td></tr>`).join("");
-          } catch {
-            alert("Accès refusé.");
-            localStorage.removeItem("surfAdminToken");
-            window.location.href = "../index.html";
-          }
+      </div>
+
+      <div class="card">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Région</th>
+              <th>Volume Spots</th>
+            </tr>
+          </thead>
+          <tbody id="regions-body">
+            <!-- JS Rendered -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (function(){
+      fetch("/admin/nav.html").then(r=>r.text()).then(html=>{
+        document.getElementById('admin-nav').innerHTML = html;
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('#admin-nav a').forEach(link => {
+          if(link.getAttribute('href') === currentPath.split('/').pop()) link.classList.add('active');
+        });
+      });
+
+      const params = new URLSearchParams(window.location.search);
+      const tParam = params.get("token");
+      if (tParam) { try { localStorage.setItem("surfAdminToken", tParam); history.replaceState({}, "", window.location.pathname); } catch {} }
+      const tok = localStorage.getItem("surfAdminToken") || "";
+      const headers = tok ? { "x-admin-token": tok } : {};
+      const q = (id) => document.getElementById(id);
+
+      async function loadRegions() {
+        try {
+          const r = await fetch("/api/admin/regions", { headers });
+          if(!r.ok) throw new Error("Auth");
+          const obj = await r.json();
+          const rows = Object.entries(obj).sort((a,b)=>b[1]-a[1]);
+          q("regions-body").innerHTML = rows.map(([reg,c]) => `
+            <tr>
+              <td style="font-weight:500; color:var(--text-primary);">${reg}</td>
+              <td style="font-family:'Fira Code',monospace; color:var(--accent);">${c}</td>
+            </tr>
+          `).join("");
+        } catch {
+           localStorage.removeItem("surfAdminToken");
+           window.location.href = "../index.html";
         }
-        loadRegions();
-      })();
-    </script>
-  </body>
+      }
+      loadRegions();
+    })();
+  </script>
+</body>
 </html>
