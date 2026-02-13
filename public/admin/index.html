@@ -327,6 +327,9 @@
     </div>
 
     <script>
+        const params = new URLSearchParams(window.location.search);
+        const tParam = params.get("token");
+        if (tParam) { try { localStorage.setItem("surfAdminToken", tParam); history.replaceState({}, "", window.location.pathname); } catch {} }
         const token = localStorage.getItem('surfAdminToken');
 
         fetch('/admin/nav.html').then(r => r.text()).then(html => {
@@ -334,70 +337,79 @@
         });
 
         const API_BASE = '/api/admin';
-        const headers = token ? { 'x-admin-token': token } : {};
+        let headers = token ? { 'x-admin-token': token } : {};
 
         async function refreshDashboard() {
             try {
                 const [h, q, s] = await Promise.all([
                     fetch(`${API_BASE}/health`, {headers}).then(r=>r.json()),
-                    fetch(`${API_BASE}/quota`, {headers}).then(r=>r.json()),
-                    fetch(`${API_BASE}/stats`, {headers}).then(r=>r.json())
+                    fetch(`${API_BASE}/quota/reel`, {headers}).then(r=>r.json()),
+                    fetch(`${API_BASE}/metrics`, {headers}).then(r=>r.json())
                 ]);
-
-                // Health
-                if(h.success) {
-                    const d = h.data;
-                    document.getElementById('health-db').textContent = d.dbState;
-                    document.getElementById('health-ping').textContent = d.dbPing + 'ms';
-                    document.getElementById('health-uptime').textContent = Math.floor(d.uptime/3600) + 'h ' + Math.floor((d.uptime%3600)/60) + 'm';
-                    document.getElementById('health-mem').textContent = Math.round(d.memory.heapUsed/1024/1024) + ' MB';
-                    document.getElementById('health-cache').textContent = d.cacheSize;
-                    
-                    document.getElementById('worker-state').textContent = d.workerActive ? 'Actif' : 'En Pause';
-                    document.getElementById('worker-state-dot').style.background = d.workerActive ? 'var(--success)' : 'var(--danger)';
-                    document.getElementById('worker-state-dot').style.boxShadow = d.workerActive ? '0 0 8px var(--success)' : '0 0 8px var(--danger)';
-                    document.getElementById('worker-interval').value = d.workerInterval;
+                if (h && typeof h === 'object') {
+                    document.getElementById('health-db').textContent = h.db ? 'OK' : 'KO';
+                    document.getElementById('health-ping').textContent = (h.pingMs != null ? h.pingMs : '-') + 'ms';
+                    const up = h.uptime || 0;
+                    const hH = Math.floor(up/3600);
+                    const hM = Math.floor((up%3600)/60);
+                    document.getElementById('health-uptime').textContent = hH + 'h ' + hM + 'm';
+                    document.getElementById('health-mem').textContent = (h.memoryMB != null ? h.memoryMB : '-') + ' MB';
+                    document.getElementById('health-cache').textContent = h.cacheCount != null ? h.cacheCount : '-';
+                    const paused = !!(h.worker && h.worker.paused);
+                    document.getElementById('worker-state').textContent = paused ? 'En Pause' : 'Actif';
+                    const dot = document.getElementById('worker-state-dot');
+                    dot.style.background = paused ? 'var(--danger)' : 'var(--success)';
+                    dot.style.boxShadow = paused ? '0 0 8px var(--danger)' : '0 0 8px var(--success)';
+                    const mins = h.worker && h.worker.intervalMinutes != null ? h.worker.intervalMinutes : 45;
+                    document.getElementById('worker-interval').value = mins;
                 }
-
-                // Quota
-                if(q.success) {
-                    const d = q.data;
-                    document.getElementById('health-limit').textContent = d.limit;
-                    document.getElementById('health-used').textContent = d.used;
-                    const pct = Math.round((d.used / d.limit) * 100);
+                if (q && typeof q === 'object') {
+                    const limit = q.limit ?? 0;
+                    const used = q.used ?? 0;
+                    document.getElementById('health-limit').textContent = limit;
+                    document.getElementById('health-used').textContent = used;
+                    const pct = limit ? Math.round((used / limit) * 100) : 0;
                     document.getElementById('quota-percent').textContent = pct + '%';
                     document.getElementById('quota-progress-bar').style.width = pct + '%';
                 }
-
-                // Stats
-                if(s.success) {
-                    const d = s.data;
-                    document.getElementById('m-users').textContent = d.users;
-                    document.getElementById('m-favorites').textContent = d.favorites;
-                    document.getElementById('m-clicks').textContent = d.clicks24h;
-                    document.getElementById('m-live').textContent = d.liveSpots;
-                    document.getElementById('m-wait').textContent = d.waitingSpots;
-                    document.getElementById('m-epic').textContent = d.epicAlerts;
+                if (s && typeof s === 'object') {
+                    document.getElementById('m-users').textContent = s.users ?? '-';
+                    document.getElementById('m-favorites').textContent = s.favorites ?? '-';
+                    document.getElementById('m-clicks').textContent = s.clicks ?? '-';
+                    document.getElementById('m-live').textContent = s.liveSpots ?? '-';
+                    document.getElementById('m-wait').textContent = s.waitingSpots ?? '-';
+                    document.getElementById('m-epic').textContent = s.epicAlerts ?? '-';
                 }
 
-            } catch(e) { console.error("Refresh error", e); }
+            } catch(e) { 
+                const t = localStorage.getItem('surfAdminToken');
+                if (!t) {
+                    const v = prompt("Token admin requis. Coller votre token:");
+                    if (v) {
+                        localStorage.setItem('surfAdminToken', v.trim());
+                        headers = { 'x-admin-token': v.trim() };
+                        refreshDashboard();
+                        return;
+                    }
+                }
+            }
         }
 
         // Handlers
         document.getElementById('btn-worker-pause').onclick = async () => {
-            await fetch(`${API_BASE}/worker/stop`, {method:'POST', headers});
+            await fetch(`${API_BASE}/workers`, {method:'POST', headers: {...headers, 'Content-Type':'application/json'}, body: JSON.stringify({ action: 'pause' })});
             refreshDashboard();
         };
         document.getElementById('btn-worker-resume').onclick = async () => {
-            await fetch(`${API_BASE}/worker/start`, {method:'POST', headers});
+            await fetch(`${API_BASE}/workers`, {method:'POST', headers: {...headers, 'Content-Type':'application/json'}, body: JSON.stringify({ action: 'resume' })});
             refreshDashboard();
         };
         document.getElementById('btn-worker-apply').onclick = async () => {
-            const val = document.getElementById('worker-interval').value;
-            await fetch(`${API_BASE}/worker/interval`, {
+            const val = parseInt(document.getElementById('worker-interval').value);
+            await fetch(`${API_BASE}/workers`, {
                 method:'POST', 
                 headers: {...headers, 'Content-Type':'application/json'},
-                body:JSON.stringify({minutes: val})
+                body:JSON.stringify({ action: 'setInterval', minutes: val })
             });
             refreshDashboard();
         };

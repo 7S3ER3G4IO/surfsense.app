@@ -183,6 +183,9 @@
         fetch("/admin/nav.html").then(r=>r.text()).then(html=>{
             document.getElementById("admin-nav").innerHTML=html;
         });
+        const params = new URLSearchParams(window.location.search);
+        const tParam = params.get("token");
+        if (tParam) { try { localStorage.setItem("surfAdminToken", tParam); history.replaceState({}, "", window.location.pathname); } catch {} }
 
         const token = localStorage.getItem("surfAdminToken");
         const headers = token ? { "x-admin-token": token } : {};
