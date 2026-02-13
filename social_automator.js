@@ -29,8 +29,6 @@ const resolveChromeExecutable = () => {
     }
     return null;
 };
-<<<<<<< HEAD
-=======
 const detectChromeProfileDir = () => {
     if (process.env.CHROME_PROFILE_DIR && fs.existsSync(process.env.CHROME_PROFILE_DIR)) return process.env.CHROME_PROFILE_DIR;
     const home = os.homedir();
@@ -77,7 +75,6 @@ const copyDirSync = (src, dest) => {
     }
     return true;
 };
->>>>>>> 7f89403 (Update main version)
 
 class SocialAutomator {
     constructor() {
@@ -372,8 +369,6 @@ class SocialAutomator {
             }
             return await puppeteer.launch({ headless, args });
         }
-<<<<<<< HEAD
-=======
     }
     async launchBrowserWithSystemProfile(headless = "new") {
         const args = [
@@ -410,7 +405,6 @@ class SocialAutomator {
                 return { browser: b, cleanup };
             }
         }
->>>>>>> 7f89403 (Update main version)
     }
 
     async humanDelay(min = 1000, max = 3000) {
