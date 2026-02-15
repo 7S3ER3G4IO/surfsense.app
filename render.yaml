@@ -50,7 +50,7 @@ services:
         fromService:
           type: web
           name: social-autopilot-api
-          property: url
+          property: host
 
 databases:
   - name: social-autopilot-redis
