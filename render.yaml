@@ -1,45 +1,9 @@
 services:
-  # API Service (New SaaS API)
   - type: web
-    name: social-autopilot-api
+    name: website
     env: node
     plan: free
     rootDir: .
-    buildCommand: npm install -g pnpm && pnpm install && pnpm --filter api... build
-    startCommand: node apps/api/dist/src/main
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: social-autopilot-redis
-          property: connectionString
-      - key: NODE_ENV
-        value: production
-      - key: JWT_SECRET
-        generateValue: true
-
-  # Worker Service replaced by Background Worker (Free Plan Limitation Fix)
-  # NOTE: Render Free Plan DOES NOT support 'worker' type services.
-  # We must use 'web' type for free background processes, or upgrade plan.
-  # For now, disabling worker to allow successful deployment of the rest.
-  # You can enable it later if you upgrade to a paid plan.
-  
-  # Frontend Service (Next.js SaaS)
-  - type: web
-    name: social-autopilot-web
-    env: node
-    plan: free
-    rootDir: .
-    buildCommand: npm install -g pnpm && pnpm install && pnpm --filter web... build
+    buildCommand: npm install -g pnpm && pnpm install --no-frozen-lockfile && pnpm --filter web... build
     startCommand: pnpm --filter web start
-
-  # Redis Service
-  - type: redis
-    name: social-autopilot-redis
-    plan: free
-    region: oregon
-    ipAllowList: [] 
-
-# Removed databases section entirely to prevent Render trying to manage the external DB
+    healthCheckPath: /
