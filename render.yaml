@@ -9,7 +9,9 @@ services:
     startCommand: pnpm --filter api start:prod
     envVars:
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: social-autopilot-db
+          property: connectionString
       - key: REDIS_URL
         fromService:
           type: redis
@@ -30,7 +32,9 @@ services:
     startCommand: pnpm --filter worker start:prod
     envVars:
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: social-autopilot-db
+          property: connectionString
       - key: REDIS_URL
         fromService:
           type: redis
@@ -45,11 +49,16 @@ services:
     rootDir: .
     buildCommand: npm install -g pnpm && pnpm install && pnpm --filter web... build
     startCommand: pnpm --filter web start
-    envVars:
-      - key: NEXT_PUBLIC_API_URL
-        sync: false
+    # Removed NEXT_PUBLIC_API_URL to avoid circular dependency prompt during creation.
+    # We will add it manually once the API URL is known.
 
 databases:
+  - name: social-autopilot-db
+    plan: free
+    databaseName: surfsense
+    user: surfsense
+    region: oregon
+
   - name: social-autopilot-redis
     plan: free
     region: oregon
