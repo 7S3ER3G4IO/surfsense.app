@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Nami Pro Dashboard</title>
+    <link rel="stylesheet" href="ui/css/theme.css">
+    <link rel="stylesheet" href="ui/css/studio.css">
+</head>
+<body>
+    <div id="top-status" style="position:fixed; top:10px; right:10px; display:flex; gap:8px; z-index:1000;">
+        <div class="status-badge" id="ext-status-badge">
+            <span id="status-dot">●</span> <span id="status-text">Extension: Checking...</span>
+        </div>
+        <div class="status-badge" id="helper-status-badge">
+            <span id="helper-dot">●</span> <span id="helper-text">Helper: Checking...</span>
+        </div>
+    </div>
+    <!-- Sidebar -->
+    <div id="sidebar">
+        <div class="brand">
+            <span>🌊 Nami Pro</span>
+        </div>
+        
+        <div class="nav-category">Général</div>
+        <a class="nav-item active" data-page="dashboard">
+            <span>📊</span> Dashboard
+        </a>
+        <a class="nav-item" data-page="live">
+            <span>🖥️</span> Live Monitor
+        </a>
+        <a class="nav-item" data-page="studio">
+            <span>🎨</span> Content Studio
+        </a>
+        <a class="nav-item" data-page="accounts">
+            <span>🔑</span> Comptes & Connexions
+        </a>
+        <a class="nav-item" data-page="library">
+            <span>📁</span> Content Library
+        </a>
+        <a class="nav-item" data-page="scheduler">
+            <span>📅</span> Scheduler
+        </a>
+        <a class="nav-item" data-page="bridge">
+            <span>🧩</span> Bridge
+        </a>
+
+        <div class="nav-category">Intelligence</div>
+        <a class="nav-item" data-page="ai-tools">
+            <span>🧠</span> AI Tools
+        </a>
+        <a class="nav-item" data-page="analytics">
+            <span>📈</span> Analytics
+        </a>
+        <a class="nav-item" data-page="trends">
+            <span>🔥</span> Trend Radar
+        </a>
+
+        <div class="nav-category">Plateformes</div>
+        <a class="nav-item" data-page="youtube">
+            <span>📺</span> YouTube
+            <span class="nav-status-dot" id="nav-dot-youtube"></span>
+        </a>
+        <a class="nav-item" data-page="tiktok">
+            <span>🎵</span> TikTok
+            <span class="nav-status-dot" id="nav-dot-tiktok"></span>
+        </a>
+        <a class="nav-item" data-page="instagram">
+            <span>📸</span> Instagram
+            <span class="nav-status-dot" id="nav-dot-instagram"></span>
+        </a>
+        <a class="nav-item" data-page="threads">
+            <span>🧵</span> Threads
+            <span class="nav-status-dot" id="nav-dot-threads"></span>
+        </a>
+        <a class="nav-item" data-page="facebook">
+            <span>📘</span> Facebook
+            <span class="nav-status-dot" id="nav-dot-facebook"></span>
+        </a>
+        <a class="nav-item" data-page="twitter">
+            <span>🐦</span> Twitter
+            <span class="nav-status-dot" id="nav-dot-twitter"></span>
+        </a>
+        <a class="nav-item" data-page="linkedin">
+            <span>💼</span> LinkedIn
+            <span class="nav-status-dot" id="nav-dot-linkedin"></span>
+        </a>
+        <a class="nav-item" data-page="outlook">
+            <span>📧</span> Outlook
+            <span class="nav-status-dot" id="nav-dot-outlook"></span>
+        </a>
+        <a class="nav-item" data-page="discord">
+            <span>💬</span> Discord
+            <span class="nav-status-dot" id="nav-dot-discord"></span>
+        </a>
+        <a class="nav-item" data-page="telegram">
+            <span>✈️</span> Telegram
+            <span class="nav-status-dot" id="nav-dot-telegram"></span>
+        </a>
+        <a class="nav-item" data-page="pinterest">
+            <span>📌</span> Pinterest
+            <span class="nav-status-dot" id="nav-dot-pinterest"></span>
+        </a>
+        <a class="nav-item" data-page="snapchat">
+            <span>👻</span> Snapchat
+            <span class="nav-status-dot" id="nav-dot-snapchat"></span>
+        </a>
+
+        <div class="nav-category">Système</div>
+        <a class="nav-item" data-page="settings"><span>⚙️</span> Settings & Logs</a>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+        <header>
+            <div class="header-title" id="page-title">Dashboard</div>
+            <div class="status-bar">
+                <div id="ext-status-badge" class="status-badge">
+                    <span id="status-dot">●</span> 
+                    <span id="status-text">Extension: Disconnected</span>
+                </div>
+                <button class="btn btn-secondary" id="btn-refresh">🔄</button>
+            </div>
+        </header>
+
+        <!-- Page: Dashboard -->
+        <div id="page-dashboard" class="page-view active">
+            <div class="grid-3">
+                <div class="stat-card">
+                    <div class="stat-label">Posts Today</div>
+                    <div class="stat-value">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Pending</div>
+                    <div class="stat-value">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Errors</div>
+                    <div class="stat-value" style="color: var(--accent-red)">0</div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 24px;">
+                <div class="card-title">Network Health</div>
+                <div class="grid-4" id="dashboard-net-status">
+                    <!-- Populated by JS -->
+                    <div class="net-status-mini" id="dash-status-youtube">
+                        <span class="net-icon">📺</span> <span class="net-name">YouTube</span> <span class="net-state">...</span>
+                    </div>
+                    <div class="net-status-mini" id="dash-status-tiktok">
+                        <span class="net-icon">🎵</span> <span class="net-name">TikTok</span> <span class="net-state">...</span>
+                    </div>
+                    <div class="net-status-mini" id="dash-status-instagram">
+                        <span class="net-icon">📸</span> <span class="net-name">Instagram</span> <span class="net-state">...</span>
+                    </div>
+                    <div class="net-status-mini" id="dash-status-threads">
+                        <span class="net-icon">🧵</span> <span class="net-name">Threads</span> <span class="net-state">...</span>
+                    </div>
+                    <div class="net-status-mini" id="dash-status-facebook">
+                        <span class="net-icon">📘</span> <span class="net-name">Facebook</span> <span class="net-state">...</span>
+                    </div>
+                    <div class="net-status-mini" id="dash-status-twitter">
+                        <span class="net-icon">🐦</span> <span class="net-name">Twitter</span> <span class="net-state">...</span>
+                    </div>
+                    <div class="net-status-mini" id="dash-status-linkedin">
+                        <span class="net-icon">💼</span> <span class="net-name">LinkedIn</span> <span class="net-state">...</span>
+                    </div>
+                    <div class="net-status-mini" id="dash-status-outlook">
+                        <span class="net-icon">📧</span> <span class="net-name">Outlook</span> <span class="net-state">...</span>
+                    </div>
+                    <div class="net-status-mini" id="dash-status-discord">
+                        <span class="net-icon">💬</span> <span class="net-name">Discord</span> <span class="net-state">...</span>
+                    </div>
+                    <div class="net-status-mini" id="dash-status-telegram">
+                        <span class="net-icon">✈️</span> <span class="net-name">Telegram</span> <span class="net-state">...</span>
+                    </div>
+                    <div class="net-status-mini" id="dash-status-pinterest">
+                        <span class="net-icon">📌</span> <span class="net-name">Pinterest</span> <span class="net-state">...</span>
+                    </div>
+                    <div class="net-status-mini" id="dash-status-snapchat">
+                        <span class="net-icon">👻</span> <span class="net-name">Snapchat</span> <span class="net-state">...</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 24px;">
+                <div class="card-title">Recent Activity</div>
+                <div style="color: var(--text-secondary); font-size: 13px;">No recent activity.</div>
+            </div>
+        </div>
+
+        <!-- Page: Studio -->
+        <div id="page-studio" class="page-view">
+            <div id="studio-container">
+                <!-- Left: Configuration -->
+                <div class="studio-config">
+                    <h3 class="studio-label">1. Select Network</h3>
+                    <select id="studio-network-select" class="studio-select">
+                        <option value="">-- Choose Network --</option>
+                        <!-- Populated by JS -->
+                    </select>
+
+                    <h3 class="studio-label">2. Content Type</h3>
+                    <select id="studio-type-select" class="studio-select" disabled>
+                        <option value="">-- Choose Type --</option>
+                    </select>
+                    
+                    <div id="studio-specs" class="card" style="padding: 12px; font-size: 11px; display:none;">
+                        <!-- Specs -->
+                    </div>
+
+                    <div id="studio-caps" class="card" style="padding: 12px; font-size: 11px; display:none;">
+                         <!-- Capabilities -->
+                    </div>
+
+                    <div class="studio-select-group">
+                        <label class="checkbox-label" style="display:flex; align-items:center; gap:8px; color:var(--text-secondary); font-size:12px;">
+                            <input type="checkbox" id="chk-ai-opt"> 🧠 AI Optimisation
+                        </label>
+                        <label class="checkbox-label" style="display:flex; align-items:center; gap:8px; color:var(--text-secondary); font-size:12px;">
+                            <input type="checkbox" id="chk-cross-post"> 🔀 Cross-Post Adaptive
+                        </label>
+                    </div>
+
+                    <div class="studio-actions">
+                        <button id="btn-publish" class="btn btn-primary btn-large" disabled>🚀 Publish</button>
+                        <button id="btn-schedule" class="btn btn-secondary btn-large" disabled>📅 Schedule</button>
+                        <button id="btn-export" class="btn btn-secondary btn-large" disabled>💾 Export</button>
+                    </div>
+                </div>
+
+                <!-- Middle: Canvas -->
+                <div class="studio-canvas-area">
+                    <div id="studio-canvas" class="canvas-wrapper" style="width: 300px; height: 300px;">
+                        <span id="canvas-placeholder">Select Network & Type</span>
+                        <div id="safe-zone" class="safe-zone-overlay" style="display:none;">
+                            <span class="safe-zone-label">Safe Zone</span>
+                        </div>
+                    </div>
+                    <div style="margin-top: 12px; color: #64748b; font-size: 11px;">
+                        <span id="canvas-dims">0x0</span> | <span id="canvas-ratio">1:1</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page: Accounts -->
+        <div id="page-accounts" class="page-view">
+            <div class="card">
+                <div class="card-title">Connected Accounts</div>
+                <div class="grid-3" id="accounts-grid">
+                    <!-- Dynamic Content -->
+                    <button class="btn btn-primary nav-btn" data-network="youtube">📺 Connect YouTube</button>
+                    <button class="btn btn-primary nav-btn" data-network="instagram">📸 Connect Instagram</button>
+                    <button class="btn btn-primary nav-btn" data-network="tiktok">🎵 Connect TikTok</button>
+                    <button class="btn btn-primary nav-btn" data-network="threads">🧵 Connect Threads</button>
+                    <button class="btn btn-primary nav-btn" data-network="facebook">📘 Connect Facebook</button>
+                    <button class="btn btn-primary nav-btn" data-network="twitter">🐦 Connect Twitter</button>
+                    <button class="btn btn-primary nav-btn" data-network="linkedin">💼 Connect LinkedIn</button>
+                    <button class="btn btn-primary nav-btn" data-network="outlook">📧 Connect Outlook</button>
+                    <button class="btn btn-primary nav-btn" data-network="discord">💬 Connect Discord</button>
+                    <button class="btn btn-primary nav-btn" data-network="telegram">✈️ Connect Telegram</button>
+                    <button class="btn btn-primary nav-btn" data-network="pinterest">📌 Connect Pinterest</button>
+                    <button class="btn btn-primary nav-btn" data-network="snapchat">👻 Connect Snapchat</button>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title">Manual Cookie Import (JSON)</div>
+                <p style="font-size:12px; color:var(--text-secondary); margin-bottom:12px;">Paste cookies JSON (from EditThisCookie or similar) to bypass login issues.</p>
+                
+                <select id="cookie-network-select" class="studio-select" style="margin-bottom:10px; width:100%;">
+                    <option value="">-- Select Network --</option>
+                    <option value="tiktok">TikTok</option>
+                    <option value="snapchat">Snapchat</option>
+                    <option value="instagram">Instagram</option>
+                    <option value="threads">Threads</option>
+                    <option value="youtube">YouTube</option>
+                    <option value="twitter">Twitter</option>
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="pinterest">Pinterest</option>
+                    <option value="discord">Discord</option>
+                    <option value="telegram">Telegram</option>
+                </select>
+                
+                <textarea id="cookie-json-input" class="studio-select" style="width:100%; height:100px; font-family:monospace; margin-bottom:10px;" placeholder='[{"domain": ".tiktok.com", ...}]'></textarea>
+                
+                <button id="btn-save-cookies" class="btn btn-primary">💾 Save Cookies</button>
+            </div>
+            
+             <div class="card">
+                <div class="card-title">Cookie Sync</div>
+                 <button id="cmd-get-cookies" class="btn btn-primary">🍪 Force Cookie Sync (All Domains)</button>
+            </div>
+        </div>
+
+        <!-- Other pages placeholders -->
+        <div id="page-library" class="page-view">
+            <div class="card"><div class="card-title">Content Library</div><p>Coming soon...</p></div>
+        </div>
+        <!-- Page: Scheduler -->
+        <div id="page-scheduler" class="page-view">
+            <div class="header">
+                <h2>Planning & Automation</h2>
+            </div>
+            <div class="card">
+                <h3>Scheduled Posts</h3>
+                <div id="scheduler-queue">
+                    <!-- JS will populate -->
+                    <p>No posts scheduled.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page: AI Tools -->
+        <div id="page-ai-tools" class="page-view">
+            <div class="header">
+                <h2>🧠 AI Engine</h2>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                <div class="card">
+                    <h3>Générateur de Hooks</h3>
+                    <input type="text" id="ai-hook-topic" placeholder="Sujet (ex: Marketing Digital)" class="studio-select" style="width:100%; margin-bottom:10px;">
+                    <button id="btn-ai-hook" class="btn btn-primary">Générer</button>
+                    <div id="ai-hook-output" class="output-box" style="margin-top:10px; padding:10px; background:#0f172a; min-height:100px;"></div>
+                </div>
+                <div class="card">
+                    <h3>Script Vidéo Court</h3>
+                    <input type="text" id="ai-script-topic" placeholder="Sujet" class="studio-select" style="width:100%; margin-bottom:10px;">
+                    <button id="btn-ai-script" class="btn btn-primary">Générer Script</button>
+                    <div id="ai-script-output" class="output-box" style="margin-top:10px; padding:10px; background:#0f172a; min-height:100px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page: Analytics -->
+        <div id="page-analytics" class="page-view">
+            <div class="header">
+                <h2>📈 Performance Analytics</h2>
+            </div>
+            <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:20px; margin-bottom:20px;">
+                <div class="card" style="text-align:center;">
+                    <h3>Engagement</h3>
+                    <h2 style="color:#3b82f6;">3.4%</h2>
+                </div>
+                <div class="card" style="text-align:center;">
+                    <h3>Reach</h3>
+                    <h2 style="color:#10b981;">12.5K</h2>
+                </div>
+                <div class="card" style="text-align:center;">
+                    <h3>CTR</h3>
+                    <h2 style="color:#eab308;">1.2%</h2>
+                </div>
+                <div class="card" style="text-align:center;">
+                    <h3>Posts</h3>
+                    <h2 style="color:#f43f5e;">45</h2>
+                </div>
+            </div>
+            <div class="card">
+                <h3>AI Insights</h3>
+                <p>💡 Vos vidéos TikTok de < 15s ont 40% plus de rétention. Essayez d'adapter vos Reels Instagram à ce format.</p>
+            </div>
+        </div>
+
+        <!-- Page: Trends -->
+        <div id="page-trends" class="page-view">
+            <div class="header">
+                <h2>🔥 Trend Radar</h2>
+            </div>
+            <div class="card">
+                <h3>Trending Hashtags (Live)</h3>
+                <ul style="list-style:none; padding:0;">
+                    <li style="padding:10px; border-bottom:1px solid #333;">#SummerVibes <span style="float:right; color:#10b981;">+120%</span></li>
+                    <li style="padding:10px; border-bottom:1px solid #333;">#TechNews <span style="float:right; color:#10b981;">+80%</span></li>
+                    <li style="padding:10px; border-bottom:1px solid #333;">#AIRevolution <span style="float:right; color:#10b981;">+45%</span></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Page: Live Monitor -->
+        <div id="page-live" class="page-view">
+            <div class="header">
+                <h2>🖥️ Live Monitor</h2>
+                <div style="display:flex; gap:10px;">
+                    <button id="clear-logs" class="btn btn-secondary">Clear Logs</button>
+                    <div class="status-badge connected">
+                        <span class="blink-dot"></span> System Active
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Real-time System Activity</h3>
+                <div id="live-log-container" class="live-log">
+                    <div class="log-entry">
+                        <span class="log-time">--:--</span>
+                        <span class="log-level INFO">INFO</span>
+                        <span class="log-msg">System initialized. Waiting for events...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page: YouTube -->
+        <div id="page-youtube" class="page-view">
+            <div class="header">
+                <h2>📺 YouTube Management</h2>
+                <div class="status-badge" id="status-badge-youtube">
+                    <span class="status-dot">●</span> <span class="status-text">Checking...</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Account Status</div>
+                <div class="connection-status-box">
+                    <div class="status-icon-large youtube">📺</div>
+                    <div class="status-details">
+                        <h3 id="youtube-status-title">Not Connected</h3>
+                        <p id="youtube-status-desc">Connect your YouTube account to enable auto-upload and community posts.</p>
+                    </div>
+                    <button class="btn btn-primary nav-btn" data-network="youtube">Connect YouTube</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Actions Disponibles</div>
+                <div class="grid-2" id="actions-youtube"></div>
+            </div>
+        </div>
+
+        <!-- Page: TikTok -->
+        <div id="page-tiktok" class="page-view">
+            <div class="header">
+                <h2>🎵 TikTok Management</h2>
+                <div class="status-badge" id="status-badge-tiktok">
+                    <span class="status-dot">●</span> <span class="status-text">Checking...</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Account Status</div>
+                <div class="connection-status-box">
+                    <div class="status-icon-large tiktok">🎵</div>
+                    <div class="status-details">
+                        <h3 id="tiktok-status-title">Not Connected</h3>
+                        <p id="tiktok-status-desc">Connect your TikTok account to sync viral videos.</p>
+                    </div>
+                    <button class="btn btn-primary nav-btn" data-network="tiktok">Connect TikTok</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Actions Disponibles</div>
+                <div class="grid-2" id="actions-tiktok"></div>
+            </div>
+        </div>
+
+        <!-- Page: Instagram -->
+        <div id="page-instagram" class="page-view">
+            <div class="header">
+                <h2>📸 Instagram Management</h2>
+                <div class="status-badge" id="status-badge-instagram">
+                    <span class="status-dot">●</span> <span class="status-text">Checking...</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Account Status</div>
+                <div class="connection-status-box">
+                    <div class="status-icon-large instagram">📸</div>
+                    <div class="status-details">
+                        <h3 id="instagram-status-title">Not Connected</h3>
+                        <p id="instagram-status-desc">Connect Instagram for Reels and Stories automation.</p>
+                    </div>
+                    <button class="btn btn-primary nav-btn" data-network="instagram">Connect Instagram</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Actions Disponibles</div>
+                <div class="grid-2" id="actions-instagram"></div>
+            </div>
+        </div>
+
+        <!-- Page: Threads -->
+        <div id="page-threads" class="page-view">
+            <div class="header">
+                <h2>🧵 Threads Management</h2>
+                <div class="status-badge" id="status-badge-threads">
+                    <span class="status-dot">●</span> <span class="status-text">Checking...</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Account Status</div>
+                <div class="connection-status-box">
+                    <div class="status-icon-large threads">🧵</div>
+                    <div class="status-details">
+                        <h3 id="threads-status-title">Not Connected</h3>
+                        <p id="threads-status-desc">Connect Threads for text-based engagement.</p>
+                    </div>
+                    <button class="btn btn-primary nav-btn" data-network="threads">Connect Threads</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Actions Disponibles</div>
+                <div class="grid-2" id="actions-threads"></div>
+            </div>
+        </div>
+
+        <!-- Page: Facebook -->
+        <div id="page-facebook" class="page-view">
+            <div class="header">
+                <h2>📘 Facebook Management</h2>
+                <div class="status-badge" id="status-badge-facebook">
+                    <span class="status-dot">●</span> <span class="status-text">Checking...</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Account Status</div>
+                <div class="connection-status-box">
+                    <div class="status-icon-large facebook">📘</div>
+                    <div class="status-details">
+                        <h3 id="facebook-status-title">Not Connected</h3>
+                        <p id="facebook-status-desc">Connect Facebook for cross-posting and community management.</p>
+                    </div>
+                    <button class="btn btn-primary nav-btn" data-network="facebook">Connect Facebook</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Actions Disponibles</div>
+                <div class="grid-2" id="actions-facebook"></div>
+            </div>
+        </div>
+
+        <!-- Page: Twitter -->
+        <div id="page-twitter" class="page-view">
+            <div class="header">
+                <h2>🐦 Twitter Management</h2>
+                <div class="status-badge" id="status-badge-twitter">
+                    <span class="status-dot">●</span> <span class="status-text">Checking...</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Account Status</div>
+                <div class="connection-status-box">
+                    <div class="status-icon-large twitter">🐦</div>
+                    <div class="status-details">
+                        <h3 id="twitter-status-title">Not Connected</h3>
+                        <p id="twitter-status-desc">Connect Twitter (X) for real-time updates.</p>
+                    </div>
+                    <button class="btn btn-primary nav-btn" data-network="twitter">Connect Twitter</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Actions Disponibles</div>
+                <div class="grid-2" id="actions-twitter"></div>
+            </div>
+        </div>
+
+        <!-- Page: LinkedIn -->
+        <div id="page-linkedin" class="page-view">
+            <div class="header">
+                <h2>💼 LinkedIn Management</h2>
+                <div class="status-badge" id="status-badge-linkedin">
+                    <span class="status-dot">●</span> <span class="status-text">Checking...</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Account Status</div>
+                <div class="connection-status-box">
+                    <div class="status-icon-large linkedin">💼</div>
+                    <div class="status-details">
+                        <h3 id="linkedin-status-title">Not Connected</h3>
+                        <p id="linkedin-status-desc">Connect LinkedIn for professional networking.</p>
+                    </div>
+                    <button class="btn btn-primary nav-btn" data-network="linkedin">Connect LinkedIn</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Actions Disponibles</div>
+                <div class="grid-2" id="actions-linkedin"></div>
+            </div>
+        </div>
+
+        <!-- Page: Outlook -->
+        <div id="page-outlook" class="page-view">
+            <div class="header">
+                <h2>📧 Outlook Management</h2>
+                <div class="status-badge" id="status-badge-outlook">
+                    <span class="status-dot">●</span> <span class="status-text">Checking...</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Account Status</div>
+                <div class="connection-status-box">
+                    <div class="status-icon-large outlook">📧</div>
+                    <div class="status-details">
+                        <h3 id="outlook-status-title">Not Connected</h3>
+                        <p id="outlook-status-desc">Connect Outlook for email automation.</p>
+                    </div>
+                    <button class="btn btn-primary nav-btn" data-network="outlook">Connect Outlook</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Actions Disponibles</div>
+                <div class="grid-2" id="actions-outlook"></div>
+            </div>
+        </div>
+
+        <!-- Page: Discord -->
+        <div id="page-discord" class="page-view">
+            <div class="header">
+                <h2>💬 Discord Management</h2>
+                <div class="status-badge" id="status-badge-discord">
+                    <span class="status-dot">●</span> <span class="status-text">Checking...</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Account Status</div>
+                <div class="connection-status-box">
+                    <div class="status-icon-large discord">💬</div>
+                    <div class="status-details">
+                        <h3 id="discord-status-title">Not Connected</h3>
+                        <p id="discord-status-desc">Connect Discord for community engagement.</p>
+                    </div>
+                    <button class="btn btn-primary nav-btn" data-network="discord">Connect Discord</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Actions Disponibles</div>
+                <div class="grid-2" id="actions-discord"></div>
+            </div>
+        </div>
+
+        <!-- Page: Telegram -->
+        <div id="page-telegram" class="page-view">
+            <div class="header">
+                <h2>✈️ Telegram Management</h2>
+                <div class="status-badge" id="status-badge-telegram">
+                    <span class="status-dot">●</span> <span class="status-text">Checking...</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Account Status</div>
+                <div class="connection-status-box">
+                    <div class="status-icon-large telegram">✈️</div>
+                    <div class="status-details">
+                        <h3 id="telegram-status-title">Not Connected</h3>
+                        <p id="telegram-status-desc">Connect Telegram for broadcast channels.</p>
+                    </div>
+                    <button class="btn btn-primary nav-btn" data-network="telegram">Connect Telegram</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Actions Disponibles</div>
+                <div class="grid-2" id="actions-telegram"></div>
+            </div>
+        </div>
+
+        <!-- Page: Pinterest -->
+        <div id="page-pinterest" class="page-view">
+            <div class="header">
+                <h2>📌 Pinterest Management</h2>
+                <div class="status-badge" id="status-badge-pinterest">
+                    <span class="status-dot">●</span> <span class="status-text">Checking...</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Account Status</div>
+                <div class="connection-status-box">
+                    <div class="status-icon-large pinterest">📌</div>
+                    <div class="status-details">
+                        <h3 id="pinterest-status-title">Not Connected</h3>
+                        <p id="pinterest-status-desc">Connect Pinterest for visual discovery.</p>
+                    </div>
+                    <button class="btn btn-primary nav-btn" data-network="pinterest">Connect Pinterest</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Actions Disponibles</div>
+                <div class="grid-2" id="actions-pinterest"></div>
+            </div>
+        </div>
+
+        <!-- Page: Snapchat -->
+        <div id="page-snapchat" class="page-view">
+            <div class="header">
+                <h2>👻 Snapchat Management</h2>
+                <div class="status-badge" id="status-badge-snapchat">
+                    <span class="status-dot">●</span> <span class="status-text">Checking...</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Account Status</div>
+                <div class="connection-status-box">
+                    <div class="status-icon-large snapchat">👻</div>
+                    <div class="status-details">
+                        <h3 id="snapchat-status-title">Not Connected</h3>
+                        <p id="snapchat-status-desc">Connect Snapchat for instant sharing.</p>
+                    </div>
+                    <button class="btn btn-primary nav-btn" data-network="snapchat">Connect Snapchat</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Actions Disponibles</div>
+                <div class="grid-2" id="actions-snapchat"></div>
+            </div>
+        </div>
+
+        <!-- Page: Settings (Diagnostics) -->
+        <div id="page-settings" class="page-view">
+             <div class="card">
+                 <div class="card-title">System Diagnostics</div>
+                 <div id="diagnostics-log" style="background: #000; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 12px; height: 200px; overflow-y: auto; color: #0f0;">
+                     > System Ready.
+                 </div>
+             </div>
+            <div class="card">
+                <div class="card-title">Mettre à jour Nami.app</div>
+                <p style="font-size:12px; color:var(--text-secondary); margin-bottom:10px;">Lance la mise à jour locale via l’app. Identique au bouton de l’extension.</p>
+                <button id="btn-update-app" class="btn btn-primary">⬇️ Mettre à jour</button>
+            </div>
+        </div>
+        
+        <!-- Page: Bridge (Extension Features in App) -->
+        <div id="page-bridge" class="page-view">
+            <div class="header">
+                <h2>Nami Bridge</h2>
+                <div class="status-badge" id="bridge-status-badge">
+                    <span class="status-dot">●</span> <span class="status-text" id="bridge-status-text">Ready</span>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">Actions Rapides</div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <button id="btn-bridge-update" class="btn btn-secondary">⬇️ Mettre à jour Nami.app</button>
+                    <button id="btn-bridge-helper" class="btn btn-secondary">🛠️ Activer Helper</button>
+                    <button id="btn-bridge-ping" class="btn btn-secondary">📡 Ping Helper</button>
+                    <button id="btn-bridge-ext" class="btn btn-secondary">⚡ État Extension</button>
+                </div>
+                <div id="bridge-output" style="margin-top:12px; font-size:12px; color:var(--text-secondary);"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module" src="ui/js/views/studio.js"></script>
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container"></div>
+
+    <script src="renderer.js"></script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+services:
+  # API Service (New SaaS API)
+  - type: web
+    name: social-autopilot-api
+    env: node
+    plan: free
+    rootDir: .
+    buildCommand: pnpm install && pnpm --filter api... build
+    startCommand: pnpm --filter api start:prod
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: social-autopilot-redis
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+
+  # Legacy API Service (SurfSense Backend)
+  - type: web
+    name: surfsense-legacy-api
+    env: node
+    plan: free
+    rootDir: apps/legacy
+    buildCommand: pnpm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: PUPPETEER_CACHE_DIR
+        value: /opt/render/.cache/puppeteer
+      - key: PUPPETEER_PRODUCT
+        value: chrome
+      # Add other secrets from original project here
+
+  # Worker Service
+  - type: worker
+    name: social-autopilot-worker
+    env: node
+    plan: free
+    rootDir: .
+    buildCommand: pnpm install && pnpm --filter worker... build
+    startCommand: pnpm --filter worker start:prod
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: social-autopilot-redis
+          property: connectionString
+
+  # Frontend Service (Next.js + SwellSync Static)
+  - type: web
+    name: social-autopilot-web
+    env: node
+    plan: free
+    rootDir: .
+    buildCommand: pnpm install && pnpm --filter web... build
+    startCommand: pnpm --filter web start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: social-autopilot-api
+          property: url
+      - key: LEGACY_API_URL
+        fromService:
+          type: web
+          name: surfsense-legacy-api
+          property: url
+
+databases:
+  - name: social-autopilot-redis
+    plan: free
+    region: oregon

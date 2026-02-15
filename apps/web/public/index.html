@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+<meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#080a12">
+<link rel="apple-touch-icon" href="logo.svg">
+    <meta property="og:title" content="SurfSense Premium - Prévisions IA" />
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#080a12">
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SwellSync">
+    <link rel="apple-touch-icon" href="favicon.svg">
+    <meta property="og:description" content="Accédez aux données satellites, à l'analyse par 11 robots et aux webcams HD. Le forecast réinventé." />
+    <meta property="og:image" content="https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=1200" />
+    <meta name="description" content="Surf report et prévisions surf en temps réel. Alternative Windguru pour Lacanau, Hossegor et la côte Atlantique. Données houle, vent, marée et webcams LIVE." />
+    <meta property="og:url" content="https://swellsync.fr" />
+    <link rel="canonical" href="https://swellsync.fr/index.html" />
+    <meta property="og:type" content="website" />
+    
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="SurfSense - Dashboard Météo Surf">
+    <meta name="twitter:description" content="Ne ratez plus aucune session. Analyse vent, houle et marée en temps réel.">
+    <meta name="twitter:image" content="https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=1200">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "SwellSync",
+      "url": "https://swellsync.fr",
+      "email": "swellsync@outlook.fr",
+        "logo": "https://swellsync.fr/logo.svg"
+    }
+    </script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "SwellSync",
+      "url": "https://swellsync.fr",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://swellsync.fr/conditions.html?spot={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: gap:; connect-src * 'unsafe-inline'; img-src * data: blob: 'unsafe-inline';">
+
+    <title>SwellSync | Prévisions Surf par IA en temps réel</title>
+    <meta name="google-site-verification" content="8eYtYIlgTvRYElHw03aiqfPAlHPDIx8MVp3qKdH1tgE" />
+
+<meta name="description" content="Terminal de prévisions surf nouvelle génération. 11 modèles d'Intelligence Artificielle synchronisés pour traquer la houle parfaite sur les côtes françaises.">
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="manifest.json">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+    <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js" defer></script>
+    
+    <script src="data.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+
+    <div class="modal" id="gatekeeper-modal" style="z-index: 10000; display: none;">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content tech-modal gatekeeper-compact">
+        <div class="tech-header" style="margin-bottom: 30px;">
+            <div style="font-size: 2.5rem; margin-bottom: 10px;">🛡️</div>
+            <h2>PROTOCOLE D'ACCÈS SURFSENSE</h2>
+            <span class="tech-label">SYSTÈME D'ANALYSE IA v2.0</span>
+        </div>
+
+        <p class="gate-title" style="margin-bottom:12px;">Initialisation de la salle de contrôle...</p>
+        <p class="gate-description" style="margin-bottom:14px;">Plateforme de prévisions premium. Robots IA, données satellite/bouées, alertes ciblées.</p>
+
+        <div class="gate-tabs">
+            <button class="gate-toggle" data-target="panel-metrics">📊 Métriques</button>
+            <button class="gate-toggle" data-target="panel-robots">🤖 Robots</button>
+            <button class="gate-toggle" data-target="panel-how">⚙️ Fonctionnement</button>
+            <button class="gate-toggle" data-target="panel-legal">⚖️ Juridique</button>
+        </div>
+
+        <div id="panel-metrics" class="gate-panel is-open">
+            <div class="gate-metrics">
+                <div class="metric-row"><span>🎯 Fiabilité live</span><b id="gate-reliability">--%</b></div>
+                <div class="metric-row"><span>📡 Spots LIVE</span><b id="gate-live-count">--</b></div>
+                <div class="metric-row"><span>🔑 Quota Stormglass</span><b id="gate-quota-remaining">--/--</b></div>
+            </div>
+            <div class="gate-ready"><span>> SYSTEM_READY_TO_BOOT_</span></div>
+        </div>
+
+        <div id="panel-robots" class="gate-panel">
+            <div class="robots-grid">
+                <div class="robot-card"><span>🌊</span><b>Tide‑Master</b><i>Cycles de marée</i></div>
+                <div class="robot-card"><span>⏱️</span><b>Swell‑Pulse</b><i>Période et direction</i></div>
+                <div class="robot-card"><span>📐</span><b>Vector‑Angle</b><i>Incidence vent/plage</i></div>
+                <div class="robot-card"><span>⚡</span><b>Energy‑Core</b><i>Puissance H²×T</i></div>
+                <div class="robot-card"><span>🛡️</span><b>Anti‑Chop</b><i>Filtre clapot</i></div>
+                <div class="robot-card"><span>🤖</span><b>News‑Bot</b><i>Flux actu surf</i></div>
+                <div class="robot-card"><span>👥</span><b>Crowd‑Predict</b><i>Affluence estimée</i></div>
+                <div class="robot-card"><span>🌡️</span><b>Feel‑Real</b><i>Thermique/windchill</i></div>
+                <div class="robot-card"><span>☀️</span><b>Solar‑Sync</b><i>Cycle UV</i></div>
+                <div class="robot-card"><span>🧬</span><b>Eco‑Scan</b><i>Qualité de l’eau</i></div>
+                <div class="robot-card"><span>🏹</span><b>Swell‑Hunter</b><i>Sessions à traquer</i></div>
+            </div>
+        </div>
+
+        <div id="panel-how" class="gate-panel">
+            <div class="how-it-works">
+                <div class="how-step"><span>1</span><b>Collecte</b><i>Stormglass Premium + bouées/NOAA</i></div>
+                <div class="how-step"><span>2</span><b>Traitement</b><i>11 agents IA et filtres physiques</i></div>
+                <div class="how-step"><span>3</span><b>Alertes</b><i>Notification quand c’est Bon/Épique</i></div>
+            </div>
+        </div>
+
+        <div id="panel-legal" class="gate-panel">
+            <div class="legal-links">
+                <a href="#" data-modal="legal-mentions">Mentions Légales</a>
+                <a href="#" data-modal="legal-cgu">CGU</a>
+                <a href="#" data-modal="legal-rgpd">Confidentialité</a>
+            </div>
+            <p class="gate-legal-note">En cliquant sur “ACCEPTER ET ENTRER”, vous validez nos conditions d’accès.</p>
+        </div>
+
+        <div class="tech-footer compact-footer">
+            <button id="btn-refuse-access" class="ghost">REFUSER</button>
+            <button id="btn-accept-access" class="primary">ACCEPTER ET ENTRER</button>
+        </div>
+      </div>
+    </div>
+    
+    <div id="global-alert-zone"></div>
+
+    <div id="geo-bubble" class="geo-bubble" title="Trouver le spot le plus proche">
+      <span class="geo-dot"></span>
+      <span class="geo-text" data-i18n="geo.find">Trouver mon spot</span>
+    </div>
+
+    <div id="app-loader">
+      <div class="spinner"></div>
+      <p>Synchronisation avec les robots...</p>
+    </div>
+
+    <header class="hero hero--photo">
+      <nav class="nav">
+        <div class="logo">
+          <img src="logo.svg" alt="Logo" class="logo-mark" />
+          SwellSync
+        </div>
+        <div class="nav-links">
+          <a href="index.html" class="active" data-i18n="nav.map">Carte</a>
+          <a href="cameras.html" data-i18n="nav.cameras">Caméras</a>
+          <a href="favorites.html" data-i18n="nav.favorites">Favoris</a>
+          <a href="versus.html" data-i18n="nav.versus">Versus</a>
+          <a href="actus.html" data-i18n="nav.news">News</a>
+          <a href="contact.html" data-i18n="nav.contact">Contact</a>
+        </div>
+        <div class="nav-actions">
+          <select id="lang-select" class="lang-select">
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+          </select>
+          <button class="cta" data-modal="support" data-i18n="nav.support">Soutenir</button>
+          <button class="cta" data-modal="auth" data-i18n="nav.login">Se connecter</button>
+          <button class="cta cta--icon" id="share-story-btn" aria-label="Partager Story" title="Partager Story">⤴︎</button>
+        </div>
+      </nav>
+      
+      <div class="hero-content hero-content--center">
+        <div class="hero-stack">
+          <div class="badge-row">
+            <p class="badge badge--live animate-1">Robot Marine Actif</p>
+          </div>
+          <h1 class="hero-title animate-2">Prévisions surf<br>essentielles.</h1>
+          <div class="hero-actions animate-4">
+            <button class="primary" onclick="document.getElementById('map').scrollIntoView({behavior: 'smooth'})" data-i18n="cta.explore">Explorer les spots</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="partners-strip">
+        <span>DONNÉES CERTIFIÉES PAR :</span>
+        <div class="partner-logos">
+            <span class="p-logo">NOAA</span>
+            <span class="p-logo">STORMGLASS.IO</span>
+            <span class="p-logo">COPERNICUS</span>
+            <span class="p-logo">METEO-FRANCE</span>
+        </div>
+    </div>
+
+    <main>
+      <section class="quick-stats-bar">
+        <div class="stat-bubble" id="stat-water">
+            <span class="bubble-label" data-i18n="quick.water">TEMP. EAU</span>
+            <span class="bubble-value">--</span>
+        </div>
+        <div class="stat-bubble" id="stat-swell"> 
+            <span class="bubble-label" data-i18n="quick.swell">ANALYSE HOULE</span>
+            <span class="bubble-value">--</span>
+        </div>
+        <div class="stat-bubble" id="stat-active">
+            <span class="bubble-label" data-i18n="quick.live">SPOTS EN LIVE</span>
+            <span class="bubble-value">--</span>
+        </div>
+        <div class="stat-bubble" id="stat-tide">
+            <span class="bubble-label" data-i18n="quick.tide">MARÉE (GLOBAL)</span>
+            <span class="bubble-value">--</span>
+        </div>
+      </section>
+
+      <div class="modal" id="geo-modal">
+        <div class="modal-backdrop" data-modal-close></div>
+        <div class="modal-content geo-modal-card">
+          <div class="fm-header is-good">
+            <div class="fm-date">Trouver votre spot le plus proche</div>
+            <div class="fm-source">LOCALISATION PRIVÉE, DEMANDE AU CLIC</div>
+          </div>
+          <div class="fm-details" id="geo-modal-body">
+            <div class="detail-line">
+              <div class="dl-item" style="grid-column: 1 / -1; text-align:center;">
+                <button id="geo-start" class="btn-locate">Activer la localisation</button>
+                <div id="geo-status" class="locate-status" style="margin-top:8px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <section id="map" class="section">
+        <div class="map-header-card">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h2 data-i18n="map.title">Carte interactive</h2>
+                <p data-i18n="map.desc">Analyse précise via Stormglass Premium.</p>
+            </div>
+            <div class="storage-indicator" title="Données centralisées (Postgres Render)">
+                <span class="storage-icon">🗄️</span> DB-Backed
+            </div>
+          </div>
+        </div>
+
+        <div class="map-layout">
+          <div class="map-container-wrapper">
+            <div id="surf-map"></div>
+          </div>
+
+          <aside class="spot-panel">
+            <div class="spot-panel-header">
+              <h3 class="spot-header-title" data-i18n="spot.header">Navigation Spots</h3>
+            </div>
+            
+            <div class="spot-search">
+              <input type="search" id="spot-search" placeholder="Filtrer les spots..." data-i18n="spot.search.placeholder" />
+            </div>
+            
+            <div class="spot-list" id="spot-list"></div>
+
+            <div class="status-legend">
+              <h4 data-i18n="legend.title">Légende Robots</h4>
+              <div class="legend-item">
+                <span class="dot dot--live"></span>
+                <span><strong>LIVE</strong> : Données Satellite 3h</span>
+              </div>
+              <div class="legend-item">
+                <span class="dot dot--wait"></span>
+                <span><strong>WAIT</strong> : Robot en route...</span>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section id="live-radar" class="section">
+        <div class="section-title">
+            <h2 data-i18n="radar.title">Radar des Sessions</h2>
+            <p data-i18n="radar.desc">Les spots les plus surveillés en ce moment.</p>
+        </div>
+        <div class="radar-grid" id="radar-container">
+            </div>
+      </section>
+
+      <section id="tech-showcase" class="section" style="padding-top: 0;">
+        <div class="tech-banner">
+            <div class="tech-text">
+                <span class="tech-label">STATUTS DES ROBOTS</span>
+                <h2>Monitoring en direct</h2>
+                <p>Suivez l'activité des 11 robots IA. Les cartes se mettent à jour en temps réel.</p>
+            </div>
+            <div class="tech-visual" style="width:100%;">
+                <div id="home-robots-hub" class="robots-grid-container">
+                    <div class="ai-robot-card"><span class="robot-icon">🌊</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Tide-Master</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">⏱️</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Swell-Pulse</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">📐</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Vector-Angle</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">⚡</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Energy-Core</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">🛡️</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Anti-Chop</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">🤖</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>News-Bot</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">👥</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Crowd-Predict</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">🌡️</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Feel-Real</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">☀️</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Solar-Sync</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">🧬</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Eco-Scan</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                    <div class="ai-robot-card"><span class="robot-icon">🏹</span><div class="robot-info"><span class="robot-name"><span class="status-dot" style="background:#2a7bff"></span>Swell-Hunter</span><span class="robot-value">--</span><span class="robot-desc"></span></div></div>
+                </div>
+            </div>
+        </div>
+      </section>
+
+      <section id="how-it-works" class="section">
+         <div class="section-title" style="text-align: center;">
+           <h2 data-i18n="flow.title">Le Flux SurfSense</h2>
+            <p data-i18n="flow.desc">De l'océan à votre écran en 3 étapes millimétrées.</p>
+        </div>
+        <div class="steps-container">
+            <div class="step-card">
+                <div class="step-icon">📡</div>
+                <h3 data-i18n="flow.step1.title">1. Scan Satellite</h3>
+                <p data-i18n="flow.step1.desc">Récupération des données brutes Stormglass et bouées océaniques.</p>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step-card">
+                <div class="step-icon">🧠</div>
+                <h3 data-i18n="flow.step2.title">2. Traitement IA</h3>
+                <p data-i18n="flow.step2.desc">Nos robots filtrent le clapot et calculent l'énergie réelle du spot.</p>
+            </div>
+            <div class="step-connector"></div>
+            <div class="step-card">
+                <div class="step-icon">🔔</div>
+                <h3 data-i18n="flow.step3.title">3. Alertes Smart</h3>
+                <p data-i18n="flow.step3.desc">Vous recevez l'info uniquement quand c'est "Bon" ou "Épique".</p>
+            </div>
+        </div>
+      </section>
+
+      <section id="mobile-promo" class="section">
+        <div class="mobile-promo-container">
+            <div class="mobile-content">
+                <span class="tech-label">WEB APP & MOBILE</span>
+                <h2>Emportez le Forecast<br>sur la plage.</h2>
+                <p>Compatible iOS et Android. Ajoutez SurfSense à votre écran d'accueil pour un accès instantané aux caméras et aux alertes push.</p>
+                <div class="store-buttons">
+                    <button class="store-btn" id="btn-install-ios">  Installer sur iOS</button>
+                    <button class="store-btn" id="btn-install-android">🤖  Installer sur Android</button>
+                </div>
+            </div>
+            <div class="mobile-visual">
+                <div class="phone-mockup">
+                    <div class="phone-screen">
+                        <div class="phone-notch"></div>
+                        <div class="phone-app-preview">
+                            <div class="app-header-preview">SurfSense</div>
+                            <div class="app-card-preview"></div>
+                            <div class="app-card-preview" style="height: 60px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+      </section>
+
+      <section id="home-news" class="section">
+        <div class="section-title" style="display:flex; justify-content:space-between; align-items:center; gap:20px; margin-bottom:18px; padding:0 4vw;">
+          <div class="title-with-robot" style="text-align:left;">
+            <h2>Dernières Actus</h2>
+            <span class="robot-tag">🤖 Robot News Actif</span>
+          </div>
+          <a href="actus.html" class="primary-pill" style="text-decoration:none;">Accéder au Journal Complet</a>
+        </div>
+        <div class="news-preview-grid" id="news-preview">
+            </div>
+      </section>
+      
+      <section class="section">
+        <div class="section-title" style="display:flex; gap:12px; align-items:center; padding:0 4vw;">
+          <h2>Recherches populaires</h2>
+        </div>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; padding:0 4vw;">
+          <a href="conditions.html?spot=Lacanau%20Central" class="primary-pill" style="text-decoration:none;">Surf report Lacanau</a>
+          <a href="conditions.html?spot=Hossegor%20-%20La%20Nord" class="primary-pill" style="text-decoration:none;">Surf report Hossegor</a>
+          <a href="conditions.html?spot=Capbreton%20-%20Le%20Santocha" class="primary-pill" style="text-decoration:none;">Windguru Capbreton (Alternative)</a>
+          <a href="conditions.html?spot=Saint-Jean-de-Luz%20-%20Lafitenia" class="primary-pill" style="text-decoration:none;">Surf info Lafitenia</a>
+        </div>
+      </section>
+
+      <section id="newsletter" class="section">
+          <div class="newsletter-box">
+              <div class="newsletter-content">
+                  <h2>Rejoignez le Club Privé</h2>
+                  <p>Recevez les alertes "ÉPIQUE" directement par email avant tout le monde.</p>
+                  <form class="newsletter-form" onsubmit="event.preventDefault(); alert('Bienvenue dans le club !');">
+                      <input type="email" placeholder="votre@email.com" required>
+                      <button type="submit">M'inscrire</button>
+                  </form>
+              </div>
+          </div>
+      </section>
+
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner" style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; padding: 0 20px;">
+        <div>
+          <p>© 2026 SurfSense — IA Marine Premium</p>
+          <p style="color: var(--muted); font-size: 0.75rem;">Robots: 11 • Source: Stormglass v2 • Quota: 500 req/j</p>
+        </div>
+        <div class="footer-legal-links" style="display: flex; gap: 25px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+          <a href="#" data-modal="legal-mentions" style="color: var(--muted);" data-i18n="legal.mentions">Mentions Légales</a>
+          <a href="#" data-modal="legal-cgu" style="color: var(--muted);" data-i18n="legal.cgu">CGU</a>
+          <a href="#" data-modal="legal-rgpd" style="color: var(--muted);" data-i18n="legal.rgpd">Confidentialité</a>
+          <a href="contact.html" style="color: var(--muted);" data-i18n="nav.contact">Contact</a>
+        </div>
+      </div>
+    </footer>
+
+    <div class="modal" id="auth-modal">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-content">
+        <button class="modal-close" data-modal-close>✕</button>
+        
+        <div id="auth-login-view">
+          <h3>Connexion</h3>
+          <form class="modal-form" id="login-form">
+            <input type="email" id="login-email" placeholder="Email" required />
+            <input type="password" id="login-pass" placeholder="Mot de passe" required />
+            <button type="submit" class="primary">Entrer</button>
+          </form>
+          <p class="modal-footer-text">Pas encore inscrit ? <a href="#" id="link-to-register">S'inscrire (2FA)</a></p>
+        </div>
+
+        <div id="auth-register-view" style="display:none;">
+          <h3>Créer un compte</h3>
+          <form class="modal-form" id="register-form">
+            <input type="text" id="reg-name" placeholder="Nom complet" required />
+            <input type="email" id="reg-email" placeholder="Email" required />
+            <input type="password" id="reg-pass" placeholder="Mot de passe" required />
+            <button type="submit" class="primary">Rejoindre le Line-up</button>
+          </form>
+          <p class="modal-footer-text">Déjà membre ? <a href="#" id="link-to-login">Se connecter</a></p>
+        </div>
+
+        <div id="auth-2fa-view" style="display:none;">
+          <h3 style="color: var(--live-red);">Vérification par Email (2FA)</h3>
+          <p class="modal-footer-text" id="twofa-instructions">Un code à 6 chiffres vous a été envoyé par email. Si vous ne le voyez pas, vérifiez le dossier Spam/Indésirables. Le code expire dans 10 minutes.</p>
+          <form class="modal-form" id="twofa-form">
+            <input type="hidden" id="twofa-email" />
+            <input type="text" id="twofa-code" placeholder="Code à 6 chiffres" required maxlength="6" style="text-align: center; letter-spacing: 5px; font-weight: bold;" />
+            <button type="submit" class="primary" style="background: var(--live-red);">Valider le code</button>
+          </form>
+        </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="profile-modal">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-content tech-modal" style="max-width: 700px;">
+        <button class="modal-close" data-modal-close>✕</button>
+        
+        <div class="tech-header" style="display: flex; align-items: center; gap: 20px; border-bottom: 1px solid var(--line); padding-bottom: 20px;">
+            <div class="agent-avatar" style="width: 80px; height: 80px; border: 2px solid var(--accent); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 2rem; background: rgba(42, 123, 255, 0.1);">
+                👤
+            </div>
+            <div>
+                <span class="tech-label">AGENT SURFSENSE</span>
+                <h2 id="profile-user-name" style="margin: 5px 0;">IDENTIFICATION...</h2>
+                <div id="profile-status-badge" class="badge badge--premium">STATUS: ACTIVE</div>
+            </div>
+        </div>
+
+        <div class="profile-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-top: 25px;">
+            <div class="profile-box" style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 4px; border: 1px solid var(--line);">
+                <span class="tech-label" style="font-size: 0.6rem;">ACCOUNT INTEL</span>
+                <p style="font-size: 0.9rem; margin: 10px 0;">Email: <span id="profile-email" style="color: #fff;">-</span></p>
+                <p style="font-size: 0.9rem; margin: 10px 0;">Liaison : <span style="color: #fff;">Chiffrée SSL</span></p>
+                <button class="ghost" style="width: 100%; margin-top: 10px; font-size: 0.7rem; padding: 8px;" onclick="logout()">DÉCONNEXION</button>
+            </div>
+
+            <div class="profile-box" style="background: rgba(255,255,255,0.02); padding: 15px; border-radius: 4px; border: 1px solid var(--line);">
+                <span class="tech-label" style="font-size: 0.6rem;">SATELLITE DATA USAGE</span>
+                <div id="quota-bar-container" style="margin: 15px 0;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.7rem; margin-bottom: 5px;">
+                        <span>API CALLS</span>
+                        <span id="quota-text">0/500</span>
+                    </div>
+                    <div style="width: 100%; height: 4px; background: #222; border-radius: 2px;">
+                        <div id="quota-fill" style="width: 0%; height: 100%; background: var(--accent); transition: width 1s ease-in-out;"></div>
+                    </div>
+                </div>
+                <p style="font-size: 0.75rem; color: var(--muted); font-style: italic;">Reset quotidien à 00:00</p>
+            </div>
+        </div>
+
+        <div class="subscription-section" style="margin-top: 25px; padding: 20px; border: 1px dashed var(--accent); border-radius: 4px; text-align: center; background: rgba(42, 123, 255, 0.05);">
+            <h4 style="margin: 0 0 10px 0; letter-spacing: 1px;">DÉBLOQUER LA LICENCE ELITE</h4>
+            <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px;">Accès illimité aux 11 robots H24 et alertes SMS prioritaires.</p>
+            <button class="primary" style="padding: 10px 25px; font-weight: 800;">ACTIVER L'ABONNEMENT (BIENTÔT)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="legal-modal">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-content tech-modal" style="max-width: 800px;">
+        <div class="tech-header">
+            <span class="tech-label">LEGAL DOCUMENTATION</span>
+            <h2 id="legal-title">TITRE DU DOCUMENT</h2>
+        </div>
+        <div id="legal-body" style="overflow-y: auto; max-height: 60vh; padding: 20px 0; color: #94a3b8; font-size: 0.9rem; line-height: 1.7;">
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="support-modal">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-content tech-modal" style="max-width: 720px;">
+        <div class="tech-header">
+            <span class="tech-label" data-i18n="support.title">Soutenir SurfSense</span>
+            <h2 data-i18n="support.desc">Vos dons financent l’hébergement, l’API météo et le développement.</h2>
+        </div>
+        <div style="overflow-y: auto; max-height: 64vh; padding: 10px 0;">
+          <h3 style="margin:10px 0;" data-i18n="support.breakdown.title">À quoi servent vos dons ?</h3>
+          <ul style="color:#94a3b8; font-size:0.9rem; line-height:1.7; margin:0 0 12px 0; padding-left:18px;">
+            <li data-i18n="support.breakdown.hosting">Hébergement/serveur, bande passante et CDN.</li>
+            <li data-i18n="support.breakdown.api">Abonnement API météo (Stormglass Premium).</li>
+            <li data-i18n="support.breakdown.domain">Nom de domaine, certificats SSL et maintenance.</li>
+            <li data-i18n="support.breakdown.dev">Développement des robots et des nouvelles fonctionnalités.</li>
+          </ul>
+          <div style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px; margin:12px 0;">
+            <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="5" style="display:none;"><span>5€</span></label>
+            <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="10" style="display:none;"><span>10€</span></label>
+            <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="20" style="display:none;"><span>20€</span></label>
+            <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="50" style="display:none;"><span>50€</span></label>
+            <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="100" style="display:none;"><span>100€</span></label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="number" id="support-amount-custom" min="1" step="1" placeholder="Montant libre" style="width:100%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px; color: #fff; font-size: 0.95rem;" />
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; margin-top:10px;">
+            <div id="support-applepay-btn" style="display:none;"></div>
+            <button id="support-continue" class="primary" data-i18n="support.cta.continue">Payer par carte</button>
+          </div>
+          <div id="support-paypal-btn" style="display:none; margin-top:10px;"></div>
+          <div style="display:flex; gap:10px; margin-top:10px;">
+            <button id="support-copy-email" class="ghost-pill" data-i18n="support.cta.copy">Copier l’adresse email</button>
+          </div>
+          <div class="trust-row">
+            <span class="lock">🔒</span>
+            <span>Paiement sécurisé via Stripe</span>
+            <span class="sub">Checkout hébergé — aucune carte traitée par SurfSense</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="install-modal">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-content" style="text-align: center;">
+        <div id="ios-install-guide" style="display: none;">
+            <div style="font-size: 3rem; margin-bottom: 10px;">📲</div>
+            <h3>Installer sur iOS</h3>
+            <p style="color: #ccc; margin-bottom: 20px;">Apple ne permet pas l'installation automatique. Suivez ces 2 étapes :</p>
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; text-align: left; margin-bottom: 10px;">
+                1. Cliquez sur l'icône <strong>Partager</strong> <span style="font-size:1.2rem">⎋</span> en bas de Safari.
+            </div>
+            <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 12px; text-align: left;">
+                2. Scrollez et choisissez <strong>"Sur l'écran d'accueil"</strong> ⊞.
+            </div>
+        </div>
+        <div id="android-install-guide" style="display: none;">
+            <div style="font-size: 3rem; margin-bottom: 10px;">🤖</div>
+            <h3>Installer sur Android</h3>
+            <p style="color: #ccc; margin-bottom: 20px;">Ajoutez SurfSense pour un accès plein écran.</p>
+            <button id="pwa-install-btn" class="primary" style="width: 100%;">Installer Maintenant</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal" id="stats-info-modal">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-content stats-info-card">
+        <div class="fm-header is-good">
+          <div class="fm-date">Infos Statistiques</div>
+          <div class="fm-source">Source: Stormglass + Services locaux</div>
+        </div>
+        <div id="stats-info-body" class="fm-details"></div>
+      </div>
+    </div>
+    <div id="cookie-banner" style="display:none; position:fixed; bottom:20px; left:20px; right:20px; max-width:500px; background:rgba(8,10,18,0.95); border:1px solid var(--accent); padding:15px; border-radius:12px; z-index:9999; backdrop-filter:blur(10px); box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:15px;">
+        <p style="margin:0; font-size:0.8rem; color:#94a3b8; line-height:1.4;">
+            <strong style="color:#fff;">TERMINAL SURFSENSE :</strong> Nous utilisons le stockage local strictement pour maintenir votre session agent ouverte (Aucun traçage pub).
+        </p>
+        <button onclick="acceptCookies()" class="primary" style="padding:8px 15px; font-size:0.75rem; white-space:nowrap;" data-i18n="cookie.ok">COMPRIS</button>
+    </div>
+</div>
+  </body>
+</html>
+
+
+        <div id="auth-register-view" style="display: none;">
+          <div id="auth-2fa-view" style="display: none;">
+  <h3 style="color: var(--live-red);">Alerte Sécurité : 2FA</h3>
+  <p class="modal-footer-text">Veuillez entrer votre code d'habilitation d'agent.</p>
+  <form class="modal-form" id="twofa-form">
+    <input type="hidden" id="twofa-email" /> 
+    <input type="text" id="twofa-code" placeholder="Code à 6 chiffres (ex: 000000)" required maxlength="6" style="text-align: center; letter-spacing: 5px; font-weight: bold;" />
+    <button type="submit" class="primary" style="background: var(--live-red);">Vérifier l'Identité</button>
+  </form>
+</div>

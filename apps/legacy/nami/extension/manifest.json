@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "SwellSync Control Center",
+  "version": "0.0.1",
+  "description": "Dashboard premium de contrôle SwellSync.",
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "SwellSync" },
+  "options_page": "dashboard.html",
+  "permissions": ["tabs", "cookies", "scripting", "alarms"],
+  "host_permissions": [
+    "https://*.instagram.com/*",
+    "https://*.facebook.com/*",
+    "https://*.threads.net/*",
+    "https://*.tiktok.com/*",
+    "https://*.twitter.com/*",
+    "https://*.x.com/*",
+    "https://*.youtube.com/*",
+    "https://*.google.com/*",
+    "https://*.telegram.org/*",
+    "https://*.discord.com/*",
+    "https://*.linkedin.com/*",
+    "https://*.pinterest.com/*",
+    "https://*.pexels.com/*",
+    "https://*.unsplash.com/*",
+    "https://*.pixabay.com/*"
+  ]
+}

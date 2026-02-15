@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+<meta name="mobile-web-app-capable" content="yes">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conditions Live - SurfSense</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="logo.svg" type="image/svg+xml" />
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+    
+    <script src="data.js" defer></script>
+    <script src="app.js" defer></script>
+</head>
+<body class="conditions-page">
+
+    <nav class="nav">
+        <div class="logo">
+          <img src="logo.svg" alt="Logo" class="logo-mark" />
+          SwellSync
+        </div>
+        <div class="nav-links">
+          <a href="index.html" data-i18n="nav.map">Carte</a>
+          <a href="cameras.html" data-i18n="nav.cameras">Caméras</a>
+          <a href="favorites.html" data-i18n="nav.favorites">Favoris</a>
+          <a href="versus.html" data-i18n="nav.versus">Versus</a>
+          <a href="actus.html" data-i18n="nav.news">News</a>
+          <a href="contact.html" data-i18n="nav.contact">Contact</a>
+        </div>
+        <div class="nav-actions">
+          <select id="lang-select" class="lang-select">
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+          </select>
+          <button class="cta" data-modal="support" data-i18n="nav.support">Soutenir</button>
+          <button class="cta" data-modal="auth" data-i18n="nav.login">Se connecter</button>
+          <button class="cta cta--icon" id="share-story-btn" aria-label="Partager Story" title="Partager Story">⤴︎</button>
+        </div>
+    </nav>
+
+    <div class="cond-container">
+        <div class="cond-header">
+            <div class="cond-titles">
+                <p class="sub-text"><span data-i18n="cond.live">LIVE REPORT •</span> <span id="cond-updated">Chargement...</span></p>
+                <h1 id="cond-name">Chargement du spot...</h1>
+                <div class="premium-tags">
+                    <span class="tag">📡 Satellite Direct</span>
+                    <button class="tag tag--btn" data-modal="tech" style="cursor:pointer;">🤖 IA Active (11)</button>
+                </div>
+            </div>
+            <div class="cond-actions">
+                <button id="btn-fav" class="ghost-pill">♡ Favori</button>
+                <a id="btn-cam" href="#" class="primary-pill">Voir Webcams</a>
+                <button id="btn-share-story" class="ghost-pill">Partager Story</button>
+            </div>
+        </div>
+
+        <div class="dashboard-layout">
+            <div class="main-column">
+                
+                <div id="status-box" class="status-banner">
+                    <div class="status-icon-circle"><span id="status-icon">🌊</span></div>
+                    <div class="status-content">
+                        <h3 id="status-title" data-i18n="cond.status.title">ANALYSE EN COURS...</h3>
+                        <p id="status-desc" data-i18n="cond.status.desc">Connexion aux bouées...</p>
+                    </div>
+                </div>
+
+                <div id="ai-robot-hub" class="robots-grid-container"></div>
+
+                <div class="stats-grid-6">
+                    <div class="stat-item">
+                        <span class="stat-label" data-i18n="stats.wave">VAGUES</span>
+                        <span class="stat-value"><span id="val-wave">-</span><small>m</small></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label" data-i18n="stats.period">PÉRIODE</span>
+                        <span class="stat-value"><span id="val-period">-</span><small>s</small></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label" data-i18n="stats.wind">VENT</span>
+                        <span class="stat-value"><span id="val-wind-speed">-</span><small>km/h</small></span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label" data-i18n="stats.winddir">DIR. VENT</span>
+                        <span class="stat-value" id="val-wind-dir">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label" data-i18n="stats.swelldir">DIR. HOULE</span>
+                        <span class="stat-value" id="val-swell-dir">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label" data-i18n="stats.quality">QUALITÉ</span>
+                        <span class="stat-value" id="val-quality">-</span>
+                    </div>
+                </div>
+
+                <div class="locate-bar">
+                  <button id="locate-me" class="btn-locate" data-i18n="locate.btn">Trouver mon spot le plus proche</button>
+                  <span id="locate-status" class="locate-status"></span>
+                </div>
+                <div id="hourly-strip" class="hourly-strip"></div>
+                <h3 class="forecast-title" data-i18n="forecast.title">Conditions 7 jours</h3>
+                <div id="forecast-list" class="forecast-scroller"></div>
+            </div>
+
+            <aside class="sidebar">
+                <div id="mini-map" class="sidebar-map"></div>
+                
+                <div class="info-bar info-bar--tide">
+                    <span class="info-label" data-i18n="tide.next">PROCHAINE MARÉE</span>
+                    <span id="tide-display" class="tide-countdown">Calcul...</span>
+                </div>
+
+                <div style="margin-top: 30px; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                    <h4 style="margin-top:0; font-size:0.8rem; color:#666;">MONITORING</h4>
+                    <p style="font-size:0.75rem; color:#888;">
+                        API Latence: <span style="color:#4ade80">24ms</span><br>
+                        Précision: <span style="color:#4ade80">98.5%</span><br>
+                        Source: Stormglass v2
+                    </p>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <div class="modal" id="forecast-modal">
+        <div class="modal-backdrop" data-modal-close></div>
+        <div class="modal-content forecast-modal">
+            <div id="forecast-modal-body"></div>
+        </div>
+    </div>
+
+    <footer class="footer">
+      <div class="footer-inner" style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; padding: 0 20px;">
+        <div>
+          <p>© 2026 SurfSense — IA Marine Premium</p>
+          <p style="color: var(--muted); font-size: 0.75rem;">Robots: 11 • Source: Stormglass v2 • Quota: 500 req/j</p>
+        </div>
+        <div class="footer-legal-links" style="display: flex; gap: 25px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+          <a href="#" data-modal="legal-mentions" style="color: var(--muted);" data-i18n="legal.mentions">Mentions Légales</a>
+          <a href="#" data-modal="legal-cgu" style="color: var(--muted);" data-i18n="legal.cgu">CGU</a>
+          <a href="#" data-modal="legal-rgpd" style="color: var(--muted);" data-i18n="legal.rgpd">Confidentialité</a>
+          <a href="contact.html" style="color: var(--muted);" data-i18n="nav.contact">Contact</a>
+        </div>
+      </div>
+    </footer>
+
+    <div class="modal" id="tech-modal">
+        <div class="modal-backdrop" data-modal-close></div>
+        <div class="modal-content tech-modal">
+            <div class="tech-header">
+                <h2>Cerveau SurfSense v2.0</h2>
+                <span class="tech-label">SYSTÈME OPÉRATIONNEL</span>
+            </div>
+            
+            <div style="overflow-y: auto; max-height: 70vh; padding-right: 10px;">
+                <h4 style="color:#666; font-size:0.75rem; text-transform:uppercase; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:5px;">Moteur Physique (Core)</h4>
+                <div class="tech-grid">
+                    <div class="tech-item">
+                        <strong>📐 Vector-Angle</strong>
+                        <p>Calcule l'angle exact vent/plage. Valide l'Offshore à +/- 15°.</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>⚡ Energy-Core</strong>
+                        <p>Calcule la puissance réelle (H² x T) pour différencier houle et clapot.</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>🌊 Tide-Master</strong>
+                        <p>Détecte les seuils de marée haute qui saturent le spot.</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>🛡️ Anti-Chop</strong>
+                        <p>Filtre le bruit du vent local pour isoler la houle primaire.</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>⏱️ Swell-Pulse</strong>
+                        <p>Analyse la stabilité de la période sur 24h glissantes.</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>🤖 News-Bot</strong>
+                        <p>Scan sémantique des flux RSS & validation bouées.</p>
+                    </div>
+                </div>
+
+                <h4 style="color:#4ade80; font-size:0.75rem; text-transform:uppercase; margin:25px 0 15px; border-bottom:1px solid #333; padding-bottom:5px;">Intelligence Live (Confort)</h4>
+                <div class="tech-grid">
+                    <div class="tech-item">
+                        <strong>🏄‍♂️ Quiver-AI</strong>
+                        <p>Recommande la planche idéale selon la puissance de la vague.</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>👥 Crowd-Predict</strong>
+                        <p>Estime l'affluence (Heure + Qualité + Vacances).</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>🌡️ Feel-Real</strong>
+                        <p>Calcule la température ressentie avec le facteur vent (Windchill).</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>☀️ Solar-Sync</strong>
+                        <p>Suit le cycle solaire (UV & Golden Hour).</p>
+                    </div>
+                    <div class="tech-item">
+                        <strong>🧬 Eco-Scan</strong>
+                        <p>Surveille les risques de pollution après la pluie.</p>
+                    </div>
+                </div>
+                
+                <div class="tech-footer">
+                    <span class="status-ok">● TOUS LES SYSTÈMES EN LIGNE</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="support-modal">
+      <div class="modal-backdrop" data-modal-close></div>
+      <div class="modal-content tech-modal" style="max-width: 720px;">
+        <div class="tech-header">
+            <span class="tech-label" data-i18n="support.title">Soutenir SurfSense</span>
+            <h2 data-i18n="support.desc">Vos dons financent l’hébergement, l’API météo et le développement.</h2>
+        </div>
+        <div style="overflow-y: auto; max-height: 64vh; padding: 10px 0;">
+          <h3 style="margin:10px 0;" data-i18n="support.breakdown.title">À quoi servent vos dons ?</h3>
+          <ul style="color:#94a3b8; font-size:0.9rem; line-height:1.7; margin:0 0 12px 0; padding-left:18px;">
+            <li data-i18n="support.breakdown.hosting">Hébergement/serveur, bande passante et CDN.</li>
+            <li data-i18n="support.breakdown.api">Abonnement API météo (Stormglass Premium).</li>
+            <li data-i18n="support.breakdown.domain">Nom de domaine, certificats SSL et maintenance.</li>
+            <li data-i18n="support.breakdown.dev">Développement des robots et des nouvelles fonctionnalités.</li>
+          </ul>
+          <div style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px; margin:12px 0;">
+            <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="5" style="display:none;"><span>5€</span></label>
+            <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="10" style="display:none;"><span>10€</span></label>
+            <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="20" style="display:none;"><span>20€</span></label>
+            <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="50" style="display:none;"><span>50€</span></label>
+            <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="100" style="display:none;"><span>100€</span></label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="number" id="support-amount-custom" min="1" step="1" placeholder="Montant libre" style="width:100%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px; color: #fff; font-size: 0.95rem;" />
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; margin-top:10px;">
+            <div id="support-applepay-btn" style="display:none;"></div>
+            <button id="support-continue" class="primary" data-i18n="support.cta.continue">Payer par carte</button>
+          </div>
+          <div id="support-paypal-btn" style="display:none; margin-top:10px;"></div>
+          <div style="display:flex; gap:10px; margin-top:10px;">
+            <button id="support-copy-email" class="ghost-pill" data-i18n="support.cta.copy">Copier l’adresse email</button>
+          </div>
+          <div class="trust-row">
+            <span class="lock">🔒</span>
+            <span>Paiement sécurisé via Stripe</span>
+            <span class="sub">Checkout hébergé — aucune carte traitée par SurfSense</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal" id="auth-modal">
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-content">
+
+    <div id="auth-login-view">
+      ...
+    </div>
+
+    <div id="auth-register-view" style="display:none;">
+      ...
+    </div>
+
+    <div id="auth-2fa-view" style="display:none;">
+      ...
+    </div>
+
+  </div>
+</div>
+
+<div class="modal" id="legal-modal">
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-content tech-modal" style="max-width: 800px;">
+    <div class="tech-header">
+        <span class="tech-label">LEGAL DOCUMENTATION</span>
+        <h2 id="legal-title">TITRE DU DOCUMENT</h2>
+    </div>
+    <div id="legal-body" style="overflow-y: auto; max-height: 60vh; padding: 20px 0; color: #94a3b8; font-size: 0.9rem; line-height: 1.7;">
+    </div>
+  </div>
+</div>
+
+<script>
+  // Traffic Tracking
+  (async function() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const spot = params.get("spot");
+        const source = params.get("utm_source");
+        const medium = params.get("utm_medium");
+        const campaign = params.get("utm_campaign");
+        const content = params.get("utm_content");
+
+        if (spot || source) {
+            await fetch("/api/log-click", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ spot, source, medium, campaign, content })
+            });
+        }
+    } catch (e) { console.error("Tracking error", e); }
+  })();
+</script>
+
+</body>

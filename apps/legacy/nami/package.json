@@ -1,0 +1,20 @@
+{
+  "name": "nami",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:mac:arm": "electron-packager . Nami --platform=darwin --arch=arm64 --out=dist --overwrite",
+    "build:mac:x64": "electron-packager . Nami --platform=darwin --arch=x64 --out=dist --overwrite && codesign --force --deep --entitlements entitlements.plist -s - dist/Nami-darwin-x64/Nami.app",
+    "start:helper": "node helper/launcher_server.js"
+  },
+  "dependencies": {
+    "electron": "^29.1.0",
+    "node-fetch": "^3.3.2",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "electron-packager": "^17.1.1"
+  }
+}

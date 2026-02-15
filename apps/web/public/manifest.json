@@ -1,0 +1,18 @@
+{
+  "name": "SwellSync Premium",
+  "short_name": "SwellSync",
+  "description": "Terminal de prévisions surf par Intelligence Artificielle.",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#080a12",
+  "theme_color": "#00f2ff",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "192x192 512x512 any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

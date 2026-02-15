@@ -1,0 +1,21 @@
+{
+    "openai_key": "",
+    "anthropic_key": "",
+    "gemini_key": "",
+    "system_mode": "production",
+    "log_level": "info",
+    "rate_limits": {
+        "instagram": { "max_per_hour": 5, "max_per_day": 20 },
+        "facebook": { "max_per_hour": 10, "max_per_day": 50 },
+        "twitter": { "max_per_hour": 15, "max_per_day": 100 },
+        "youtube": { "max_per_hour": 2, "max_per_day": 10 },
+        "tiktok": { "max_per_hour": 5, "max_per_day": 20 },
+        "linkedin": { "max_per_hour": 5, "max_per_day": 20 },
+        "pinterest": { "max_per_hour": 10, "max_per_day": 50 },
+        "snapchat": { "max_per_hour": 5, "max_per_day": 20 },
+        "threads": { "max_per_hour": 10, "max_per_day": 50 },
+        "discord": { "max_per_hour": 20, "max_per_day": 200 },
+        "telegram": { "max_per_hour": 20, "max_per_day": 200 },
+        "outlook": { "max_per_hour": 50, "max_per_day": 500 }
+    }
+}

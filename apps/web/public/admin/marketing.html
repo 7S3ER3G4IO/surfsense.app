@@ -1,0 +1,1731 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwellSync — Marketing Center</title>
+    <link rel="icon" href="../logo.svg" type="image/svg+xml" />
+    <style>
+      :root {
+        --bg-dark: #0f172a;
+        --card-bg: #1e293b;
+        --accent: #8b5cf6;
+        --accent-hover: #7c3aed;
+        --text-primary: #f8fafc;
+        --text-secondary: #94a3b8;
+        --border-color: #334155;
+        --success: #22c55e;
+        --danger: #ef4444;
+        --warning: #f59e0b;
+        --info: #3b82f6;
+      }
+
+      body {
+        background-color: var(--bg-dark);
+        color: var(--text-primary);
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        margin: 0;
+        height: 100vh;
+        overflow: hidden;
+      }
+
+      .admin-container {
+        display: grid;
+        grid-template-columns: 260px 1fr;
+        height: 100vh;
+      }
+
+      /* Sidebar styles are loaded from nav.html */
+      .admin-sidebar {
+        background: #0b0f19;
+        border-right: 1px solid var(--border-color);
+        display: flex;
+        flex-direction: column;
+      }
+
+      .main-content {
+        overflow-y: auto;
+        padding: 32px;
+        background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.05), transparent 40%);
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 32px;
+      }
+
+      .page-title h1 {
+        margin: 0;
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .page-title p {
+        margin: 8px 0 0 0;
+        color: var(--text-secondary);
+        font-size: 14px;
+      }
+
+      .badge-pro {
+        background: linear-gradient(135deg, var(--accent), #d946ef);
+        color: white;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 24px;
+        margin-bottom: 24px;
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        padding-bottom: 16px;
+      }
+
+      .card-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+      .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+      .grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+
+      .form-group { margin-bottom: 16px; }
+      .form-group label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      .input-premium {
+        width: 100%;
+        background: #0f172a;
+        border: 1px solid var(--border-color);
+        color: white;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 14px;
+        box-sizing: border-box;
+        transition: all 0.2s;
+      }
+      .input-premium:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+      }
+      
+      textarea.input-premium { resize: vertical; min-height: 100px; font-family: inherit; }
+
+      .btn {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .btn:hover { background: #2d3b4e; transform: translateY(-1px); }
+      .btn-primary { background: var(--accent); border-color: var(--accent); color: white; }
+      .btn-primary:hover { background: var(--accent-hover); }
+      .btn-success { background: var(--success); border-color: var(--success); color: #000; }
+      .btn-danger { background: var(--danger); border-color: var(--danger); color: white; }
+
+      /* Network Cards */
+      .net-card {
+        background: #0f172a;
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 16px;
+        transition: all 0.2s;
+        position: relative;
+      }
+      .net-card:hover { border-color: var(--accent); }
+      .net-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+      .net-title { font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+      
+      /* Switch */
+      .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+      .switch input { opacity: 0; width: 0; height: 0; }
+      .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 24px; }
+      .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+      input:checked + .slider { background-color: var(--accent); }
+      input:checked + .slider:before { transform: translateX(20px); }
+
+      .status-badge {
+        font-size: 10px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        background: #334155;
+        color: #94a3b8;
+        display: none;
+      }
+      .status-badge.active { display: inline-block; background: rgba(34, 197, 94, 0.2); color: var(--success); }
+      .status-badge.missing { display: inline-block; background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+
+      .collapsible {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+      }
+      .collapsible.open { max-height: 500px; }
+      .details-trigger {
+        font-size: 11px;
+        color: var(--accent);
+        cursor: pointer;
+        margin-top: 8px;
+        display: inline-block;
+      }
+
+      /* Modal */
+      .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.8); z-index: 1000;
+        display: none; justify-content: center; align-items: center;
+      }
+      .modal-content {
+        background: var(--card-bg);
+        padding: 32px;
+        border-radius: 16px;
+        max-width: 600px;
+        width: 90%;
+        border: 1px solid var(--border-color);
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="admin-container">
+      <aside class="admin-sidebar">
+        <div style="padding: 24px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-color);">
+          <img src="../logo.svg" alt="logo" width="28" height="28"/>
+          <span style="font-weight: 800; font-size: 18px; letter-spacing: -0.5px;">Admin Panel</span>
+        </div>
+        <nav id="admin-nav" style="flex: 1; padding: 16px; overflow-y: auto;"></nav>
+      </aside>
+      
+      <main class="main-content">
+        <div class="header">
+          <div class="page-title">
+            <h1>Marketing Center <span class="badge-pro">Premium</span></h1>
+            <p>Gérez votre présence multi-canal, vos automatisations et vos identités.</p>
+          </div>
+          <div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">🚀 Actions Rapides</div>
+          </div>
+          <div class="grid-3">
+            <div>
+              <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">Publication</div>
+              <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                <button id="mk-fire" class="btn btn-primary" title="Publier sur les réseaux activés">⚡ Publier Maintenant</button>
+                <button id="mk-post-all" class="btn btn-primary" title="Choisir les réseaux à publier">� Publier Tous</button>
+                <button id="mk-publish-igtok" class="btn btn-primary" title="Publier un montage vidéo en Reels + TikTok">🎞️ Reels + TikTok</button>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">Robot</div>
+              <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                <button id="mk-start" class="btn btn-success" title="Démarrer la planification">▶ Démarrer</button>
+                <button id="mk-stop" class="btn btn-danger" title="Arrêter la planification">⏹ Arrêter</button>
+                <button id="mk-repair-login" class="btn" title="Réparer les connexions navigateur">🧭 Réparer Connexions</button>
+                <button id="mk-pause-5" class="btn" title="Pause 5 minutes">⏸️ Pause 5 min</button>
+                <button id="mk-clear-cookies" class="btn" title="Purger cookies robots">🗑️ Purger Cookies</button>
+                <button id="mk-retry-errors" class="btn" title="Relancer erreurs">🔁 Relancer Erreurs</button>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">Outils</div>
+              <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                <button id="mk-preview-pro" class="btn" title="Générer un aperçu du montage pro">🎬 Prévisualiser Montage</button>
+                <button id="mk-upload-video" class="btn" title="Uploader une vidéo depuis ton ordinateur">📤 Uploader</button>
+                <button id="mk-videos" class="btn" title="Voir les vidéos générées">📦 Vidéos</button>
+                <button id="mk-trends" class="btn" title="Lister les tendances">📈 Tendances</button>
+                <button id="mk-publish-trend" class="btn" title="Publier une trend">🔥 Publier Trend</button>
+                <button id="mk-auto-publish" class="btn btn-primary" title="Découvrir source, composer et publier automatiquement">🤖 Publier Auto</button>
+                <button id="mk-secrets" class="btn" title="Configurer les clés (.env)">🔑 Clés</button>
+                <button id="mk-anti-bot" class="btn" title="Conseils anti‑détection">🛡️ Anti‑détection</button>
+                <button id="mk-download-nami" class="btn" title="Télécharger l'application macOS" onclick="window.open('/generated/nami/Nami-mac-x64.zip', '_blank')">🖥️ Télécharger Nami</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div style="display:flex; gap:16px; margin-bottom:24px; align-items:center; background: rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.2); padding:12px 20px; border-radius:12px;">
+           <div style="width:10px; height:10px; background:var(--success); border-radius:50%; box-shadow:0 0 10px var(--success);"></div>
+           <span id="mk-status" style="font-weight:600; color:#4ade80;">Status: CHARGEMENT...</span>
+           <div style="flex:1;"></div>
+           <span id="mk-countdown" style="font-size:12px; color:#94a3b8;"></span>
+           <button id="btn-import-cookies" class="btn" style="padding:6px 12px; font-size:12px;">🍪 Importer Cookies</button>
+        </div>
+        
+        <!-- Moniteur Temps Réel -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">📡 Moniteur Temps Réel</div>
+          </div>
+          <div class="grid-2">
+            <div>
+              <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">Aperçu Robot</div>
+              <div style="background:#0b1020; border:1px solid var(--border-color); border-radius:12px; overflow:hidden;">
+                <img id="mk-robot-shot" src="/admin/robot.png" alt="Robot" style="width:100%; max-height:280px; object-fit:cover"/>
+              </div>
+              <div id="mk-latest-media" style="margin-top:8px; font-size:12px; color:#94a3b8;"></div>
+            </div>
+            <div>
+              <div style="font-size:12px; color:var(--text-secondary); margin-bottom:8px;">Événements</div>
+              <div id="mk-events" style="background:#0b1020; border:1px solid var(--border-color); border-radius:12px; padding:8px; max-height:280px; overflow:auto; font-size:12px;"></div>
+            </div>
+          </div>
+          <div style="margin-top:12px;">
+            <div id="mk-timeline" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+          </div>
+        </div>
+
+        <!-- Identity Manager -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">🎭 Identity Manager (Profil Global)</div>
+                <button id="btn-update-profile" class="btn btn-primary">🔄 Mettre à jour tous les profils</button>
+            </div>
+            <div class="grid-2" style="grid-template-columns: 1fr 2fr;">
+                <div>
+                    <div class="form-group">
+                        <label>Photo de Profil (JPG/PNG)</label>
+                        <input type="file" id="mk-profile-photo" class="input-premium" accept="image/*" />
+                    </div>
+                </div>
+                <div>
+                    <div class="form-group">
+                        <label>Bio / Description</label>
+                        <textarea id="mk-profile-bio" class="input-premium" rows="2" placeholder="SwellSync: Prévisions surf temps réel 🌊..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Channels Grid -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">📡 Canaux de Diffusion</div>
+                <button id="mk-save" class="btn btn-primary">💾 Sauvegarder Config</button>
+            </div>
+            
+            <div class="grid-auto">
+                <!-- Instagram -->
+                <div class="net-card">
+                    <div class="net-header">
+                        <div class="net-title">📸 Instagram <span id="st-instagram" class="status-badge"></span></div>
+                        <label class="switch"><input type="checkbox" id="mk-ch-instagram"><span class="slider"></span></label>
+                    </div>
+                    <div class="form-group">
+                        <label>Format</label>
+                        <select id="mk-fmt-instagram" class="input-premium" style="padding:8px;">
+                            <option value="story">Story (9:16)</option>
+                            <option value="post">Post (4:5)</option>
+                            <option value="square">Post Carré (1:1)</option>
+                            <option value="reel">Reel (9:16)</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="padding-top:12px;">
+                            <div class="form-group">
+                                <label>URL Profil</label>
+                                <input id="mk-pf-instagram" class="input-premium" placeholder="https://instagram.com/..." style="font-size:12px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Webhook (Optionnel)</label>
+                                <input id="mk-wh-instagram" class="input-premium" placeholder="Laisser vide pour Mode Direct" style="font-size:12px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Facebook -->
+                <div class="net-card">
+                    <div class="net-header">
+                        <div class="net-title">📘 Facebook <span id="st-facebook" class="status-badge"></span></div>
+                        <label class="switch"><input type="checkbox" id="mk-ch-facebook"><span class="slider"></span></label>
+                    </div>
+                    <div class="form-group">
+                        <label>Format</label>
+                        <select id="mk-fmt-facebook" class="input-premium" style="padding:8px;">
+                            <option value="post">Post (4:5)</option>
+                            <option value="square">Post Carré (1:1)</option>
+                            <option value="story">Story (9:16)</option>
+                            <option value="reel">Reel (9:16)</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="padding-top:12px;">
+                            <div class="form-group">
+                                <label>URL Profil</label>
+                                <input id="mk-pf-facebook" class="input-premium" placeholder="URL Profil" style="font-size:12px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Webhook (Optionnel)</label>
+                                <input id="mk-wh-facebook" class="input-premium" placeholder="Laisser vide pour Mode Direct" style="font-size:12px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TikTok -->
+                <div class="net-card">
+                    <div class="net-header">
+                        <div class="net-title">🎵 TikTok <span id="st-tiktok" class="status-badge"></span></div>
+                        <label class="switch"><input type="checkbox" id="mk-ch-tiktok"><span class="slider"></span></label>
+                    </div>
+                    <div class="form-group">
+                        <label>Format</label>
+                        <select id="mk-fmt-tiktok" class="input-premium" style="padding:8px;">
+                            <option value="video">Vidéo (9:16)</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="padding-top:12px;">
+                            <div class="form-group">
+                                <label>URL Profil</label>
+                                <input id="mk-pf-tiktok" class="input-premium" placeholder="URL Profil" style="font-size:12px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Webhook (Recommandé)</label>
+                                <input id="mk-wh-tiktok" class="input-premium" placeholder="Webhook URL" style="font-size:12px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Threads -->
+                <div class="net-card">
+                    <div class="net-header">
+                        <div class="net-title">🧵 Threads</div>
+                        <label class="switch"><input type="checkbox" id="mk-ch-threads"><span class="slider"></span></label>
+                    </div>
+                    <div class="form-group">
+                        <label>Format</label>
+                        <select id="mk-fmt-threads" class="input-premium" style="padding:8px;">
+                            <option value="text_image">Texte + Image</option>
+                            <option value="text">Texte seul</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="padding-top:12px;">
+                            <div class="form-group">
+                                <label>URL Profil</label>
+                                <input id="mk-pf-threads" class="input-premium" placeholder="URL Profil" style="font-size:12px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Webhook (Optionnel)</label>
+                                <input id="mk-wh-threads" class="input-premium" placeholder="Laisser vide pour Mode Direct" style="font-size:12px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- YouTube -->
+                <div class="net-card">
+                    <div class="net-header">
+                        <div class="net-title">📺 YouTube <span id="st-youtube" class="status-badge"></span></div>
+                        <label class="switch"><input type="checkbox" id="mk-ch-youtube"><span class="slider"></span></label>
+                    </div>
+                    <div class="form-group">
+                        <label>Format</label>
+                        <select id="mk-fmt-youtube" class="input-premium" style="padding:8px;">
+                            <option value="shorts">Shorts (9:16)</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="padding-top:12px;">
+                            <div class="form-group">
+                                <label>URL Profil</label>
+                                <input id="mk-pf-youtube" class="input-premium" placeholder="URL Profil" style="font-size:12px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Webhook (Optionnel)</label>
+                                <input id="mk-wh-youtube" class="input-premium" placeholder="Laisser vide pour Mode Direct" style="font-size:12px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Twitter -->
+                <div class="net-card">
+                    <div class="net-header">
+                        <div class="net-title">✖️ X / Twitter <span id="st-twitter" class="status-badge"></span></div>
+                        <label class="switch"><input type="checkbox" id="mk-ch-twitter"><span class="slider"></span></label>
+                    </div>
+                    <div class="form-group">
+                        <label>Format</label>
+                        <select id="mk-fmt-twitter" class="input-premium" style="padding:8px;">
+                            <option value="text_image">Texte + Image</option>
+                            <option value="text">Texte seul</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="padding-top:12px;">
+                            <div class="form-group">
+                                <label>URL Profil</label>
+                                <input id="mk-pf-twitter" class="input-premium" placeholder="URL Profil" style="font-size:12px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Webhook (Optionnel)</label>
+                                <input id="mk-wh-twitter" class="input-premium" placeholder="Laisser vide pour Mode Direct" style="font-size:12px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Telegram -->
+                <div class="net-card">
+                    <div class="net-header">
+                        <div class="net-title">✈️ Telegram</div>
+                        <label class="switch"><input type="checkbox" id="mk-ch-telegram"><span class="slider"></span></label>
+                    </div>
+                    <div class="form-group">
+                        <label>Format</label>
+                        <select id="mk-fmt-telegram" class="input-premium" style="padding:8px;">
+                            <option value="text_image">Texte + Image</option>
+                            <option value="text">Texte seul</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="padding-top:12px;">
+                            <div class="form-group">
+                                <label>URL Profil</label>
+                                <input id="mk-pf-telegram" class="input-premium" placeholder="URL Canal" style="font-size:12px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Webhook (Optionnel)</label>
+                                <input id="mk-wh-telegram" class="input-premium" placeholder="Laisser vide pour Mode Direct" style="font-size:12px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Discord -->
+                <div class="net-card">
+                    <div class="net-header">
+                        <div class="net-title">👾 Discord</div>
+                        <label class="switch"><input type="checkbox" id="mk-ch-discord"><span class="slider"></span></label>
+                    </div>
+                    <div class="form-group">
+                        <label>Format</label>
+                        <select id="mk-fmt-discord" class="input-premium" style="padding:8px;">
+                            <option value="text_image">Texte + Image</option>
+                        </select>
+                    </div>
+                    <div class="details-trigger" onclick="this.nextElementSibling.classList.toggle('open')">Configuration avancée ▼</div>
+                    <div class="collapsible">
+                        <div style="padding-top:12px;">
+                            <div class="form-group">
+                                <label>URL Profil</label>
+                                <input id="mk-pf-discord" class="input-premium" placeholder="URL Serveur" style="font-size:12px;">
+                            </div>
+                            <div class="form-group">
+                                <label>Webhook (Obligatoire)</label>
+                                <input id="mk-wh-discord" class="input-premium" placeholder="Webhook URL" style="font-size:12px;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- General Config -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">⚙️ Configuration Générale</div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <button id="mk-share-native" class="btn">↗️ Partager</button>
+                    <button id="btn-preview-video" class="btn">🎥 Aperçu Vidéo</button>
+                    <button id="mk-history" class="btn">🗂️ Historique</button>
+                    <button id="mk-modal-help" class="btn">❓ Aide</button>
+                    <button id="btn-collect-cookies" class="btn">🕵️ Collecter Cookies</button>
+                </div>
+            </div>
+            <div class="grid-3">
+                <div class="form-group">
+                    <label>Template du Message</label>
+                    <input id="mk-template" class="input-premium" placeholder="SurfSense: conditions live sur {spot} • {desc} #surf" />
+                </div>
+                <div class="form-group">
+                    <label>Intervalle (Minutes)</label>
+                    <input id="mk-interval" type="number" min="1" class="input-premium" placeholder="60" />
+                </div>
+                <div class="form-group">
+                    <label>Webhook Agrégateur (Logs/Debug)</label>
+                    <input id="mk-webhook" class="input-premium" placeholder="https://discord.com/api/webhooks/..." />
+                </div>
+                <!-- Hidden legacy fields -->
+                <select id="mk-type" style="display:none;"><option value="story">Story</option></select>
+            </div>
+            <div class="grid-3" style="margin-top:12px;">
+                <div class="form-group">
+                    <label>Spot prioritaire (prochaine exécution)</label>
+                    <input id="mk-force-spot" class="input-premium" list="mk-spots-list" placeholder="Ex: Hossegor" />
+                    <datalist id="mk-spots-list"></datalist>
+                </div>
+                <div class="form-group" style="display:flex; align-items:flex-end;">
+                    <button id="mk-force-spot-btn" class="btn btn-primary">🎯 Forcer le prochain spot</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Poster en vidéo (Reels/TikTok) par défaut</label>
+                <label class="switch"><input type="checkbox" id="mk-autovideo"><span class="slider"></span></label>
+            </div>
+            <div style="margin-top:20px; font-size:12px; color:#64748b;">
+                Email Support: <span id="mk-email-text" style="color:#94a3b8;">swellsync@outlook.fr</span>
+                <a id="mk-email-link" href="#" style="color:var(--accent); text-decoration:none; margin-left:8px;">Envoyer</a>
+                <span id="mk-email-copy" style="cursor:pointer; color:var(--accent); margin-left:8px;">Copier</span>
+            </div>
+        </div>
+
+        <!-- Planification Avancée -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">⏱️ Planification Avancée</div>
+            </div>
+            <div class="grid-3">
+                <div class="form-group">
+                    <label>Autopost (Robot)</label>
+                    <label class="switch"><input type="checkbox" id="mk-autopost"><span class="slider"></span></label>
+                </div>
+                <div class="form-group">
+                    <label>Hashtags (séparés par espaces)</label>
+                    <textarea id="mk-tags" class="input-premium" style="height:78px;" placeholder="#surf #vagues #ocean #report"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Intervalles par réseau (minutes)</label>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                        <input id="mk-iv-instagram" class="input-premium" type="number" min="1" placeholder="Instagram"/>
+                        <input id="mk-iv-threads" class="input-premium" type="number" min="1" placeholder="Threads"/>
+                        <input id="mk-iv-twitter" class="input-premium" type="number" min="1" placeholder="X"/>
+                        <input id="mk-iv-facebook" class="input-premium" type="number" min="1" placeholder="Facebook"/>
+                        <input id="mk-iv-youtube" class="input-premium" type="number" min="1" placeholder="YouTube"/>
+                        <input id="mk-iv-telegram" class="input-premium" type="number" min="1" placeholder="Telegram"/>
+                        <input id="mk-iv-discord" class="input-premium" type="number" min="1" placeholder="Discord"/>
+                        <input id="mk-iv-tiktok" class="input-premium" type="number" min="1" placeholder="TikTok"/>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Anti-bot: Jitter min/max (minutes)</label>
+                    <div style="display:flex; gap:8px;">
+                        <input id="mk-jitter-min" class="input-premium" type="number" min="1" placeholder="Min (ex: 2)"/>
+                        <input id="mk-jitter-max" class="input-premium" type="number" min="1" placeholder="Max (ex: 7)"/>
+                    </div>
+                    <div style="font-size:12px; color:#94a3b8; margin-top:6px;">Le robot ajoutera un décalage aléatoire pour éviter les patterns fixes.</div>
+                </div>
+            </div>
+            <div style="padding:8px 0 0;">
+                <button id="mk-save" class="btn btn-primary">💾 Sauvegarder Config</button>
+                <button id="mk-start" class="btn">▶️ Démarrer</button>
+                <button id="mk-stop" class="btn">⏸️ Stop</button>
+            </div>
+        </div>
+
+      </main>
+    </div>
+
+    <!-- Scripts (Inline Logic Preserved) -->
+    <script>
+      (function(){
+        // Load Sidebar
+        fetch("/admin/nav.html").then(r=>r.text()).then(html=>{
+             const el=document.getElementById("admin-nav");
+             if(el) {
+                 el.innerHTML=html;
+                 // Active link logic
+                 const path = window.location.pathname;
+                 const links = el.querySelectorAll('.nav-item');
+                 links.forEach(l => {
+                    const href = l.getAttribute('href');
+                    if(href === path || (path.endsWith('/admin/') && href === '/admin/')) {
+                        l.classList.add('active');
+                    }
+                 });
+             }
+        }).catch(()=>{});
+
+        // Main Logic
+        const params = new URLSearchParams(window.location.search);
+        const tParam = params.get("token");
+        if (tParam) { try { localStorage.setItem("surfAdminToken", tParam); history.replaceState({}, "", window.location.pathname); } catch {} }
+        const tok = localStorage.getItem("surfAdminToken") || "";
+        const headers = tok ? { "x-admin-token": tok } : {};
+        const networks = ["instagram","threads","twitter","facebook","youtube","tiktok","telegram","discord"];
+        let connectors = {};
+        let lastInfoByNet = {};
+        let countdownTimer = null;
+        function initLiveMonitor() {
+          const tl = document.getElementById("mk-timeline");
+          if (tl) {
+            tl.innerHTML = networks.map(n => `<span data-net="${n}" style="padding:6px 10px; border:1px solid var(--border-color); border-radius:999px; font-size:12px; color:#94a3b8;">${n}</span>`).join(" ");
+          }
+          const evDiv = document.getElementById("mk-events");
+          const shot = document.getElementById("mk-robot-shot");
+          const latest = document.getElementById("mk-latest-media");
+          try {
+            const es = new EventSource("/api/admin/marketing/events");
+            es.onmessage = (msg) => {
+              try {
+                const e = JSON.parse(msg.data || "{}");
+                if (evDiv) {
+                  const line = `[${new Date(e.time).toLocaleTimeString()}] ${e.type} • ${e.network || "-"} ${e.mode ? "("+e.mode+")" : ""} ${e.error ? "• "+e.error : ""}`;
+                  const el = document.createElement("div");
+                  el.textContent = line;
+                  evDiv.prepend(el);
+                  while (evDiv.childElementCount > 80) evDiv.removeChild(evDiv.lastChild);
+                }
+                if ((e.type === "start" || e.type === "media") && shot) {
+                  shot.src = "/admin/robot.png?ts=" + Date.now();
+                }
+                if (e.type === "media" && e.url && latest) {
+                  latest.innerHTML = `<a href="${e.url}" target="_blank" class="btn">Ouvrir dernier média</a>`;
+                }
+                const tlItem = tl ? tl.querySelector(`[data-net="${e.network}"]`) : null;
+                if (tlItem) {
+                  if (e.type === "success") { tlItem.style.background = "rgba(34,197,94,0.2)"; tlItem.style.color = "#22c55e"; }
+                  if (e.type === "error") { tlItem.style.background = "rgba(239,68,68,0.2)"; tlItem.style.color = "#ef4444"; }
+                  if (e.type === "start") { tlItem.style.background = "rgba(59,130,246,0.15)"; tlItem.style.color = "#60a5fa"; }
+                  tlItem.title = `${e.type} • ${new Date(e.time).toLocaleTimeString()}`;
+                  const link = e.url || (connectors[e.network]?.profileUrl || "");
+                  if (link) {
+                    tlItem.style.cursor = "pointer";
+                    tlItem.onclick = () => window.open(link, "_blank");
+                  }
+                }
+              } catch {}
+            };
+          } catch {}
+        }
+        const q = (id) => document.getElementById(id);
+        const postSingle = async (network) => {
+          try {
+            const r = await fetch("/api/admin/social/post", { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ network }) });
+            const j = await r.json();
+            if (r.ok && j.success) alert(`✅ ${network} publié (${j.mode})`);
+            else alert(`ℹ️ ${network} en reprise automatique`);
+          } catch (e) { alert(`ℹ️ ${network} en reprise automatique`); }
+        };
+        const postAll = async (nets) => {
+          try {
+            const r = await fetch("/api/admin/social/post-all", { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ networks: nets }) });
+            const j = await r.json();
+            if (r.ok && j.success) {
+              const okList = j.results.filter(x=>x.ok).map(x=>x.network).join(", ");
+              const koList = j.results.filter(x=>!x.ok).map(x=>x.network).join(", ");
+              alert(`✅ Publi réussie: ${okList}\nℹ️ Reprise automatique: ${koList || "aucune"}`);
+            } else {
+              alert("ℹ️ Publication en reprise automatique");
+            }
+          } catch (e) {
+            alert("ℹ️ Publication en reprise automatique");
+          }
+        };
+        const openPostAllModal = () => {
+          const preset = [
+            { id:"instagram", label:"Instagram", checked: q("mk-ch-instagram")?.checked },
+            { id:"threads", label:"Threads", checked: q("mk-ch-threads")?.checked },
+            { id:"twitter", label:"X/Twitter", checked: q("mk-ch-twitter")?.checked },
+            { id:"facebook", label:"Facebook", checked: q("mk-ch-facebook")?.checked },
+            { id:"youtube", label:"YouTube", checked: q("mk-ch-youtube")?.checked },
+            { id:"tiktok", label:"TikTok", checked: q("mk-ch-tiktok")?.checked },
+            { id:"telegram", label:"Telegram", checked: q("mk-ch-telegram")?.checked },
+            { id:"discord", label:"Discord", checked: q("mk-ch-discord")?.checked }
+          ];
+          const modal = document.createElement("div");
+          modal.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:10000; display:flex; align-items:center; justify-content:center;";
+          const items = preset.map(p => `
+            <label style="display:flex; align-items:center; gap:8px; padding:8px; border:1px solid #334155; border-radius:8px;">
+              <input type="checkbox" id="sel-${p.id}" ${p.checked ? "checked" : ""}/>
+              <span>${p.label}</span>
+            </label>
+          `).join("");
+          modal.innerHTML = `
+            <div style="background:#0f172a; color:#fff; padding:24px; border-radius:12px; width:520px; max-width:95%;">
+              <div style="font-weight:700; margin-bottom:12px;">Sélection des réseaux</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">${items}</div>
+              <div style="display:flex; gap:8px; justify-content:flex-end;">
+                <button id="close-postall" class="btn">Annuler</button>
+                <button id="do-postall" class="btn btn-primary">Publier</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(modal);
+          modal.querySelector("#close-postall").onclick = () => modal.remove();
+          modal.querySelector("#do-postall").onclick = async () => {
+            const nets = preset.filter(p => modal.querySelector("#sel-"+p.id).checked).map(p => p.id);
+            modal.remove();
+            await postAll(nets.length ? nets : preset.map(p=>p.id));
+          };
+        };
+        const openSecretsModal = () => {
+          const modal = document.createElement("div");
+          modal.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; display:flex; justify-content:center; align-items:center;";
+          modal.innerHTML = `
+            <div style="background:#0f172a; padding:24px; border-radius:12px; width:90%; max-width:720px; border:1px solid #334155; color:#e5e7eb; font-family:sans-serif;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div style="font-weight:700;">Configurer les clés</div>
+                <button id="mk-close-secrets" class="btn">Fermer</button>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; max-height:60vh; overflow:auto;">
+                <input id="INSTAGRAM_USERNAME" placeholder="INSTAGRAM_USERNAME" class="input-premium"/>
+                <input id="INSTAGRAM_PASSWORD" placeholder="INSTAGRAM_PASSWORD" type="password" class="input-premium"/>
+                <input id="INSTAGRAM_TOTP_SECRET" placeholder="INSTAGRAM_TOTP_SECRET" class="input-premium"/>
+                <input id="THREADS_USERNAME" placeholder="THREADS_USERNAME" class="input-premium"/>
+                <input id="THREADS_PASSWORD" placeholder="THREADS_PASSWORD" type="password" class="input-premium"/>
+                <input id="TWITTER_API_KEY" placeholder="TWITTER_API_KEY" class="input-premium"/>
+                <input id="TWITTER_API_SECRET" placeholder="TWITTER_API_SECRET" class="input-premium"/>
+                <input id="TWITTER_ACCESS_TOKEN" placeholder="TWITTER_ACCESS_TOKEN" class="input-premium"/>
+                <input id="TWITTER_ACCESS_SECRET" placeholder="TWITTER_ACCESS_SECRET" class="input-premium"/>
+                <input id="TWITTER_USERNAME" placeholder="TWITTER_USERNAME" class="input-premium"/>
+                <input id="TWITTER_PASSWORD" placeholder="TWITTER_PASSWORD" type="password" class="input-premium"/>
+                <input id="TELEGRAM_BOT_TOKEN" placeholder="TELEGRAM_BOT_TOKEN" class="input-premium"/>
+                <input id="TELEGRAM_CHAT_ID" placeholder="TELEGRAM_CHAT_ID" class="input-premium"/>
+                <input id="FACEBOOK_PAGE_ACCESS_TOKEN" placeholder="FACEBOOK_PAGE_ACCESS_TOKEN" class="input-premium"/>
+                <input id="FACEBOOK_PAGE_ID" placeholder="FACEBOOK_PAGE_ID" class="input-premium"/>
+                <input id="FACEBOOK_USERNAME" placeholder="FACEBOOK_USERNAME" class="input-premium"/>
+                <input id="FACEBOOK_PASSWORD" placeholder="FACEBOOK_PASSWORD" type="password" class="input-premium"/>
+                <input id="YOUTUBE_CLIENT_ID" placeholder="YOUTUBE_CLIENT_ID" class="input-premium"/>
+                <input id="YOUTUBE_CLIENT_SECRET" placeholder="YOUTUBE_CLIENT_SECRET" class="input-premium"/>
+                <input id="YOUTUBE_REFRESH_TOKEN" placeholder="YOUTUBE_REFRESH_TOKEN" class="input-premium"/>
+                <input id="GOOGLE_LOGIN_EMAIL" placeholder="GOOGLE_LOGIN_EMAIL" class="input-premium"/>
+                <input id="GOOGLE_LOGIN_PASSWORD" placeholder="GOOGLE_LOGIN_PASSWORD" type="password" class="input-premium"/>
+                <input id="GOOGLE_TOTP_SECRET" placeholder="GOOGLE_TOTP_SECRET" class="input-premium"/>
+                <input id="SMTP_FROM" placeholder="SMTP_FROM" class="input-premium"/>
+                <input id="SMTP_HOST" placeholder="SMTP_HOST" class="input-premium"/>
+                <input id="SMTP_PORT" placeholder="SMTP_PORT" class="input-premium"/>
+                <input id="SMTP_USER" placeholder="SMTP_USER" class="input-premium"/>
+                <input id="SMTP_PASS" placeholder="SMTP_PASS" type="password" class="input-premium"/>
+                <input id="BASE_URL" placeholder="BASE_URL" class="input-premium"/>
+                <input id="ADMIN_EMAIL" placeholder="ADMIN_EMAIL" class="input-premium"/>
+                <input id="ADMIN_TOKEN" placeholder="ADMIN_TOKEN" class="input-premium"/>
+                <select id="PUPPETEER_DISABLE" class="input-premium"><option value="">PUPPETEER_DISABLE</option><option value="1">1</option><option value="0">0</option></select>
+                <select id="NO_BROWSER" class="input-premium"><option value="">NO_BROWSER</option><option value="1">1</option><option value="0">0</option></select>
+              </div>
+              <div style="margin-top:12px; display:flex; justify-content:flex-end; gap:12px;">
+                <button id="mk-save-secrets" class="btn btn-primary">Enregistrer .env</button>
+              </div>
+            </div>
+          `;
+          document.body.appendChild(modal);
+          modal.querySelector("#mk-close-secrets").onclick = () => modal.remove();
+          modal.querySelector("#mk-save-secrets").onclick = async () => {
+            const ids = ["INSTAGRAM_USERNAME","INSTAGRAM_PASSWORD","INSTAGRAM_TOTP_SECRET","THREADS_USERNAME","THREADS_PASSWORD","TWITTER_API_KEY","TWITTER_API_SECRET","TWITTER_ACCESS_TOKEN","TWITTER_ACCESS_SECRET","TWITTER_USERNAME","TWITTER_PASSWORD","TELEGRAM_BOT_TOKEN","TELEGRAM_CHAT_ID","FACEBOOK_PAGE_ACCESS_TOKEN","FACEBOOK_PAGE_ID","FACEBOOK_USERNAME","FACEBOOK_PASSWORD","YOUTUBE_CLIENT_ID","YOUTUBE_CLIENT_SECRET","YOUTUBE_REFRESH_TOKEN","GOOGLE_LOGIN_EMAIL","GOOGLE_LOGIN_PASSWORD","GOOGLE_TOTP_SECRET","SMTP_FROM","SMTP_HOST","SMTP_PORT","SMTP_USER","SMTP_PASS","BASE_URL","ADMIN_EMAIL","ADMIN_TOKEN","PUPPETEER_DISABLE","NO_BROWSER"];
+            const env = {};
+            ids.forEach(id => {
+              const el = modal.querySelector("#"+id);
+              if (el && el.value) env[id] = el.value;
+            });
+            try {
+              const r = await fetch("/api/admin/secrets/save", { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ env }) });
+              const j = await r.json();
+              if (r.ok && j.success) {
+                alert("✅ Clés enregistrées. Redémarre le serveur pour prise en compte.");
+                modal.remove();
+              } else {
+                alert("Erreur: " + (j.error || "inconnue"));
+              }
+            } catch (e) {
+              alert("Erreur: " + e.message);
+            }
+          };
+          modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+        };
+        
+        // Native Share
+        if (q("mk-share-native")) {
+            q("mk-share-native").onclick = async () => {
+                const tmpl = q("mk-template").value;
+                const url = window.location.origin;
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: 'SurfSense Live',
+                            text: tmpl.replace('{spot}', 'Spot').replace('{desc}', 'Conditions...'),
+                            url: url
+                        });
+                    } catch (err) { console.log('Share canceled', err); }
+                } else {
+                    alert("Le partage n'est pas supporté sur ce navigateur.");
+                }
+            };
+        }
+
+        // Cookie Import
+        if (q("btn-import-cookies")) {
+            q("btn-import-cookies").onclick = async () => {
+                const input = document.createElement("input");
+                input.type = "file";
+                input.accept = ".json";
+                input.onchange = async (e) => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    const text = await file.text();
+                    try {
+                        JSON.parse(text); 
+                        const r = await fetch("/api/admin/marketing/cookies", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json", ...headers },
+                            body: text
+                        });
+                        if (r.ok) alert("✅ Cookies Stealth importés avec succès !");
+                        else alert("Erreur import cookies");
+                    } catch {
+                        alert("Fichier JSON invalide");
+                    }
+                };
+                input.click();
+              };
+          }
+        
+        if (q("btn-collect-cookies")) {
+            q("btn-collect-cookies").onclick = async () => {
+                try {
+                    const r = await fetch("/api/admin/marketing/cookies/collect", {
+                        method: "POST",
+                        headers: { ...headers, "Content-Type": "application/json" },
+                        body: JSON.stringify({ networks: ["instagram","twitter","tiktok","facebook","youtube"], timeoutMs: 20000 })
+                    });
+                    const j = await r.json();
+                    if (r.ok && j.success) {
+                        alert("✅ Cookies collectés\n\n" + (j.details || []).join("\n"));
+                        loadMarketing();
+                    } else {
+                        alert("Erreur collecte: " + (j.error || "inconnue"));
+                    }
+                } catch (e) { alert("Erreur collecte: " + e.message); }
+            };
+        }
+        
+        // Profile Update
+        if (q("btn-update-profile")) {
+            q("btn-update-profile").onclick = async () => {
+                const photoInput = q("mk-profile-photo");
+                const bio = q("mk-profile-bio").value.trim();
+                
+                if (!photoInput.files[0] && !bio) {
+                    alert("Veuillez fournir une photo ou une bio.");
+                    return;
+                }
+
+                const btn = q("btn-update-profile");
+                const originalText = btn.textContent;
+                btn.textContent = "Mise à jour en cours... (Peut prendre 2-3 min)";
+                btn.disabled = true;
+
+                try {
+                    const formData = new FormData();
+                    if (photoInput.files[0]) formData.append("photo", photoInput.files[0]);
+                    if (bio) formData.append("bio", bio);
+
+                    const r = await fetch("/api/admin/marketing/update-profile", {
+                        method: "POST",
+                        headers: { "x-admin-token": tok }, 
+                        body: formData
+                    });
+                    
+                    const res = await r.json();
+                    if (r.ok && res.success) {
+                        alert("✅ Profils mis à jour avec succès !\n\nDétails:\n" + res.details.join("\n"));
+                    } else {
+                        alert("⚠️ Mise à jour partielle ou échouée:\n" + (res.error || res.details?.join("\n")));
+                    }
+                } catch (e) {
+                    alert("Erreur: " + e.message);
+                } finally {
+                    btn.textContent = originalText;
+                    btn.disabled = false;
+                }
+            };
+        }
+
+        async function loadMarketing() {
+          try {
+            const r = await fetch("/api/admin/marketing/status", { headers });
+            const s = await r.json();
+            const statusEl = q("mk-status");
+            const lastRun = s.lastRunAt ? new Date(s.lastRunAt).toLocaleTimeString("fr-FR") : "-";
+            const reason = s.reason || (s.running ? "running" : "paused");
+            statusEl.textContent = "Status: "+(s.running ? "RUNNING" : "STOPPED")+" • "+(s.intervalMinutes||"-")+" min • "+reason+" • last: "+lastRun;
+            statusEl.style.color = s.running ? "#4ade80" : "#f87171";
+            if (!s.browserAvailable) {
+              const el1 = q("btn-collect-cookies"); if (el1) el1.style.display = "none";
+              const el2 = q("btn-import-cookies"); if (el2) el2.style.display = "none";
+            }
+            
+            if (s.cookieStatus) {
+                const updateBadge = (id, active) => {
+                    const el = q(id);
+                    if (!el) return;
+                    if (active) {
+                        el.textContent = "Stealth OK";
+                        el.classList.add("active");
+                        el.classList.remove("missing");
+                    } else {
+                        el.textContent = "No Cookies";
+                        el.classList.add("missing");
+                        el.classList.remove("active");
+                    }
+                };
+                updateBadge("st-instagram", s.cookieStatus.instagram);
+                updateBadge("st-facebook", s.cookieStatus.facebook);
+                updateBadge("st-tiktok", s.cookieStatus.tiktok);
+                updateBadge("st-youtube", s.cookieStatus.youtube);
+                updateBadge("st-twitter", s.cookieStatus.twitter);
+            }
+          } catch {}
+          try {
+            const rr = await fetch("/api/admin/marketing/config", { headers });
+            const c = await rr.json();
+            q("mk-webhook").value = c.webhookUrl || "";
+            q("mk-interval").value = c.intervalMinutes || "";
+            q("mk-template").value = c.template || "";
+            q("mk-type").value = c.contentType || "story";
+            if (q("mk-autopost")) q("mk-autopost").checked = !!c.autopostEnabled;
+            if (q("mk-autovideo")) q("mk-autovideo").checked = !!c.autopostVideoReelsTikTokDefault;
+            if (q("mk-tags")) q("mk-tags").value = Array.isArray(c.hashtags) ? c.hashtags.join(" ") : "";
+            if (c.antiBot) {
+              const jmin = parseInt(c.antiBot.jitterMin, 10);
+              const jmax = parseInt(c.antiBot.jitterMax, 10);
+              if (q("mk-jitter-min")) q("mk-jitter-min").value = isNaN(jmin) ? "" : jmin;
+              if (q("mk-jitter-max")) q("mk-jitter-max").value = isNaN(jmax) ? "" : jmax;
+            }
+            const ivs = c.networkIntervals || {};
+            const setIv = (id, v) => { const el=q(id); if(el) el.value = v || ""; };
+            setIv("mk-iv-instagram", ivs.instagram);
+            setIv("mk-iv-threads", ivs.threads);
+            setIv("mk-iv-twitter", ivs.twitter);
+            setIv("mk-iv-facebook", ivs.facebook);
+            setIv("mk-iv-youtube", ivs.youtube);
+            setIv("mk-iv-telegram", ivs.telegram);
+            setIv("mk-iv-discord", ivs.discord);
+            setIv("mk-iv-tiktok", ivs.tiktok);
+            const chs = new Set(c.channels || []);
+            q("mk-ch-instagram").checked = chs.has("instagram");
+            q("mk-ch-facebook").checked = chs.has("facebook");
+            q("mk-ch-tiktok").checked = chs.has("tiktok");
+            q("mk-ch-threads").checked = chs.has("threads");
+            q("mk-ch-youtube").checked = chs.has("youtube");
+            q("mk-ch-twitter").checked = chs.has("twitter");
+            q("mk-ch-telegram").checked = chs.has("telegram");
+            q("mk-ch-discord").checked = chs.has("discord");
+            const cx = c.connectors || {};
+            q("mk-wh-instagram").value = cx.instagram?.webhook || "";
+            q("mk-wh-facebook").value = cx.facebook?.webhook || "";
+            q("mk-wh-tiktok").value = cx.tiktok?.webhook || "";
+            q("mk-wh-threads").value = cx.threads?.webhook || "";
+            q("mk-wh-youtube").value = cx.youtube?.webhook || "";
+            q("mk-wh-twitter").value = cx.twitter?.webhook || "";
+            q("mk-wh-telegram").value = cx.telegram?.webhook || "";
+            q("mk-wh-discord").value = cx.discord?.webhook || "";
+            
+            if (cx.instagram?.format) q("mk-fmt-instagram").value = cx.instagram.format;
+            if (cx.facebook?.format) q("mk-fmt-facebook").value = cx.facebook.format;
+            if (cx.tiktok?.format) q("mk-fmt-tiktok").value = cx.tiktok.format;
+            if (cx.threads?.format) q("mk-fmt-threads").value = cx.threads.format;
+            if (cx.youtube?.format) q("mk-fmt-youtube").value = cx.youtube.format;
+            if (cx.twitter?.format) q("mk-fmt-twitter").value = cx.twitter.format;
+            if (cx.telegram?.format) q("mk-fmt-telegram").value = cx.telegram.format;
+            if (cx.discord?.format) q("mk-fmt-discord").value = cx.discord.format;
+
+            q("mk-pf-instagram").value = cx.instagram?.profileUrl || "";
+            q("mk-pf-facebook").value = cx.facebook?.profileUrl || "";
+            q("mk-pf-tiktok").value = cx.tiktok?.profileUrl || "";
+            q("mk-pf-threads").value = cx.threads?.profileUrl || "";
+            q("mk-pf-youtube").value = cx.youtube?.profileUrl || "";
+            q("mk-pf-twitter").value = cx.twitter?.profileUrl || "";
+            q("mk-pf-telegram").value = cx.telegram?.profileUrl || "";
+            q("mk-pf-discord").value = cx.discord?.profileUrl || "";
+            const em = c.email || "swellsync@outlook.fr";
+            q("mk-email-text").textContent = em;
+            q("mk-email-link").href = "mailto:"+em;
+          } catch {}
+        }
+        q("mk-email-copy").onclick = async () => {
+          try {
+            await navigator.clipboard.writeText(q("mk-email-text").textContent.trim());
+            alert("Adresse copiée");
+          } catch {}
+        };
+        q("mk-modal-help").onclick = () => {
+            const modal = document.createElement("div");
+            modal.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:9999; display:flex; justify-content:center; align-items:center;";
+            modal.innerHTML = `
+                <div style="background:#1e293b; padding:24px; border-radius:12px; max-width:500px; color:#f8fafc; font-family:sans-serif; position:relative;">
+                    <button id="mk-close-help" style="position:absolute; top:12px; right:12px; background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer;">&times;</button>
+                    <h3 style="margin-top:0; color:#3b82f6;">Guide du Mode Direct</h3>
+                    <p style="font-size:13px; line-height:1.6; color:#cbd5e1;">
+                        Le <strong>Mode Direct</strong> permet au serveur de poster directement sur vos réseaux sans passer par Make.com.
+                        Pour l'activer, laissez le champ "Webhook" vide pour les réseaux compatibles.
+                    </p>
+                    <ul style="color:#e5e7eb; line-height:1.6; font-size:13px; padding-left:20px;">
+                        <li>📸 <strong>Instagram</strong> : Supporté (Images/Stories)</li>
+                        <li>🧵 <strong>Threads</strong> : Supporté</li>
+                        <li>✖️ <strong>X / Twitter</strong> : Supporté</li>
+                        <li>✈️ <strong>Telegram</strong> : Supporté</li>
+                        <li>👾 <strong>Discord</strong> : Supporté (Mettre URL Webhook dans admin)</li>
+                        <li>📘 <strong>Facebook</strong> : Supporté (Nécessite Page Token dans .env)</li>
+                        <li>📺 <strong>YouTube</strong> : Supporté (L'image est convertie en vidéo de 5s automatiquement). Nécessite API Keys.</li>
+                    </ul>
+                    <p style="font-size:12px; color:#facc15; margin-top:12px; background:#422006; padding:8px; border-radius:4px;">
+                        ⚠️ <strong>TikTok</strong> : API publique fermée aux posts automatiques simples. 
+                        Le serveur ne peut pas poster directement sur TikTok pour le moment sans risque de blocage.
+                        Utilisez le Webhook pour TikTok.
+                    </p>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.querySelector("#mk-close-help").onclick = () => modal.remove();
+            modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+        };
+        q("btn-preview-video").onclick = async () => {
+             const btn = q("btn-preview-video");
+             const originalText = btn.textContent;
+             btn.textContent = "Génération en cours... (15-30s)";
+             btn.disabled = true;
+
+             try {
+                 const res = await fetch("/api/admin/preview-video?spot=Anglet"); // Default spot for preview
+                 if (!res.ok) throw new Error("Erreur génération");
+                 
+                 const blob = await res.blob();
+                 const url = URL.createObjectURL(blob);
+                 
+                 const modal = document.createElement("div");
+                 modal.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:10000; display:flex; flex-direction:column; justify-content:center; align-items:center;";
+                 modal.innerHTML = `
+                     <div style="position:relative; width:300px; height:533px; background:#000;">
+                        <video src="${url}" controls autoplay style="width:100%; height:100%; object-fit:cover;"></video>
+                        <button id="close-vid" style="position:absolute; top:-40px; right:0; color:white; background:none; border:none; font-size:24px;">&times;</button>
+                     </div>
+                     <a href="${url}" download="montage_preview.mp4" style="margin-top:20px; color:#3b82f6; text-decoration:none;">⬇️ Télécharger la vidéo</a>
+                 `;
+                 document.body.appendChild(modal);
+                 modal.querySelector("#close-vid").onclick = () => modal.remove();
+                 
+             } catch (e) {
+                 alert("Erreur: " + e.message);
+             } finally {
+                 btn.textContent = originalText;
+                 btn.disabled = false;
+             }
+        };
+
+        q("mk-save").onclick = async () => {
+          const channels = [];
+          if (q("mk-ch-instagram").checked) channels.push("instagram");
+          if (q("mk-ch-facebook").checked) channels.push("facebook");
+          if (q("mk-ch-tiktok").checked) channels.push("tiktok");
+          if (q("mk-ch-threads").checked) channels.push("threads");
+          if (q("mk-ch-youtube").checked) channels.push("youtube");
+          if (q("mk-ch-twitter").checked) channels.push("twitter");
+          if (q("mk-ch-telegram").checked) channels.push("telegram");
+          if (q("mk-ch-discord").checked) channels.push("discord");
+          const networkIntervals = {
+            instagram: parseInt(q("mk-iv-instagram").value,10) || undefined,
+            threads: parseInt(q("mk-iv-threads").value,10) || undefined,
+            twitter: parseInt(q("mk-iv-twitter").value,10) || undefined,
+            facebook: parseInt(q("mk-iv-facebook").value,10) || undefined,
+            youtube: parseInt(q("mk-iv-youtube").value,10) || undefined,
+            telegram: parseInt(q("mk-iv-telegram").value,10) || undefined,
+            discord: parseInt(q("mk-iv-discord").value,10) || undefined,
+            tiktok: parseInt(q("mk-iv-tiktok").value,10) || undefined
+          };
+          Object.keys(networkIntervals).forEach(k => { if (!networkIntervals[k]) delete networkIntervals[k]; });
+          const hashtags = (q("mk-tags").value || "").split(/\s+/).map(x=>x.trim()).filter(Boolean);
+          const antiBot = {
+            jitterMin: parseInt(q("mk-jitter-min").value,10) || undefined,
+            jitterMax: parseInt(q("mk-jitter-max").value,10) || undefined
+          };
+          const connectors = {
+            instagram: { enabled: q("mk-ch-instagram").checked, webhook: q("mk-wh-instagram").value.trim(), profileUrl: q("mk-pf-instagram").value.trim(), format: q("mk-fmt-instagram").value },
+            facebook: { enabled: q("mk-ch-facebook").checked, webhook: q("mk-wh-facebook").value.trim(), profileUrl: q("mk-pf-facebook").value.trim(), format: q("mk-fmt-facebook").value },
+            tiktok: { enabled: q("mk-ch-tiktok").checked, webhook: q("mk-wh-tiktok").value.trim(), profileUrl: q("mk-pf-tiktok").value.trim(), format: q("mk-fmt-tiktok").value },
+            threads: { enabled: q("mk-ch-threads").checked, webhook: q("mk-wh-threads").value.trim(), profileUrl: q("mk-pf-threads").value.trim(), format: q("mk-fmt-threads").value },
+            youtube: { enabled: q("mk-ch-youtube").checked, webhook: q("mk-wh-youtube").value.trim(), profileUrl: q("mk-pf-youtube").value.trim(), format: q("mk-fmt-youtube").value },
+            twitter: { enabled: q("mk-ch-twitter").checked, webhook: q("mk-wh-twitter").value.trim(), profileUrl: q("mk-pf-twitter").value.trim(), format: q("mk-fmt-twitter").value },
+            telegram: { enabled: q("mk-ch-telegram").checked, webhook: q("mk-wh-telegram").value.trim(), profileUrl: q("mk-pf-telegram").value.trim(), format: q("mk-fmt-telegram").value },
+            discord: { enabled: q("mk-ch-discord").checked, webhook: q("mk-wh-discord").value.trim(), profileUrl: q("mk-pf-discord").value.trim(), format: q("mk-fmt-discord").value }
+          };
+          try {
+            const rr = await fetch("/api/admin/marketing/config", {
+              method: "POST",
+              headers: { ...headers, "Content-Type":"application/json" },
+              body: JSON.stringify({
+                channels,
+                webhookUrl: q("mk-webhook").value.trim(),
+                template: q("mk-template").value,
+                contentType: q("mk-type").value,
+                autopostEnabled: !!q("mk-autopost").checked,
+                autopostVideoReelsTikTokDefault: !!q("mk-autovideo").checked,
+                hashtags,
+                networkIntervals,
+                connectors,
+                antiBot
+              })
+            });
+            const dj = await rr.json();
+            if (!rr.ok || !dj.success) { alert("Erreur configuration"); return; }
+            loadMarketing();
+          } catch { alert("Erreur configuration"); }
+        };
+        q("mk-fire").onclick = async () => {
+          try {
+            const rr = await fetch("/api/admin/marketing/fire", { method: "POST", headers });
+            const dj = await rr.json();
+            if (!rr.ok || !dj.success) { alert("Erreur publication"); return; }
+            alert("Publication envoyée");
+          } catch { alert("Erreur publication"); }
+        };
+        if (q("mk-post-ig")) q("mk-post-ig").onclick = () => postSingle("instagram");
+        if (q("mk-post-x")) q("mk-post-x").onclick = () => postSingle("twitter");
+        if (q("mk-post-fb")) q("mk-post-fb").onclick = () => postSingle("facebook");
+        if (q("mk-post-yt")) q("mk-post-yt").onclick = () => postSingle("youtube");
+        if (q("mk-post-th")) q("mk-post-th").onclick = () => postSingle("threads");
+        if (q("mk-post-all")) q("mk-post-all").onclick = () => openPostAllModal();
+        if (q("mk-secrets")) q("mk-secrets").onclick = () => openSecretsModal();
+        if (q("mk-auto-publish")) q("mk-auto-publish").onclick = async () => {
+          const btn = q("mk-auto-publish");
+          const t = btn.textContent;
+          btn.textContent = "⏳ Robot...";
+          btn.disabled = true;
+          try {
+            const r = await fetch("/api/admin/marketing/auto-compose-publish", { method: "POST", headers });
+            const j = await r.json();
+            if (!r.ok || !j.success) { alert("Erreur robot auto"); return; }
+            const succ = (j.results || []).filter(x=>x.ok).map(x=>x.network).join(", ");
+            alert("Publié: " + (succ || "aucun"));
+          } catch { alert("Erreur robot auto"); }
+          finally { btn.textContent = t; btn.disabled = false; }
+        };
+        if (q("mk-repair-login")) q("mk-repair-login").onclick = async () => {
+          try {
+            const nets = ["instagram","twitter","facebook","youtube","tiktok"];
+            const r = await fetch("/api/admin/marketing/human-login", { method: "POST", headers: { ...headers, "Content-Type": "application/json" }, body: JSON.stringify({ networks: nets }) });
+            const j = await r.json();
+            if (r.ok) {
+              const okList = j.results.filter(x=>x.ok).map(x=>x.network).join(", ");
+              const koList = j.results.filter(x=>!x.ok).map(x=>x.network).join(", ");
+              alert(`✔️ Connexions réparées: ${okList || "aucune"}\n❌ Échecs: ${koList || "aucun"}`);
+              loadMarketing();
+            } else {
+              alert("Erreur réparation: " + (j.error || "inconnue"));
+            }
+          } catch (e) {
+            alert("Erreur réparation: " + e.message);
+          }
+        };
+        if (q("mk-anti-bot")) q("mk-anti-bot").onclick = async () => {
+          try {
+            const r = await fetch("/api/admin/marketing/advice", { method: "POST", headers });
+            const j = await r.json();
+            if (!r.ok || !j.success) { alert("Conseils indisponibles"); return; }
+            const lines = Object.entries(j.advice).map(([net, adv]) => {
+              const hrs = (adv.bestHours || []).map(h => `${h}h`).join(", ");
+              return `${net}: hashtags≤${adv.hashtagsMax||adv.tagsMax||6}, caption ${adv.captionMin||"-"}–${adv.captionMax||"-"}, heures ${hrs}, jitter ${adv.jitterMin}-${adv.jitterMax}min`;
+            });
+            alert(lines.join("\n"));
+          } catch { alert("Conseils indisponibles"); }
+        };
+        if (q("mk-preview-pro")) q("mk-preview-pro").onclick = async (ev) => {
+          try {
+            const btn = ev.currentTarget;
+            btn.textContent = "⏳ Génération...";
+            btn.disabled = true;
+            const r = await fetch("/api/admin/marketing/montage/final", { headers });
+            const j = await r.json();
+            if (!r.ok || !j.success || !j.url) throw new Error(j.error || "Erreur génération");
+            const modal = document.createElement("div");
+            modal.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:10000; display:flex; flex-direction:column; justify-content:center; align-items:center;";
+            modal.innerHTML = `
+              <div style="position:relative; width:300px; height:533px; background:#000;">
+                 <video src="${j.url}" controls autoplay style="width:100%; height:100%; object-fit:cover;"></video>
+                 <button id="close-vid" style="position:absolute; top:-40px; right:0; color:white; background:none; border:none; font-size:24px;">&times;</button>
+              </div>
+              <a href="${j.url}" download="${j.file || 'montage_final.mp4'}" style="margin-top:20px; color:#3b82f6; text-decoration:none;">⬇️ Télécharger la vidéo</a>
+            `;
+            document.body.appendChild(modal);
+            modal.querySelector("#close-vid").onclick = () => modal.remove();
+          } catch (e) {
+            alert("Erreur: " + e.message);
+          } finally {
+            const btn = ev.currentTarget;
+            btn.textContent = "🎬 Prévisualiser Montage";
+            btn.disabled = false;
+          }
+        };
+        if (q("mk-trends")) q("mk-trends").onclick = async () => {
+          try {
+            const r = await fetch("/api/trends", { headers });
+            const j = await r.json();
+            if (!r.ok) { alert("Tendances indisponibles"); return; }
+            const list = (j || []).slice(0, 12).map(t => `• ${t.title} (${t.source})`).join("<br/>");
+            const modal = document.createElement("div");
+            modal.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10000; display:flex; align-items:center; justify-content:center;";
+            modal.innerHTML = `
+              <div style="background:#0b1020; color:#fff; padding:24px; border-radius:12px; width:600px; max-width:90%;">
+                <h3 style="margin-top:0;">Tendances du moment</h3>
+                <div style="line-height:1.6">${list || "Aucune tendance détectée"}</div>
+                <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
+                  <button id="close-trends" class="btn">Fermer</button>
+                </div>
+              </div>`;
+            document.body.appendChild(modal);
+            modal.querySelector("#close-trends").onclick = () => modal.remove();
+          } catch { alert("Tendances indisponibles"); }
+        };
+        if (q("mk-publish-trend")) q("mk-publish-trend").onclick = async (ev) => {
+          const btn = ev.currentTarget;
+          const original = btn.textContent;
+          btn.textContent = "⏳ Publication...";
+          btn.disabled = true;
+          try {
+            const r = await fetch("/api/admin/marketing/trends/post", { method: "POST", headers });
+            const j = await r.json();
+            if (r.ok && j.success) alert("✅ Trend publié: " + j.topic);
+            else alert("❌ Échec: " + (j.error || "inconnu"));
+          } catch (e) {
+            alert("❌ Échec: " + e.message);
+          } finally {
+            btn.textContent = original;
+            btn.disabled = false;
+          }
+        };
+        if (q("mk-videos")) q("mk-videos").onclick = async () => {
+          try {
+            const r = await fetch("/api/admin/marketing/videos", { headers });
+            const j = await r.json();
+            if (!r.ok || !j.success) { alert("Erreur liste vidéos"); return; }
+            const items = (j.videos || []).slice(0, 50);
+            const modal = document.createElement("div");
+            modal.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10000; display:flex; align-items:center; justify-content:center;";
+            const rows = items.map(v => `
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #1e293b;">
+                <div>
+                  <div style="font-weight:600;">${v.name}</div>
+                  <div style="opacity:0.7; font-size:12px;">${(v.size/1024/1024).toFixed(2)} MB • ${new Date(v.mtime).toLocaleString()}</div>
+                </div>
+                <div style="display:flex; gap:12px;">
+                  <a href="${v.url}" target="_blank" class="btn">Ouvrir</a>
+                  <a href="${v.url}" download class="btn">Télécharger</a>
+                  <button class="btn btn-primary" data-name="${v.name}" data-url="${v.url}" onclick="publishVideoFromList(event)">Publier</button>
+                  <button class="btn" data-name="${v.name}" data-url="${v.url}" onclick="composeVideoFromList(event)">Composer</button>
+                  <button class="btn" data-name="${v.name}" data-url="${v.url}" onclick="composeProFromList(event)">Composer Pro</button>
+                </div>
+              </div>
+            `).join("");
+            modal.innerHTML = `
+              <div style="background:#0b1020; color:#fff; padding:24px; border-radius:12px; width:800px; max-width:95%; max-height:90vh; overflow:auto;">
+                <h3 style="margin-top:0;">Vidéos Générées</h3>
+                <div>${rows || "Aucune vidéo générée pour l'instant."}</div>
+                <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
+                  <button id="close-videos" class="btn">Fermer</button>
+                </div>
+              </div>`;
+            document.body.appendChild(modal);
+            modal.querySelector("#close-videos").onclick = () => modal.remove();
+          } catch { alert("Erreur liste vidéos"); }
+        };
+        window.publishVideoFromList = async (ev) => {
+          const btn = ev.currentTarget;
+          const name = btn.getAttribute("data-name");
+          const url = btn.getAttribute("data-url");
+          const preset = [
+            { id:"instagram", label:"Instagram", checked: q("mk-ch-instagram")?.checked },
+            { id:"twitter", label:"X/Twitter", checked: q("mk-ch-twitter")?.checked },
+            { id:"facebook", label:"Facebook", checked: q("mk-ch-facebook")?.checked },
+            { id:"youtube", label:"YouTube", checked: q("mk-ch-youtube")?.checked },
+            { id:"tiktok", label:"TikTok", checked: q("mk-ch-tiktok")?.checked }
+          ];
+          const m = document.createElement("div");
+          m.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10001; display:flex; align-items:center; justify-content:center;";
+          const checks = preset.map(p => `<label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="pub-${p.id}" ${p.checked ? "checked" : ""}/> ${p.label}</label>`).join("");
+          m.innerHTML = `
+            <div style="background:#0b1020; color:#fff; padding:24px; border-radius:12px; width:500px; max-width:95%;">
+              <h3 style="margin-top:0;">Publier ${name}</h3>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">${checks}</div>
+              <div style="margin-top:12px;">
+                <label style="font-size:12px; color:#94a3b8;">Caption</label>
+                <textarea id="pub-caption" class="input-premium" rows="3" placeholder="Texte du post"></textarea>
+              </div>
+              <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
+                <button id="pub-cancel" class="btn">Annuler</button>
+                <button id="pub-send" class="btn btn-primary">Publier</button>
+              </div>
+            </div>`;
+          document.body.appendChild(m);
+          m.querySelector("#pub-cancel").onclick = () => m.remove();
+          m.querySelector("#pub-send").onclick = async () => {
+            const nets = preset.filter(p => document.getElementById(`pub-${p.id}`)?.checked).map(p => p.id);
+            const cap = document.getElementById("pub-caption")?.value || "";
+            try {
+              const r = await fetch("/api/admin/marketing/publish-video", { method:"POST", headers:{ ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ video: name, networks: nets, caption: cap }) });
+              const j = await r.json();
+              if (r.ok && j.success) {
+                const okList = j.results.filter(x=>x.ok).map(x=>x.network).join(", ");
+                const koList = j.results.filter(x=>!x.ok).map(x=>x.network).join(", ");
+                alert(`✅ Publi: ${okList}\n❌ Échec: ${koList || "aucun"}`);
+                m.remove();
+              } else {
+                alert("❌ Échec publication");
+              }
+            } catch { alert("❌ Échec publication"); }
+          };
+        };
+        if (!document.getElementById("mk-upload-file")) {
+          const f = document.createElement("input");
+          f.type = "file";
+          f.accept = "video/*,image/*,audio/*";
+          f.id = "mk-upload-file";
+          f.style.display = "none";
+          document.body.appendChild(f);
+          f.onchange = async () => {
+            const file = f.files && f.files[0];
+            if (!file) return;
+            try {
+              const reader = new FileReader();
+              reader.onload = async () => {
+                try {
+                  const b64 = reader.result;
+                  const r = await fetch("/api/admin/marketing/upload-video", { method:"POST", headers:{ ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ name: file.name, base64: b64 }) });
+                  const j = await r.json();
+                  if (r.ok && j.success) {
+                    alert("✅ Vidéo uploadée");
+                  } else {
+                    alert("❌ Upload échoué");
+                  }
+                } catch { alert("❌ Upload échoué"); }
+              };
+              reader.readAsDataURL(file);
+            } catch { alert("❌ Upload échoué"); }
+          };
+        }
+        if (q("mk-upload-video")) q("mk-upload-video").onclick = () => {
+          const f = document.getElementById("mk-upload-file");
+          if (f) f.click();
+        };
+        window.composeVideoFromList = async (ev) => {
+          const btn = ev.currentTarget;
+          const name = btn.getAttribute("data-name");
+          const m = document.createElement("div");
+          m.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10001; display:flex; align-items:center; justify-content:center;";
+          m.innerHTML = `
+            <div style="background:#0b1020; color:#fff; padding:24px; border-radius:12px; width:520px; max-width:95%;">
+              <h3 style="margin-top:0;">Composer ${name}</h3>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <label style="display:flex; align-items:center; gap:8px;"><span>Format</span>
+                  <select id="comp-format" class="input-premium">
+                    <option value="vertical" selected>Vertical 9:16</option>
+                    <option value="horizontal">Horizontal 16:9</option>
+                  </select>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="comp-blur" checked/> Fond flou</label>
+                <label style="display:flex; align-items:center; gap:8px;"><span>Color grade</span>
+                  <select id="comp-grade" class="input-premium">
+                    <option value="">Aucun</option>
+                    <option value="tealorange">Teal & Orange</option>
+                    <option value="cinematic">Cinematic</option>
+                  </select>
+                </label>
+              </div>
+              <div style="margin-top:12px;">
+                <label style="font-size:12px; color:#94a3b8;">CTA (texte)</label>
+                <input id="comp-cta" class="input-premium" placeholder="Ex: LIEN EN BIO 🔗"/>
+              </div>
+              <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
+                <button id="comp-cancel" class="btn">Annuler</button>
+                <button id="comp-send" class="btn btn-primary">Composer</button>
+              </div>
+            </div>`;
+          document.body.appendChild(m);
+          m.querySelector("#comp-cancel").onclick = () => m.remove();
+          m.querySelector("#comp-send").onclick = async () => {
+            const format = document.getElementById("comp-format")?.value || "vertical";
+            const blurBg = document.getElementById("comp-blur")?.checked || false;
+            const colorGrade = document.getElementById("comp-grade")?.value || "";
+            const ctaText = document.getElementById("comp-cta")?.value || "";
+            try {
+              const r = await fetch("/api/admin/marketing/montage/compose", { method:"POST", headers:{ ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ video: name, options: { format, blurBg, colorGrade, ctaText } }) });
+              const j = await r.json();
+              if (r.ok && j.success) {
+                const url = j.url;
+                const res = document.createElement("div");
+                res.style.cssText = "margin-top:14px; font-size:14px;";
+                res.innerHTML = `<a href="${url}" target="_blank" class="btn">Ouvrir</a> <a href="${url}" download class="btn">Télécharger</a>`;
+                m.querySelector("div").appendChild(res);
+              } else {
+                alert("❌ Composition échouée");
+              }
+            } catch { alert("❌ Composition échouée"); }
+          };
+        };
+        window.composeProFromList = async (ev) => {
+          const btn = ev.currentTarget;
+          const name = btn.getAttribute("data-name");
+          const m = document.createElement("div");
+          m.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10001; display:flex; align-items:center; justify-content:center;";
+          m.innerHTML = `
+            <div style="background:#0b1020; color:#fff; padding:24px; border-radius:12px; width:560px; max-width:95%;">
+              <h3 style="margin-top:0;">Composer Pro ${name}</h3>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <label style="display:flex; align-items:center; gap:8px;"><span>Format</span>
+                  <select id="comp2-format" class="input-premium">
+                    <option value="vertical" selected>Vertical 9:16</option>
+                    <option value="horizontal">Horizontal 16:9</option>
+                  </select>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="comp2-blur" checked/> Fond flou</label>
+                <label style="display:flex; align-items:center; gap:8px;"><span>Color grade</span>
+                  <select id="comp2-grade" class="input-premium">
+                    <option value="">Aucun</option>
+                    <option value="tealorange">Teal & Orange</option>
+                    <option value="cinematic">Cinematic</option>
+                  </select>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px;"><span>Vitesse</span>
+                  <input id="comp2-speed" class="input-premium" type="number" step="0.05" min="0.5" max="2" value="1.25"/>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px;"><span>Ralentir</span>
+                  <input id="comp2-slow" class="input-premium" type="number" step="0.05" min="0.5" max="2" value="1"/>
+                </label>
+              </div>
+              <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="comp2-silence" checked/> Couper silences</label>
+                <label style="display:flex; align-items:center; gap:8px;"><input type="checkbox" id="comp2-progress" checked/> Barre de progression</label>
+              </div>
+              <div style="margin-top:12px;">
+                <label style="font-size:12px; color:#94a3b8;">CTA (texte)</label>
+                <input id="comp2-cta" class="input-premium" placeholder="Ex: LIEN EN BIO 🔗"/>
+              </div>
+              <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
+                <button id="comp2-cancel" class="btn">Annuler</button>
+                <button id="comp2-send" class="btn btn-primary">Composer Pro</button>
+              </div>
+            </div>`;
+          document.body.appendChild(m);
+          m.querySelector("#comp2-cancel").onclick = () => m.remove();
+          m.querySelector("#comp2-send").onclick = async () => {
+            const format = document.getElementById("comp2-format")?.value || "vertical";
+            const blurBg = document.getElementById("comp2-blur")?.checked || false;
+            const colorGrade = document.getElementById("comp2-grade")?.value || "";
+            const speedFactor = parseFloat(document.getElementById("comp2-speed")?.value || "1");
+            const slowFactor = parseFloat(document.getElementById("comp2-slow")?.value || "1");
+            const cutSilence = document.getElementById("comp2-silence")?.checked || false;
+            const progressBar = document.getElementById("comp2-progress")?.checked || false;
+            const ctaText = document.getElementById("comp2-cta")?.value || "";
+            try {
+              const r = await fetch("/api/admin/marketing/montage/compose-pro", { method:"POST", headers:{ ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ video: name, options: { format, blurBg, colorGrade, speedFactor, slowFactor, cutSilence, progressBar, ctaText } }) });
+              const j = await r.json();
+              if (r.ok && j.success) {
+                const url = j.url;
+                const res = document.createElement("div");
+                res.style.cssText = "margin-top:14px; font-size:14px;";
+                res.innerHTML = `<a href="${url}" target="_blank" class="btn">Ouvrir</a> <a href="${url}" download class="btn">Télécharger</a>`;
+                m.querySelector("div").appendChild(res);
+              } else {
+                alert("❌ Composition Pro échouée");
+              }
+            } catch { alert("❌ Composition Pro échouée"); }
+          };
+        };
+        if (q("mk-publish-igtok")) q("mk-publish-igtok").onclick = async () => {
+          try {
+            const spot = prompt("Spot:", "Hossegor") || "Hossegor";
+            let style = prompt("Style (Dark/Neon/Sunset/Ocean/Forest/Retro):", "Neon") || "Neon";
+            let fx = prompt("FX (glitch/shake/fade/retro/none):", "fade") || "fade";
+            let subs = confirm("Activer sous-titres dynamiques ?");
+            let subtext = subs ? (prompt("Texte des sous-titres:", `${spot} • Conditions LIVE`) || `${spot} • Conditions LIVE`) : "";
+            let substyle = subs ? (prompt("Style sous-titres (light/neon/default):", "light") || "light") : "";
+            let subsize = subs ? (prompt("Taille sous-titre (16-64):", "34") || "34") : "";
+            let sfx = prompt("SFX audio (none/whoosh/hit):", "whoosh") || "whoosh";
+            let sfxi = prompt("Intensité SFX (0-100):", "70") || "70";
+            const body = { spot, style, fx, subtext, substyle, subsize, sfx, sfxi, wm: "1", cg: "tealorange" };
+            const r = await fetch("/api/admin/marketing/publish/igtok", { method: "POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify(body) });
+            const j = await r.json();
+            alert(j.success ? `Publié: ${j.posted.join(", ")}\nVidéo: ${j.video}` : "Échec: " + j.error);
+          } catch { alert("Erreur publication Reels/TikTok"); }
+        };
+        q("mk-start").onclick = async () => {
+          const iv = parseInt(q("mk-interval").value, 10) || 60;
+          try {
+            const rr = await fetch("/api/admin/marketing/start", {
+              method: "POST",
+              headers: { ...headers, "Content-Type":"application/json" },
+              body: JSON.stringify({ intervalMinutes: iv })
+            });
+            const dj = await rr.json();
+            if (!rr.ok || !dj.success) { alert("Erreur démarrage"); return; }
+            loadMarketing();
+          } catch { alert("Erreur démarrage"); }
+        };
+        q("mk-stop").onclick = async () => {
+          try {
+            const rr = await fetch("/api/admin/marketing/stop", { method: "POST", headers });
+            const dj = await rr.json();
+            if (!rr.ok || !dj.success) { alert("Erreur stop"); return; }
+            loadMarketing();
+          } catch { alert("Erreur stop"); }
+        };
+        initLiveMonitor();
+        async function refreshStatus() {
+          try {
+            const rr = await fetch("/api/admin/marketing/status", { headers });
+            const st = await rr.json();
+            if (rr.ok) {
+              lastInfoByNet = st.lastInfoByNet || {};
+              const next = st.nextRunAt || 0;
+              if (countdownTimer) clearInterval(countdownTimer);
+              if (next > Date.now()) {
+                countdownTimer = setInterval(() => {
+                  const d = Math.max(0, next - Date.now());
+                  const m = Math.floor(d / 60000);
+                  const s = Math.floor((d % 60000) / 1000);
+                  const el = document.getElementById("mk-countdown");
+                  if (el) el.textContent = `Prochaine exécution dans ${m}m ${s}s`;
+                }, 1000);
+              } else {
+                const el = document.getElementById("mk-countdown");
+                if (el) el.textContent = "";
+              }
+            }
+          } catch {}
+        }
+        setInterval(refreshStatus, 5000);
+        loadMarketing();
+        refreshStatus();
+
+        // Populate spots list for datalist
+        (async function populateSpots() {
+          try {
+            const r = await fetch("/api/admin/spots", { headers });
+            const arr = await r.json();
+            const dl = document.getElementById("mk-spots-list");
+            if (dl && Array.isArray(arr)) {
+              dl.innerHTML = arr.map(s => `<option value="${s.name}">${s.region || ""}</option>`).join("");
+            }
+          } catch {}
+        })();
+
+        // Force next spot
+        if (q("mk-force-spot-btn")) q("mk-force-spot-btn").onclick = async () => {
+          const name = (q("mk-force-spot")?.value || "").trim();
+          if (!name) { alert("Veuillez saisir un spot"); return; }
+          try {
+            const r = await fetch("/api/admin/marketing/next-spot", { method:"POST", headers:{ ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ spot: name }) });
+            const j = await r.json();
+            if (!r.ok || !j.success) { alert("Impossible de forcer le spot"); return; }
+            alert(`Prochain spot forcé: ${j.spot}`);
+            refreshStatus();
+          } catch { alert("Impossible de forcer le spot"); }
+        };
+
+        // History modal
+        if (q("mk-history")) q("mk-history").onclick = async () => {
+          try {
+            const r = await fetch("/api/admin/marketing/history", { headers });
+            const arr = await r.json();
+            const rows = (arr || []).map(h => {
+              const t = new Date(h.timestamp).toLocaleString();
+              const u = h.url ? `<a href="${h.url}" target="_blank" style="color:#3b82f6; text-decoration:none;">Ouvrir</a>` : "";
+              return `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #1e293b;">
+                        <div><div style="font-weight:600;">${h.network || "-"}</div>
+                             <div style="font-size:12px; color:#94a3b8;">${h.spot || "-"} • ${h.type || "-"} • ${t}</div></div>
+                        <div style="display:flex; gap:12px;">${u}</div>
+                      </div>`;
+            }).join("");
+            const modal = document.createElement("div");
+            modal.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:10000; display:flex; align-items:center; justify-content:center;";
+            modal.innerHTML = `
+              <div style="background:#0b1020; color:#fff; padding:24px; border-radius:12px; width:800px; max-width:95%; max-height:90vh; overflow:auto;">
+                <h3 style="margin-top:0;">Historique des Diffusions</h3>
+                <div>${rows || "Aucun historique"}</div>
+                <div style="display:flex; gap:12px; justify-content:flex-end; margin-top:20px;">
+                  <button id="mk-close-history" class="btn">Fermer</button>
+                </div>
+              </div>`;
+            document.body.appendChild(modal);
+            modal.querySelector("#mk-close-history").onclick = () => modal.remove();
+          } catch { alert("Historique indisponible"); }
+        };
+
+        if (q("mk-pause-5")) q("mk-pause-5").onclick = async () => {
+          try {
+            const r = await fetch("/api/admin/marketing/pause", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ minutes: 5 }) });
+            const j = await r.json();
+            if (!r.ok || !j.success) { alert("Pause impossible"); return; }
+            refreshStatus();
+          } catch { alert("Pause impossible"); }
+        };
+        if (q("mk-clear-cookies")) q("mk-clear-cookies").onclick = async () => {
+          try {
+            const r = await fetch("/api/admin/marketing/cookies/clear", { method:"POST", headers });
+            const j = await r.json();
+            if (!r.ok || !j.success) { alert("Purge cookies échouée"); return; }
+            alert("Cookies purgés");
+            refreshStatus();
+          } catch { alert("Purge cookies échouée"); }
+        };
+        if (q("mk-retry-errors")) q("mk-retry-errors").onclick = async () => {
+          try {
+            const rr = await fetch("/api/admin/marketing/status", { headers });
+            const st = await rr.json();
+            if (!rr.ok) { alert("Statut indisponible"); return; }
+            const fails = Object.entries(st.lastInfoByNet || {}).filter(([net, info]) => info.type === "error").map(([net]) => net);
+            if (!fails.length) { alert("Aucune erreur à relancer"); return; }
+            const r = await fetch("/api/admin/social/post-all", { method:"POST", headers: { ...headers, "Content-Type":"application/json" }, body: JSON.stringify({ networks: fails }) });
+            const j = await r.json();
+            if (!r.ok) { alert("Relance échouée"); return; }
+            alert(`Relance: ${fails.join(", ")}`);
+          } catch { alert("Relance échouée"); }
+        };
+      })();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>SwellSync • Control Center</title>
+  <link rel="stylesheet" href="styles/tokens.css">
+  <link rel="stylesheet" href="styles/dashboard.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">Control Center</div>
+    <div class="nav">
+      <a class="nav-item active" href="#overview"><span class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2" fill="none" stroke="currentColor"/><rect x="13" y="3" width="8" height="6" rx="2" fill="none" stroke="currentColor"/><rect x="3" y="13" width="6" height="8" rx="2" fill="none" stroke="currentColor"/><rect x="11" y="13" width="10" height="8" rx="2" fill="none" stroke="currentColor"/></svg></span><span class="label">Dashboard</span></a>
+      <a class="nav-item" href="#montage"><span class="icon"><svg viewBox="0 0 24 24"><path d="M3 21h18" stroke="currentColor" fill="none"/><rect x="5" y="11" width="3" height="7" rx="1" fill="none" stroke="currentColor"/><rect x="10.5" y="7" width="3" height="11" rx="1" fill="none" stroke="currentColor"/><rect x="16" y="10" width="3" height="8" rx="1" fill="none" stroke="currentColor"/></svg></span><span class="label">Montage</span></a>
+      <a class="nav-item" href="#reseaux"><span class="icon"><svg viewBox="0 0 24 24"><path d="M3 6h7l2 2h9v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z" fill="none" stroke="currentColor"/></svg></span><span class="label">Réseaux</span></a>
+      <a class="nav-item" href="#nami"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor"/><path d="M8 10l4 4 4-4" fill="none" stroke="currentColor"/></svg></span><span class="label">Nami</span></a>
+      <a class="nav-item" href="#settings"><span class="icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor"/><path d="M19 12a7 7 0 0 0-.2-1.6l2.1-1.6-1.8-3.1-2.5 1a7.2 7.2 0 0 0-2.7-1.6l-.5-2.6h-4.2l-.5 2.6a7.2 7.2 0 0 0-2.7 1.6l-2.5-1-1.8 3.1 2.1 1.6c-.1.5-.2 1-.2 1.6s.1 1.1.2 1.6l-2.1 1.6 1.8 3.1 2.5-1a7.2 7.2 0 0 0 2.7 1.6l.5 2.6h4.2l.5-2.6a7.2 7.2 0 0 0 2.7-1.6l2.5 1 1.8-3.1-2.1-1.6c.1-.5.2-1 .2-1.6z" fill="none" stroke="currentColor"/></svg></span><span class="label">Settings</span></a>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="top-header"><span class="accent">Control Center</span> • Premium Dashboard</div>
+    <div id="view-overview" class="panel">
+      <div class="chips"><span class="chip badge">Overview</span><span class="chip pill">Overview &amp; Stats</span></div>
+      <div class="title">Dashboard</div>
+      <div class="subtitle">Overview &amp; Stats — bienvenue, aperçu des métriques et statistiques clés.</div>
+      <div class="metrics">
+        <div class="metric glass"><div class="val">12.5K</div><div class="label">TOTAL USERS</div></div>
+        <div class="metric glass"><div class="val">$84.2K</div><div class="label">REVENUE</div></div>
+        <div class="metric glass"><div class="val">98.5%</div><div class="label">UPTIME</div></div>
+      </div>
+      <div class="card glass" style="margin-top:16px;">
+        <div class="card-title">Growth Metrics</div>
+        <div class="subtitle" style="margin-top:6px;">Le taux de croissance a augmenté de 24% vs le mois dernier.</div>
+        <div class="progress"><span></span></div>
+      </div>
+    </div>
+    <div id="view-montage" class="panel" style="display:none;">
+      <div class="chips"><span class="chip">Montage</span></div>
+      <div class="title">Montage</div>
+      <div class="subtitle">Créer des montages vidéo/photo (Ken Burns, transitions, audio).</div>
+      <div class="card glass" style="margin-top:16px;">
+        <div class="card-title">Robot de Montage</div>
+        <div class="pf-actions" style="margin-top:10px">
+          <button class="btn" id="mg-auto">Auto Compose</button>
+          <button class="btn" id="mg-render">Render Video</button>
+          <button class="btn" id="mg-export-frame">Export Frame</button>
+        </div>
+        <div class="mg-grid" style="margin-top:12px">
+          <div>
+            <div id="mg-drop" class="pf-dropzone">Déposez images/vidéos ici
+              <input id="mg-input" type="file" accept="image/*,video/*" multiple style="margin-top:8px">
+            </div>
+            <div class="pf-actions" style="margin-top:10px">
+              <input id="mg-audio" type="file" accept="audio/*" class="pf-input" placeholder="Piste audio">
+            </div>
+            <div class="pf-actions" style="margin-top:10px">
+              <select id="mg-template" class="pf-select">
+                <option value="720x1280">Instagram Vertical (720x1280)</option>
+                <option value="1080x1920">Instagram Vertical (1080x1920)</option>
+                <option value="1920x1080">YouTube Horizontal (1920x1080)</option>
+                <option value="1280x720">YouTube Horizontal (1280x720)</option>
+              </select>
+              <select id="mg-transition" class="pf-select">
+                <option value="none">Transition: None</option>
+                <option value="crossfade">Transition: Crossfade</option>
+                <option value="slide">Transition: Slide</option>
+              </select>
+            </div>
+            <div id="mg-timeline" class="mg-timeline" style="margin-top:10px"></div>
+            <div class="pf-actions" style="margin-top:10px">
+              <input id="mg-width" class="pf-input" placeholder="Largeur (ex: 720)" value="720">
+              <input id="mg-height" class="pf-input" placeholder="Hauteur (ex: 1280)" value="1280">
+              <input id="mg-fps" class="pf-input" placeholder="FPS (ex: 30)" value="30">
+              <input id="mg-duration" class="pf-input" placeholder="Durée par image (s)" value="3">
+            </div>
+            <div class="pf-actions" style="margin-top:10px">
+              <input id="mg-overlay-text" class="pf-input" placeholder="Overlay texte / hashtags">
+              <select id="mg-overlay-pos" class="pf-select">
+                <option value="bottom">Overlay: Bas</option>
+                <option value="top">Overlay: Haut</option>
+              </select>
+              <input id="mg-overlay-size" class="pf-input" placeholder="Taille texte (px)" value="28">
+            </div>
+          </div>
+          <div>
+            <canvas id="mg-canvas" width="720" height="1280" style="width:100%; border:1px solid var(--border); border-radius:14px; background: rgba(255,255,255,0.03)"></canvas>
+            <video id="mg-video" controls style="margin-top:10px; width:100%; border:1px solid var(--border); border-radius:12px"></video>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="view-projects" class="panel" style="display:none;">
+      <div class="chips"><span class="chip">Réseaux</span></div>
+      <div class="title">Réseaux</div>
+      <div class="subtitle">Gérer les réseaux et l’autopublication.</div>
+      <div class="metrics">
+        <div class="metric glass"><div class="val">7</div><div class="label">ACTIVE</div></div>
+        <div class="metric glass"><div class="val">3</div><div class="label">IN REVIEW</div></div>
+        <div class="metric glass"><div class="val">12</div><div class="label">BACKLOG</div></div>
+      </div>
+      <div class="card glass" style="margin-top:16px;">
+        <div class="card-title">Pipeline</div>
+        <div class="progress"><span style="width:52%"></span></div>
+      </div>
+      <div class="card glass" style="margin-top:16px;">
+        <div class="card-title">Social Networks</div>
+        <div class="socials" style="margin-top:10px;">
+          <div class="social-icon" data-net="instagram" title="Instagram"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="5" fill="none" stroke="currentColor"/><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg></div>
+          <div class="social-icon" data-net="facebook" title="Facebook"><svg viewBox="0 0 24 24"><path d="M14 8h3V4h-3c-2.2 0-4 1.8-4 4v3H7v4h3v5h4v-5h3l1-4h-4V8c0-.6.4-1 1-1z" fill="none" stroke="currentColor"/></svg></div>
+          <div class="social-icon" data-net="tiktok" title="TikTok"><svg viewBox="0 0 24 24"><path d="M15 5c1.2 1.6 2.7 2.5 4.5 2.7v3.1c-1.7-.1-3.2-.7-4.5-1.6v5.2a4.5 4.5 0 1 1-4.5-4.5c.5 0 1 .1 1.5.2V8.1" fill="none" stroke="currentColor"/></svg></div>
+          <div class="social-icon" data-net="threads" title="Threads"><svg viewBox="0 0 24 24"><path d="M12 3c5.5 0 9 3.2 9 9s-3.5 9-9 9-9-3.2-9-9 3.5-9 9-9zm4.2 9.5c-.3-2.5-2.2-3.7-4.5-3.7-2.6 0-4.2 1.6-4.2 3.9 0 2.4 1.9 3.9 4.3 3.9 1.4 0 2.6-.4 3.3-1.2" fill="none" stroke="currentColor"/></svg></div>
+          <div class="social-icon" data-net="youtube" title="YouTube"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="4" fill="none" stroke="currentColor"/><path d="M10 10l5 2-5 2v-4z" fill="currentColor"/></svg></div>
+          <div class="social-icon" data-net="twitter" title="X / Twitter"><svg viewBox="0 0 24 24"><path d="M4 4l8 8-8 8h4l6-6 6 6h4l-8-8 8-8h-4l-6 6-6-6H4z" fill="none" stroke="currentColor"/></svg></div>
+          <div class="social-icon" data-net="telegram" title="Telegram"><svg viewBox="0 0 24 24"><path d="M21 3L3 11l6 2 2 6 3-4 4-10z" fill="none" stroke="currentColor"/></svg></div>
+          <div class="social-icon" data-net="discord" title="Discord"><svg viewBox="0 0 24 24"><path d="M7 6c3-1 7-1 10 0l2 2v8l-2 1c-3 1-7 1-10 0l-2-1V8l2-2z" fill="none" stroke="currentColor"/><circle cx="9" cy="12" r="1.2" fill="currentColor"/><circle cx="15" cy="12" r="1.2" fill="currentColor"/></svg></div>
+          <div class="social-icon" data-net="linkedin" title="LinkedIn"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="5" height="16" fill="none" stroke="currentColor"/><rect x="10" y="10" width="11" height="10" fill="none" stroke="currentColor"/><circle cx="5.5" cy="6.5" r="1.2" fill="currentColor"/></svg></div>
+          <div class="social-icon" data-net="pinterest" title="Pinterest"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor"/><path d="M10 18l1.5-5.5c-.6-.4-1-.9-1-1.7 0-1.7 1.4-3 3.2-3 2.2 0 3.8 1.6 3.8 3.7 0 2.2-1.6 3.8-3.7 3.8-.5 0-1-.1-1.4-.3" fill="none" stroke="currentColor"/></svg></div>
+        </div>
+      </div>
+      <div class="card glass" style="margin-top:16px;">
+        <div class="card-title">Autopublication</div>
+        <div class="pf-actions" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap">
+          <input id="rx-query" class="pf-input" placeholder="Requête médias (ex: surf)" value="surf">
+          <select id="rx-type" class="pf-select">
+            <option value="image">Images</option>
+            <option value="video">Vidéos</option>
+          </select>
+          <label><input type="checkbox" id="rx-src-pexels" checked> Pexels</label>
+          <label><input type="checkbox" id="rx-src-unsplash" checked> Unsplash</label>
+          <label><input type="checkbox" id="rx-src-pixabay" checked> Pixabay</label>
+        </div>
+        <div class="pf-actions" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap">
+          <label><input type="checkbox" id="rx-net-instagram" checked> Instagram</label>
+          <label><input type="checkbox" id="rx-net-facebook"> Facebook</label>
+          <label><input type="checkbox" id="rx-net-tiktok"> TikTok</label>
+          <label><input type="checkbox" id="rx-net-youtube"> YouTube</label>
+          <label><input type="checkbox" id="rx-net-twitter"> Twitter</label>
+        </div>
+        <div class="pf-actions" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap">
+          <label><input type="checkbox" id="rx-autopost"> Activer autopublication</label>
+          <input id="rx-interval" class="pf-input" placeholder="Intervalle (min)" value="15">
+        </div>
+        <div class="pf-actions" style="margin-top:10px">
+          <button class="btn" id="rx-start">Préparer lot</button>
+          <button class="btn" id="rx-go">GO Publication</button>
+          <button class="btn" id="rx-stop">Stop</button>
+        </div>
+      </div>
+      <div class="card glass" style="margin-top:16px;">
+        <div class="card-title">File d’attente</div>
+        <div style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+          <div id="rx-queue-count" class="pf-badge">0 en attente</div>
+          <div id="rx-next" class="pf-badge">Prochain: -</div>
+          <button class="btn" id="rx-refresh-queue">Rafraîchir</button>
+          <button class="btn" id="rx-clear-queue">Vider</button>
+        </div>
+        <div id="rx-queue" class="nm-grid" style="margin-top:10px"></div>
+      </div>
+      <div class="card glass" style="margin-top:16px;">
+        <div class="card-title">Historique</div>
+        <div id="rx-history" class="rx-history" style="margin-top:10px"></div>
+      </div>
+    </div>
+    <div id="view-platform" class="panel" style="display:none;">
+      <div class="chips"><span class="chip">Platform</span><span id="platform-pill" class="chip pill"></span></div>
+      <div class="title" id="platform-title">Réseau</div>
+      <div class="subtitle" id="platform-sub">Actions et statut du réseau sélectionné.</div>
+      <div class="card glass" style="margin-top:16px;">
+        <div class="card-title">Actions</div>
+        <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap">
+          <button class="btn" id="pf-connect">Connect</button>
+          <button class="btn" id="pf-publish">Publish</button>
+          <button class="btn" id="pf-status">Status</button>
+          <button class="btn" id="pf-cookies">Check Cookies</button>
+          <button class="btn" id="pf-force-sync">Force Sync</button>
+          <button class="btn" id="pf-save-local">Save Local</button>
+          <button class="btn" id="pf-load-local">Load Local</button>
+          <button class="btn" id="pf-apply-cookies">Apply</button>
+        </div>
+        <div style="margin-top:10px; display:flex; align-items:center; gap:10px">
+          <div id="pf-sync-badge" class="pf-badge">Sync</div>
+          <div id="platform-output" style="opacity:0.85"></div>
+        </div>
+      </div>
+      <div class="pf-grid">
+        <div class="card glass">
+          <div class="card-title">Profile</div>
+          <div class="pf-profile" style="margin-top:10px">
+            <div class="pf-avatar"><img id="pf-avatar" alt=""></div>
+            <div class="pf-fields">
+              <input id="pf-profile-url" class="pf-input" placeholder="URL de profil (ex: https://instagram.com/monprofil)">
+              <input id="pf-avatar-input" type="file" accept="image/*" class="pf-input">
+              <input id="pf-username" class="pf-input" placeholder="Nom d’utilisateur">
+              <textarea id="pf-bio" class="pf-textarea" placeholder="Bio"></textarea>
+              <div class="pf-actions"><button class="btn" id="pf-save-profile">Save Profile</button></div>
+            </div>
+          </div>
+        </div>
+        <div class="card glass">
+          <div class="card-title">Composer</div>
+          <div class="pf-tabs" id="pf-modes" style="margin-top:10px"></div>
+          <textarea id="pf-caption" class="pf-textarea" placeholder="Description / Caption"></textarea>
+          <input id="pf-hashtags" class="pf-input" placeholder="#hashtags">
+          <div id="pf-media-drop" class="pf-dropzone" style="margin-top:10px">
+            Déposez une image/vidéo ici ou choisissez un fichier
+            <input id="pf-media-input" type="file" accept="image/*,video/*" style="margin-top:8px">
+          </div>
+          <div class="pf-actions" style="margin-top:10px"><button class="btn" id="pf-save-draft">Save Draft</button><button class="btn" id="pf-preview">Preview</button></div>
+          <div class="pf-preview" id="pf-preview-card" style="margin-top:10px">
+            <div class="pp-head"><div class="pp-avatar"><img id="pp-avatar" alt=""></div><div class="pp-user" id="pp-username"></div><div id="pp-mode" style="margin-left:auto; opacity:0.7"></div></div>
+            <div class="pp-caption" id="pp-caption"></div>
+            <div class="pp-media" id="pp-media"></div>
+          </div>
+        </div>
+      </div>
+      <div class="card glass" style="margin-top:12px;">
+        <div class="card-title">Import JSON</div>
+        <textarea id="pf-cookies-json" style="margin-top:8px; width:100%; height:100px; border-radius:12px; border:1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--text); padding:10px"></textarea>
+        <div style="margin-top:10px"><button class="btn" id="pf-import-json">Import</button></div>
+      </div>
+    </div>
+    <div id="view-nami" class="panel" style="display:none;">
+      <div class="chips"><span class="chip">Nami</span></div>
+      <div class="title">Nami Robot</div>
+      <div class="subtitle">Recherche d’images, vidéos, sons, effets pour vos montages.</div>
+      <div class="card glass" style="margin-top:16px;">
+        <div class="card-title">Sources & Recherche</div>
+        <div class="pf-actions" style="margin-top:10px">
+          <input id="nm-query" class="pf-input" placeholder="Requête (ex: surf, océan, soleil)" value="surf">
+          <select id="nm-type" class="pf-select">
+            <option value="image">Images</option>
+            <option value="video">Vidéos</option>
+            <option value="audio">Sons</option>
+            <option value="effect">Effets</option>
+          </select>
+          <button class="btn" id="nm-search">Chercher</button>
+          <button class="btn" id="nm-autosource">AutoSource</button>
+        </div>
+        <div class="pf-actions" style="margin-top:10px; gap:10px; display:flex; flex-wrap:wrap">
+          <label><input type="checkbox" id="nm-src-pexels" checked> Pexels</label>
+          <label><input type="checkbox" id="nm-src-unsplash" checked> Unsplash</label>
+          <label><input type="checkbox" id="nm-src-pixabay" checked> Pixabay</label>
+        </div>
+      </div>
+      <div class="card glass" style="margin-top:12px;">
+        <div class="card-title">Résultats</div>
+        <div id="nm-results" class="nm-grid" style="margin-top:10px"></div>
+        <div class="pf-actions" style="margin-top:10px">
+          <input id="nm-import" type="file" accept="image/*,video/*,audio/*" multiple class="pf-input">
+          <button class="btn" id="nm-add-montage">Ajouter à Montage</button>
+        </div>
+      </div>
+    </div>
+    <div id="view-settings" class="panel" style="display:none;">
+      <div class="chips"><span class="chip">Preferences</span></div>
+      <div class="title">Settings</div>
+      <div class="subtitle">Configurer le tableau de bord.</div>
+      <div class="metrics">
+        <div class="metric glass"><div class="val">Dark</div><div class="label">THEME</div></div>
+        <div class="metric glass"><div class="val">FR</div><div class="label">LANG</div></div>
+        <div class="metric glass"><div class="val">ON</div><div class="label">LIVE</div></div>
+      </div>
+      <div class="card glass" style="margin-top:16px;">
+        <div class="card-title">Status</div>
+        <div class="progress"><span style="width:88%"></span></div>
+      </div>
+      <div style="margin-top:16px;">
+        <button class="btn" id="theme-toggle">Basculer le thème</button>
+      </div>
+    </div>
+  </main>
+  <div id="toasts" class="toast-container"></div>
+  <script src="js/app.js"></script>
+</body>
+</html>

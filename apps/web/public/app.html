@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+
+<meta name="mobile-web-app-capable" content="yes">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DoSurf - Conditions Live</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <p>Chargement des spots...</p>
+    </div>
+
+    <nav>
+        <div class="logo">DoSurf.</div>
+        <ul>
+            <li><a href="index.html" data-i18n="nav.map">Carte</a></li>
+            <li><a href="#" class="active" data-i18n="nav.map">Carte</a></li>
+        </ul>
+        <div class="nav-actions">
+          <select id="lang-select" class="lang-select">
+            <option value="fr">FR</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+          </select>
+          <button class="cta" data-modal="support" data-i18n="nav.support">Soutenir</button>
+          <div class="user-profile" data-modal="auth" data-i18n="nav.login">Se connecter</div>
+        </div>
+    </nav>
+
+    <main class="app-layout">
+        <section class="left-panel">
+            <div class="map-container" id="surf-map"></div>
+            <div class="spot-info" id="spot-details">
+                <p style="color: #666;">Sélectionnez un spot sur la carte...</p>
+            </div>
+        </section>
+
+        <section class="right-panel">
+            <div class="hero-stats">
+                <div>
+                    <h1>Conditions Globales</h1>
+                    <p>Mise à jour dans <span id="next-refresh">60s</span></p>
+                </div>
+                <div class="global-metrics">
+                    <div class="metric"><span class="label">Swell</span><span class="value" id="global-swell">--</span></div>
+                    <div class="metric"><span class="label">Vent</span><span class="value" id="global-wind">--</span></div>
+                    <div class="metric"><span class="label">Temp</span><span class="value" id="global-temp">--</span></div>
+                </div>
+            </div>
+            <hr>
+            <div class="grid-container" id="conditions-grid"></div>
+            <div class="news-feed">
+                <h3>Flash Info Surf</h3>
+                <div id="news-grid"></div>
+            </div>
+        </section>
+    </main>
+
+<footer class="footer">
+  <div class="footer-inner" style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; padding: 0 20px;">
+    <div>
+      <p>© 2026 SurfSense — IA Marine Premium</p>
+      <p style="color: var(--muted); font-size: 0.75rem;">Robots: 11 • Source: Stormglass v2 • Quota: 500 req/j</p>
+    </div>
+    <div class="footer-legal-links" style="display: flex; gap: 25px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">
+      <a href="#" data-modal="legal-mentions" style="color: var(--muted);">Mentions Légales</a>
+      <a href="#" data-modal="legal-cgu" style="color: var(--muted);">CGU</a>
+      <a href="#" data-modal="legal-rgpd" style="color: var(--muted);">Confidentialité</a>
+      <a href="contact.html" style="color: var(--muted);">Contact</a>
+    </div>
+  </div>
+</footer>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="app.js"></script>
+
+    <script>
+        setTimeout(() => {
+            const loader = document.getElementById('loader');
+            if (loader) { loader.style.display = 'none'; }
+        }, 4000);
+    </script>
+
+    <div class="modal" id="auth-modal">
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-content">
+    <button class="modal-close" data-modal-close>✕</button>
+
+    <div id="auth-login-view">
+      ...
+    </div>
+
+    <div id="auth-register-view" style="display:none;">
+      ...
+    </div>
+
+    <div id="auth-2fa-view" style="display:none;">
+      ...
+    </div>
+
+  </div>
+</div>
+
+<div class="modal" id="legal-modal">
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-content tech-modal" style="max-width: 800px;">
+    <button class="modal-close" data-modal-close>✕</button>
+    <div class="tech-header">
+        <span class="tech-label">LEGAL DOCUMENTATION</span>
+        <h2 id="legal-title">TITRE DU DOCUMENT</h2>
+    </div>
+    <div id="legal-body" style="overflow-y: auto; max-height: 60vh; padding: 20px 0; color: #94a3b8; font-size: 0.9rem; line-height: 1.7;">
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="support-modal">
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-content tech-modal" style="max-width: 720px;">
+    <div class="tech-header">
+        <span class="tech-label" data-i18n="support.title">Soutenir SurfSense</span>
+        <h2 data-i18n="support.desc">Vos dons financent l’hébergement, l’API météo et le développement.</h2>
+    </div>
+    <div style="overflow-y: auto; max-height: 64vh; padding: 10px 0;">
+      <h3 style="margin:10px 0;" data-i18n="support.breakdown.title">À quoi servent vos dons ?</h3>
+      <ul style="color:#94a3b8; font-size:0.9rem; line-height:1.7; margin:0 0 12px 0; padding-left:18px;">
+        <li data-i18n="support.breakdown.hosting">Hébergement/serveur, bande passante et CDN.</li>
+        <li data-i18n="support.breakdown.api">Abonnement API météo (Stormglass Premium).</li>
+        <li data-i18n="support.breakdown.domain">Nom de domaine, certificats SSL et maintenance.</li>
+        <li data-i18n="support.breakdown.dev">Développement des robots et des nouvelles fonctionnalités.</li>
+      </ul>
+      <div style="display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px; margin:12px 0;">
+        <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="5" style="display:none;"><span>5€</span></label>
+        <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="10" style="display:none;"><span>10€</span></label>
+        <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="20" style="display:none;"><span>20€</span></label>
+        <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="50" style="display:none;"><span>50€</span></label>
+        <label class="ghost-pill" style="text-align:center; cursor:pointer;"><input type="radio" name="support-amount" value="100" style="display:none;"><span>100€</span></label>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <input type="number" id="support-amount-custom" min="1" step="1" placeholder="Montant libre" style="width:100%; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 10px; color: #fff; font-size: 0.95rem;" />
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <div id="support-applepay-btn" style="display:none;"></div>
+        <button id="support-continue" class="primary" data-i18n="support.cta.continue">Payer par carte</button>
+      </div>
+      <div id="support-paypal-btn" style="display:none; margin-top:10px;"></div>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button id="support-copy-email" class="ghost-pill" data-i18n="support.cta.copy">Copier l’adresse email</button>
+      </div>
+      <div class="trust-row">
+        <span class="lock">🔒</span>
+        <span>Paiement sécurisé via Stripe</span>
+        <span class="sub">Checkout hébergé — aucune carte traitée par SurfSense</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

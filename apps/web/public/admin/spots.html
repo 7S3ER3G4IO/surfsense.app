@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Spots</title>
+  <link rel="icon" href="../logo.svg" type="image/svg+xml" />
+  <style>
+    /* ... Shared Premium CSS ... */
+    :root { --bg-dark: #0f172a; --card-bg: #1e293b; --accent: #8b5cf6; --accent-hover: #7c3aed; --text-primary: #f8fafc; --text-secondary: #94a3b8; --border-color: #334155; --success: #22c55e; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; }
+    body { background-color: var(--bg-dark); color: var(--text-primary); font-family: 'Inter', system-ui, -apple-system, sans-serif; margin: 0; height: 100vh; overflow: hidden; }
+    .admin-container { display: grid; grid-template-columns: 260px 1fr; height: 100vh; }
+    .admin-sidebar { background: #0b0f19; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; }
+    .main-content { overflow-y: auto; padding: 32px; background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.05), transparent 40%); }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; }
+    .page-title h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px; }
+    .page-title p { margin: 8px 0 0 0; color: var(--text-secondary); font-size: 14px; }
+    .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; margin-bottom: 24px; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: 16px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 14px; }
+    .table th { color: var(--text-secondary); font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border-color); background: transparent; color: var(--text-primary); cursor: pointer; margin-right: 6px; }
+    .btn-sm:hover { background: #334155; }
+    .btn-primary { border-color: var(--accent); color: var(--accent); }
+    .btn-primary:hover { background: rgba(139, 92, 246, 0.1); }
+    .badge { padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: #334155; color: #94a3b8; }
+    .badge-live { background: rgba(34, 197, 94, 0.1); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.2); }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    <aside class="admin-sidebar">
+      <div style="padding: 24px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-color);">
+        <img src="../logo.svg" alt="logo" width="28" height="28"/>
+        <span style="font-weight: 800; font-size: 18px; letter-spacing: -0.5px;">Admin Panel</span>
+      </div>
+      <nav id="admin-nav" style="flex: 1; padding: 16px; overflow-y: auto;"></nav>
+    </aside>
+    
+    <main class="main-content">
+      <div class="header">
+        <div class="page-title">
+          <h1>Gestion des Spots</h1>
+          <p>État en temps réel et contrôles individuels</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Spot Name</th>
+              <th>Région</th>
+              <th>Statut</th>
+              <th style="text-align:right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="spots-body">
+            <!-- JS Rendered -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (function(){
+      fetch("/admin/nav.html").then(r=>r.text()).then(html=>{
+        document.getElementById('admin-nav').innerHTML = html;
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('#admin-nav a').forEach(link => {
+          if(link.getAttribute('href') === currentPath.split('/').pop()) link.classList.add('active');
+        });
+      });
+
+      const params = new URLSearchParams(window.location.search);
+      const tParam = params.get("token");
+      if (tParam) { try { localStorage.setItem("surfAdminToken", tParam); history.replaceState({}, "", window.location.pathname); } catch {} }
+      const tok = localStorage.getItem("surfAdminToken") || "";
+      const headers = tok ? { "x-admin-token": tok, "Content-Type":"application/json" } : { "Content-Type":"application/json" };
+      
+      const q = (id) => document.getElementById(id);
+
+      async function loadSpots() {
+        try {
+          const r = await fetch("/api/admin/spots", { headers });
+          if (!r.ok) throw new Error("Unauthorized");
+          const arr = await r.json();
+          q("spots-body").innerHTML = arr.map(s => `
+            <tr>
+              <td style="font-weight:500;">${s.name}</td>
+              <td style="color:var(--text-secondary);">${s.region}</td>
+              <td><span class="badge ${s.status === 'active' ? 'badge-live' : ''}">${s.status}</span></td>
+              <td style="text-align:right">
+                <button data-act="refresh" data-name="${s.name}" class="btn-sm">🔄 Refresh</button>
+                <button data-act="clear" data-name="${s.name}" class="btn-sm">🗑️ Clear</button>
+                <button data-act="priority" data-name="${s.name}" class="btn-sm btn-primary">⭐ Priorité</button>
+              </td>
+            </tr>
+          `).join("");
+        } catch {
+           localStorage.removeItem("surfAdminToken");
+           window.location.href = "../index.html";
+        }
+      }
+
+      document.addEventListener("click", async (e) => {
+        const b = e.target.closest("button");
+        if (!b) return;
+        const name = b.getAttribute("data-name");
+        const act = b.getAttribute("data-act");
+        if (!name || !act) return;
+        
+        try {
+            if (act === "refresh") await fetch("/api/admin/spots/refresh", { method:"POST", headers, body: JSON.stringify({ name }) });
+            if (act === "clear") await fetch("/api/admin/spots/clear", { method:"POST", headers, body: JSON.stringify({ name }) });
+            if (act === "priority") await fetch("/api/admin/spots/priority/toggle", { method:"POST", headers, body: JSON.stringify({ name }) });
+            loadSpots();
+        } catch(e) { alert("Erreur action"); }
+      });
+
+      loadSpots();
+    })();
+  </script>
+</body>
+</html>

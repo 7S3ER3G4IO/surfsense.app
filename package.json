@@ -1,0 +1,19 @@
+{
+  "name": "social-autopilot",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "test": "pnpm -r run test",
+    "lint": "pnpm -r run lint",
+    "db:migrate": "pnpm --filter api exec prisma migrate dev",
+    "db:generate": "pnpm --filter api exec prisma generate",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "packageManager": "pnpm@10.29.3",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
