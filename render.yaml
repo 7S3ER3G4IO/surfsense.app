@@ -52,13 +52,16 @@ services:
     # Removed NEXT_PUBLIC_API_URL to avoid circular dependency prompt during creation.
     # We will add it manually once the API URL is known.
 
+  # Redis Service
+  - type: redis
+    name: social-autopilot-redis
+    plan: free
+    region: oregon
+    ipAllowList: [] # Allow all internal connections by default within Render
+
 databases:
   - name: social-autopilot-db
     plan: free
     databaseName: surfsense
     user: surfsense
-    region: oregon
-
-  - name: social-autopilot-redis
-    plan: free
     region: oregon
