@@ -5,7 +5,7 @@ services:
     env: node
     plan: free
     rootDir: .
-    buildCommand: pnpm install && pnpm --filter api... build
+    buildCommand: npm install -g pnpm && pnpm install && pnpm --filter api... build
     startCommand: pnpm --filter api start:prod
     envVars:
       - key: DATABASE_URL
@@ -26,7 +26,7 @@ services:
     env: node
     plan: free
     rootDir: .
-    buildCommand: pnpm install && pnpm --filter worker... build
+    buildCommand: npm install -g pnpm && pnpm install && pnpm --filter worker... build
     startCommand: pnpm --filter worker start:prod
     envVars:
       - key: DATABASE_URL
@@ -43,14 +43,11 @@ services:
     env: node
     plan: free
     rootDir: .
-    buildCommand: pnpm install && pnpm --filter web... build
+    buildCommand: npm install -g pnpm && pnpm install && pnpm --filter web... build
     startCommand: pnpm --filter web start
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: social-autopilot-api
-          property: host
+        sync: false
 
 databases:
   - name: social-autopilot-redis
