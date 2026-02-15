@@ -1464,16 +1464,32 @@ const createVideoFromImage = async (imageUrl, spotName = "Spot") => {
 // --- ADVANCED VIDEO MONTAGE GENERATOR ---
 const generateVideoMontage = async (spotName, opts = {}) => {
     robotLog(ROBOTS.NEWS, "VIDEO", `Génération montage vidéo intelligent pour ${spotName}...`);
-    const browser = await (async () => {
+    const makeFallback = async () => {
+        try {
+            const base = process.env.BASE_URL || "https://swellsync.fr";
+            const img = `${base}/og/post.png?spot=${encodeURIComponent(spotName || "Spot")}`;
+            const tempVideo = await createVideoFromImage(img, spotName || "Spot");
+            const slug = String(spotName || "video").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "video";
+            const out = path.join(GENERATED_VIDEOS_DIR, `${slug}_${Date.now()}.mp4`);
+            try { fs.renameSync(tempVideo, out); } catch { fs.copyFileSync(tempVideo, out); try { fs.unlinkSync(tempVideo); } catch {} }
+            return out;
+        } catch (e) {
+            throw e;
+        }
+    };
+    let browser = null;
+    if (!HEADLESS_ONLY) {
         const exec = resolveChromeExecutable();
         const args = ["--no-sandbox", "--disable-setuid-sandbox"];
         if (exec) {
-            try { return await puppeteer.launch({ headless: "new", executablePath: exec, args }); } catch {}
+            try { browser = await puppeteer.launch({ headless: "new", executablePath: exec, args }); } catch {}
         }
-        try { return await puppeteer.launch({ headless: "new", channel: "chrome", args }); } catch {}
-        return await puppeteer.launch({ headless: "new", args });
-    })();
-    
+        if (!browser) {
+            try { browser = await puppeteer.launch({ headless: "new", args }); } catch {}
+        }
+    }
+    if (!browser) return await makeFallback();
+ 
     const slidePaths = [];
     const slug = String(spotName || "video").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "video";
     const outputVideo = path.join(GENERATED_VIDEOS_DIR, `${slug}_${Date.now()}.mp4`);
@@ -2424,7 +2440,89 @@ app.post("/api/admin/social/post-all", async (req, res) => {
         if (!ok) emitMarketingEvent({ type: "error", network: net, mode: r.mode });
         continue;
       }
-      if (net === "tiktok") {
+      if (net === "pinterest") {
+      if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+        // Assuming image is needed
+        await socialAutomator.postToPinterest(p.image, p.text, { boardName: p.board || "Spot", link: p.link || "https://swellsync.fr" });
+        return res.json({ success: true, mode: "stealth" });
+      }
+      return res.status(400).json({ success: false, error: "pinterest nécessite navigateur" });
+    }
+    if (net === "discord") {
+      if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+         await socialAutomator.postToDiscord(p.text, { channelUrl: conf.profileUrl }, p.image);
+         return res.json({ success: true, mode: "stealth" });
+      }
+      // Or Webhook fallback if supported
+      if (conf.webhook) {
+         await fetch(conf.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
+         return res.json({ success: true, mode: "webhook" });
+      }
+      return res.status(400).json({ success: false, error: "discord nécessite navigateur ou webhook" });
+    }
+    if (net === "snapchat") {
+      if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+         await socialAutomator.postToSnapchat(p.image, p.text);
+         return res.json({ success: true, mode: "stealth" });
+      }
+      return res.status(400).json({ success: false, error: "snapchat nécessite navigateur" });
+    }
+    if (net === "linkedin") {
+      if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+         await socialAutomator.postToLinkedIn(p.text, p.image);
+         return res.json({ success: true, mode: "stealth" });
+      }
+      return res.status(400).json({ success: false, error: "linkedin nécessite navigateur" });
+    }
+    if (net === "outlook") {
+      if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+         await socialAutomator.postToOutlook(p.to || "swellsync@outlook.fr", p.subject || "Spot", p.text);
+         return res.json({ success: true, mode: "stealth" });
+      }
+      return res.status(400).json({ success: false, error: "outlook nécessite navigateur" });
+    }
+    if (net === "pinterest") {
+      if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+        // Assuming image is needed
+        await socialAutomator.postToPinterest(p.image, p.text, { boardName: p.board || "Spot", link: p.link || "https://swellsync.fr" });
+        return res.json({ success: true, mode: "stealth" });
+      }
+      return res.status(400).json({ success: false, error: "pinterest nécessite navigateur" });
+    }
+    if (net === "discord") {
+      if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+         await socialAutomator.postToDiscord(p.text, { channelUrl: conf.profileUrl }, p.image);
+         return res.json({ success: true, mode: "stealth" });
+      }
+      // Or Webhook fallback if supported
+      if (conf.webhook) {
+         await fetch(conf.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
+         return res.json({ success: true, mode: "webhook" });
+      }
+      return res.status(400).json({ success: false, error: "discord nécessite navigateur ou webhook" });
+    }
+    if (net === "snapchat") {
+      if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+         await socialAutomator.postToSnapchat(p.image, p.text);
+         return res.json({ success: true, mode: "stealth" });
+      }
+      return res.status(400).json({ success: false, error: "snapchat nécessite navigateur" });
+    }
+    if (net === "linkedin") {
+      if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+         await socialAutomator.postToLinkedIn(p.text, p.image);
+         return res.json({ success: true, mode: "stealth" });
+      }
+      return res.status(400).json({ success: false, error: "linkedin nécessite navigateur" });
+    }
+    if (net === "outlook") {
+      if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+         await socialAutomator.postToOutlook(p.to || "swellsync@outlook.fr", p.subject || "Spot", p.text);
+         return res.json({ success: true, mode: "stealth" });
+      }
+      return res.status(400).json({ success: false, error: "outlook nécessite navigateur" });
+    }
+    if (net === "tiktok") {
         if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
           let videoToPost = p.image;
           if (!videoToPost.endsWith(".mp4")) videoToPost = await generateVideoMontage(p.spot || "Spot");
@@ -2510,8 +2608,17 @@ app.post("/api/admin/social/post", async (req, res) => {
       return res.json({ success: true, mode: "direct" });
     }
     if (net === "threads") {
-      await postToThreads(p.image, p.text);
-      return res.json({ success: true, mode: "direct" });
+      if (socialAutomator.hasBrowser() && !HEADLESS_ONLY) {
+        await socialAutomator.postToThreads(p.image, p.text);
+        return res.json({ success: true, mode: "stealth" });
+      }
+      // If headless, maybe webhook? But threads is stealth mostly.
+      // Fallback
+      if (conf.webhook) {
+         await fetch(conf.webhook, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(p) });
+         return res.json({ success: true, mode: "webhook" });
+      }
+      return res.status(400).json({ success: false, error: "threads nécessite navigateur ou webhook" });
     }
     if (net === "telegram") {
       await postToTelegram(p.image, p.text);
