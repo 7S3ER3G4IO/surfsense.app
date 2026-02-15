@@ -20,25 +20,6 @@ services:
       - key: JWT_SECRET
         generateValue: true
 
-  # Legacy API Service (SurfSense Backend)
-  - type: web
-    name: surfsense-legacy-api
-    env: node
-    plan: free
-    rootDir: .
-    buildCommand: npm install
-    startCommand: node server.js
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DATABASE_URL
-        sync: false
-      - key: PUPPETEER_CACHE_DIR
-        value: /opt/render/.cache/puppeteer
-      - key: PUPPETEER_PRODUCT
-        value: chrome
-      # Add other secrets from original project here
-
   # Worker Service
   - type: worker
     name: social-autopilot-worker
@@ -56,7 +37,7 @@ services:
           name: social-autopilot-redis
           property: connectionString
 
-  # Frontend Service (Next.js + SwellSync Static)
+  # Frontend Service (Next.js SaaS)
   - type: web
     name: social-autopilot-web
     env: node
@@ -69,11 +50,6 @@ services:
         fromService:
           type: web
           name: social-autopilot-api
-          property: url
-      - key: LEGACY_API_URL
-        fromService:
-          type: web
-          name: surfsense-legacy-api
           property: url
 
 databases:
