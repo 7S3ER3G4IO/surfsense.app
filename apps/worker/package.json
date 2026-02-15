@@ -5,6 +5,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/main.js",
+    "start:prod": "node dist/main.js",
     "dev": "ts-node src/main.ts"
   },
   "dependencies": {
