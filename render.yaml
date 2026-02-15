@@ -25,7 +25,7 @@ services:
     name: surfsense-legacy-api
     env: node
     plan: free
-    rootDir: apps/legacy
+    rootDir: .
     buildCommand: npm install
     startCommand: node server.js
     envVars:
