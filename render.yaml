@@ -6,7 +6,7 @@ services:
     plan: free
     rootDir: .
     buildCommand: npm install -g pnpm && pnpm install && pnpm --filter api... build
-    startCommand: pnpm --filter api start:prod
+    startCommand: cd apps/api && node dist/main
     envVars:
       - key: DATABASE_URL
         sync: false
