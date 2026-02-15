@@ -1,0 +1,57 @@
+# Node
+node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+
+# Next.js
+.next/
+out/
+build/
+
+# NestJS
+dist/
+
+# Env
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor
+.vscode/
+.idea/
+.trae/
+
+# Large Files & Binaries (ignored to avoid Git size limits)
+*.zip
+*.tar
+*.gz
+*.rar
+*.7z
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.mp3
+*.wav
+*.flac
+apps/legacy/nami/dist/
+apps/legacy/nami/node_modules/
+apps/web/public/generated/nami/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
