@@ -9,7 +9,7 @@ services:
     startCommand: pnpm --filter api start:prod
     envVars:
       - key: DATABASE_URL
-        sync: false # Set manually in dashboard to avoid Blueprint conflict with existing DB
+        sync: false
       - key: REDIS_URL
         fromService:
           type: redis
@@ -20,23 +20,12 @@ services:
       - key: JWT_SECRET
         generateValue: true
 
-  # Worker Service
-  - type: worker
-    name: social-autopilot-worker
-    env: node
-    plan: free
-    rootDir: .
-    buildCommand: npm install -g pnpm && pnpm install && pnpm --filter worker... build
-    startCommand: pnpm --filter worker start:prod
-    envVars:
-      - key: DATABASE_URL
-        sync: false # Set manually in dashboard
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: social-autopilot-redis
-          property: connectionString
-
+  # Worker Service replaced by Background Worker (Free Plan Limitation Fix)
+  # NOTE: Render Free Plan DOES NOT support 'worker' type services.
+  # We must use 'web' type for free background processes, or upgrade plan.
+  # For now, disabling worker to allow successful deployment of the rest.
+  # You can enable it later if you upgrade to a paid plan.
+  
   # Frontend Service (Next.js SaaS)
   - type: web
     name: social-autopilot-web
@@ -45,14 +34,12 @@ services:
     rootDir: .
     buildCommand: npm install -g pnpm && pnpm install && pnpm --filter web... build
     startCommand: pnpm --filter web start
-    # Removed NEXT_PUBLIC_API_URL to avoid circular dependency prompt during creation.
-    # We will add it manually once the API URL is known.
 
   # Redis Service
   - type: redis
     name: social-autopilot-redis
     plan: free
     region: oregon
-    ipAllowList: [] # Allow all internal connections by default within Render
+    ipAllowList: [] 
 
 # Removed databases section entirely to prevent Render trying to manage the external DB
